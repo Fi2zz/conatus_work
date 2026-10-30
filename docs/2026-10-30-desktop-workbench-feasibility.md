@@ -247,6 +247,7 @@ Flutter 官方支持编译为原生 Windows、macOS 和 Linux 桌面应用；Con
 - **任务边界**：当前包是会话 / 轮次粒度，**不直接支持任务级撤销**。首版按「一任务 = 一轮」映射：任务开始时读 `manager.turn` 记为 `startTurn`，收口调用 `recordTurn(lastEventId: 任务结束事件)`（轮次 +1 并快照），应用层维护 `taskId → (startTurn, turn)`；撤销任务 = 回到 `startTurn` 那一轮。并行任务或同轮多任务不在首版；若进入范围，再给 `conatus_checkpoint` 增加 task 边界，而不是在应用层硬分组。
 - **映射成立的前提**（缺一不可）：单任务串行；任务内不调用 `recordTurn`；收口必须 `await recordTurn`，失败也要收口；`keep` 覆盖任务跨度（默认 `keep = 5`，更早的轮次会被裁剪）。
 - **撤销调用**：直接用 `RevertService.undo(current, manager.turn - startTurn)`，不要在应用层重拼「`restoreTo` + 按 `lastEventId` fork」——恢复、分叉、prompt 暂存、确认与失败补偿都在该服务内。注意两点：`undo` 收的是**相对步数**，目标轮次由它算出并校验检查点是否存在（可能已被裁剪）；撤销 / 重做会改 `manager.turn`，`taskId → startTurn` 映射必须重算，不能缓存。
+- **保留策略要按磁盘预算定**：`CheckpointOptions.keep` 默认 5，按轮数裁剪——等于「只能撤最近 5 个任务」，撑不起「文件级可撤销」的产品承诺。首版在 `keep` 之上再加一层清理：以工作区大小与单轮增量估预算，超预算先删最旧轮次，并在界面上明确展示「当前可撤销范围」，不要让用户以为能无限撤。
 - **失败与边界状态按一等状态处理**：
   - `recordTurn` 失败返回错误字符串且**不抛出**，而轮次已先 +1 —— 失败会留下轮次洞，后续 `undo` 的 steps 必须按实际存在的检查点计算，不能假设轮次连续。
   - `recordTurn` 返回 `null` 同时表示「成功」和「未绑定 / 未启用」，应用层要另判 `enabled` 与绑定状态，不能把 `null` 当成功。
@@ -404,6 +405,7 @@ React + Flutter 增加的主要成本：WebView 桥接协议与事件重放；Re
 - 办公产物管线：DOCX / XLSX / PPTX / PDF / CSV 的生成、预览与验收。
 - 应用服务层：工作区与授权目录、办公工具装配、任务模型、产物管理、设置。
 - 任务边界：`taskId → checkpoint turn` 映射；首版一任务一轮。
+- 保留与清理：按磁盘预算裁剪检查点，并在界面标注可撤销范围（默认 `keep = 5` 撑不起「文件级可撤销」）。
 - 工作区策略：只读区域、排除前缀、审批阈值；通过 `CheckpointPolicy` 与
   `ReadOnlyPathGuard` 组合，不依赖系统沙箱。
 - 桌面 UI、WebView 桥接（阶段 1）；安装升级、macOS 签名与公证（阶段 2，见 7.5）。
