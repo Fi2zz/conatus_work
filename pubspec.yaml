@@ -1,0 +1,25 @@
+name: conatus_work
+description: >-
+  基于 conatus 的产品层。只消费 conatus 框架，不进伞包 re-export，不对外发布。
+version: 0.1.0
+repository: https://github.com/Fi2zz/conatus_work
+issue_tracker: https://github.com/Fi2zz/conatus_work/issues
+publish_to: none
+
+environment:
+  sdk: ^3.11.0
+
+# 由 conatus 仓库 tool/setup_code_filter.sh 通过 git filter 管理：工作区为生效
+# 状态、`git add` 时自动注释掉，因此独立 clone 仍按下面的 git 依赖解析。
+# 见 .gitattributes 与本仓库 README「开发」。
+# resolution: workspace
+
+dependencies:
+  # 独立形态经 git 源拉 conatus 伞包；在 conatus 工作区内由 workspace 解析到
+  # 本地根包，改框架源码立刻生效。ref 由 tool/pin_conatus_refs.sh 钉版。
+  conatus:
+    git: {url: https://github.com/Fi2zz/conatus.git, ref: 64edb7930857e36f7a32d5ef4ace95e5371a522f}
+
+dev_dependencies:
+  lints: ^4.0.0
+  test: ^1.25.0

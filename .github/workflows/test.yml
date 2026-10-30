@@ -1,0 +1,37 @@
+# 本仓库 CI：跑**独立形态**（提交态 pubspec，依赖经 git 源拉 conatus）。
+# 跨仓集成（workspace 形态）由 conatus 仓库的 CI 负责，见 conatus
+# `tool/setup_code_filter.sh` 与 `products/` 相关 job。
+name: Test
+
+on:
+  push:
+  pull_request:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: dart-lang/setup-dart@v1
+        with:
+          # 钉版本：format / analyze 输出随 SDK 变化，不钉会让「代码回归」与
+          # 「SDK 行为变化」分不开。升 SDK 请显式改这一行。
+          sdk: "3.12.2"
+
+      # 独立形态要 clone conatus 仓库解析依赖，缓存收益明显。
+      - uses: actions/cache@v6
+        with:
+          path: ~/.pub-cache
+          key: pub-${{ runner.os }}-${{ hashFiles('pubspec.yaml') }}
+          restore-keys: pub-${{ runner.os }}-
+
+      - run: dart pub get
+
+      - run: dart analyze --fatal-infos
+
+      - run: dart test

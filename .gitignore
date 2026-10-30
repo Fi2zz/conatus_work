@@ -1,0 +1,19 @@
+# See https://www.dartlang.org/guides/libraries/private-files
+
+# Files and directories created by pub
+.dart_tool/
+.packages
+build/
+pubspec.lock
+
+# 本地开发用：由 conatus 仓库的 tool/setup_code_filter.sh 生成（见 README）
+pubspec_overrides.yaml
+
+# 运行期状态（会话 / 记忆 / 技能），不入库
+.conatus/
+
+# Directory created by dartdoc
+doc/api/
+
+# dotenv environment variables file
+.env*
