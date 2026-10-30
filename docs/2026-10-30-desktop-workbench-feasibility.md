@@ -15,7 +15,7 @@
 **技术上可行，但不建议直接开发一个通用版 WorkBuddy。**
 
 1. 以 Conatus 为运行时开发本地桌面 Agent 工作台，Agent Loop、会话、模型、MCP、Skills 和定时任务等底层能力可以复用，技术上成立。
-2. Nava 不参与后，其终端 UI、工作区管理与 Checkpoint / Undo 应用层不可复用；文本 diff 已抽成共享包 `conatus_diff`，文件工具正在上提为 `conatus_fs_tools`，Checkpoint 仍只在 Nava 内、未抽包。
+2. Nava 不参与后，其终端 UI、工作区管理与 Checkpoint / Undo 应用层不可复用；文本 diff 已抽成共享包 `conatus_diff`，文件工具正在上提为 `conatus_fs_tools`，Checkpoint 由正在开发的父仓包 `conatus_checkpoint` 提供，本项目最终采用。
 3. 缺口不止桌面 UI：办公工具与产物管线、文件变更保护、操作系统级隔离、桌面发布工程，以及一层把运行时装配成办公能力的应用服务层，都需要新建。
 4. 正面复制 WorkBuddy 的专家团、技能市场、IM 遥控、连接器与团队协作，不适合独立开发者现阶段投入。
 5. 通用「WorkBuddy 替代品」的商业定位偏弱；更值得验证的是：**本地优先、过程可回溯、文件级可撤销的个人 AI 工作台。**
@@ -34,7 +34,7 @@
 - 它有独立仓库、独立版本与独立二进制发布（`dist/nava`），演进节奏由编码产品决定。
 - 本项目目标是桌面办公工作台。以 Nava 为壳，办公能力会被绑到编码产品的形态与发布周期上。
 
-**代价**：应用服务层——工作区、办公工具装配、产物管理、变更保护——从零建设（文件工具实现可复用上提的 `conatus_fs_tools`，装配与策略仍需自建）；阶段 1 工期由 10–14 周上调到 14–20 周，本文按 20 周做计划。
+**代价**：应用服务层——工作区、办公工具装配、产物管理、变更保护——从零建设（文件工具与 checkpoint 可复用上提的 `conatus_fs_tools` / `conatus_checkpoint`，装配、产物与策略仍需自建）；阶段 1 工期由 10–14 周上调到 14–20 周，本文按 20 周做计划。
 
 **复议条件**：若阶段 0 证明主要瓶颈在工具装配而非运行时，且 Nava 应用层已稳定，可重新评估**抽取共用层**，不是整体复用。
 
@@ -73,7 +73,7 @@ Conatus 是 27 个模块包组成的 Dart monorepo，另有 `conatus_code` 子�
 | 本地文件批处理 | FS / Shell 能力缝与本地实现 | 需自行装配办公文件工具与工作区规则 |
 | 任务中断与恢复 | Session、Task Center、任务取消与持久化 | 可复用 |
 | 执行过程追踪 | Session Log 记录模型请求、响应与工具轨迹 | 数据层可复用，追踪界面自建 |
-| 文件变更检查与撤销 | 文本 diff 有 `conatus_diff`；文件工具正上提 `conatus_fs_tools`；Checkpoint 仅 Nava 产品级实现（会话 / 轮次级），未抽包 | diff 与文件工具复用；Checkpoint 与撤销需自建，见 7.3 |
+| 文件变更检查与撤销 | 文本 diff 有 `conatus_diff`；文件工具正上提 `conatus_fs_tools`；Checkpoint 正抽成 `conatus_checkpoint` | 三者都复用；应用层只做装配与呈现，见 7.3 |
 | 文档补丁与人机双写 | `conatus_doc` 提供实验性补丁内核 | 后续研究，非首版成熟能力 |
 | Skills / MCP | 已有，兼容现有技能与 MCP 生态 | 可复用 |
 | 定时自动化 | Cron、Schedule | 可复用 |
@@ -104,7 +104,7 @@ Conatus 是 27 个模块包组成的 Dart monorepo，另有 `conatus_code` 子�
 
 **Nava 的设计参照**（应用层代码不可复用，设计可借鉴；diff 计算已由共享包承担）：
 
-- 变更前快照 + 分阶段确认（`checkpoint`，会话 / 轮次级，仅 Nava 内实现）。
+- 变更前快照 + 分阶段确认（`checkpoint`，会话 / 轮次级，正在上提为 `conatus_checkpoint`）。
 - 差异呈现优先于直接覆盖（呈现与确认在应用层，计算由 `conatus_diff` 承担）。
 - 撤销本身可能失败，因此有补偿式回滚（`revert_compensate`），并把「撤销失败」当成一等状态处理。
 - 权限规则与只读路径分离（`permissions`、`read_only_paths`）。
@@ -117,7 +117,7 @@ Conatus 是 27 个模块包组成的 Dart monorepo，另有 `conatus_code` 子�
 |---|---|---|
 | 办公产物 | 全仓无 xlsx / docx / pptx 支持；PDF 需选库；CSV 只有上下文压缩器，没有解析与生成 | 阶段 0 必须先定选型 |
 | 桌面凭据 | `conatus_credentials` 无 Keychain 源 | BYOK 在 macOS 上的正确落点缺失，需新增一个 source |
-| 变更保护 | diff 内核与文件工具正在上提；Checkpoint 只有 Nava 内实现，未抽包 | 阶段 0/1 需自建最小版（快照、任务边界、撤销） |
+| 变更保护 | diff 与文件工具正在上提；Checkpoint 正抽成 `conatus_checkpoint` | 等包就绪后直接采用，不为临时方案做长期设计 |
 | 隔离 | 无操作系统级沙箱 | 阶段 2 公开分发前补齐；阶段 0/1 以工作区限制兜底 |
 | UI 与桌面工程 | 无窗口、菜单、文件选择器、通知、升级 | 阶段 1 主体工作量；分发与升级属阶段 2 |
 | 评估 | Session Log 有轨迹，没有评估字段（任务 ID、产物路径、是否人工修改、耗时、成本） | 阶段 0 的验收无法量化 |
@@ -159,7 +159,7 @@ Conatus 的 Session Log 为「过程可回溯」提供数据基础；Diff、Chec
 - 输出 Markdown、HTML、PDF、CSV。
 - DOCX / XLSX 作为第二批产物能力。
 - 任务过程、文件变更、产物列表和预览。
-- 会话恢复，以及新建的 Checkpoint / Undo 最小实现。
+- 会话恢复，以及基于 `conatus_checkpoint` 的 Checkpoint / Undo。
 - BYOK、MCP、Skills。
 
 ### 6.2 明确不做
@@ -229,13 +229,14 @@ Flutter 官方支持编译为原生 Windows、macOS 和 Linux 桌面应用；Con
 
 ### 7.3 文件变更保护（Checkpoint / Diff / Undo）
 
-这层是本项目差异化的载体，现状却是「一半已有、一半要建」：
+这层是本项目差异化的载体。能力来源已经清楚，剩下的是等包就绪与对齐粒度：
 
 - **diff 计算**：`conatus_diff` 已落地（实验性零依赖：统一 diff 生成 / 解析、行级 LCS、hunk 应用），Nava 与本项目共用，本项目不重写算法。
 - **文件工具**：正在从 Nava 上提为 `conatus_fs_tools`（`read` / `write` / `edit` / `list` / `glob` / `grep` / `apply_patch`），本项目直接复用，不再自建一套。
-- **Checkpoint**：目前只有 Nava 的产品级实现，粒度是**会话 / 轮次**的工作区文件时间旅行。本轮提取不含它，父仓的 `conatus_checkpoint` 只是候选（可选包），尚未立项。因此阶段 0 / 1 按「自建最小实现」估算；若该包后续落地再替换。
-- **粒度先对齐**：现有实现锚在会话 / 轮次，而本产品的执行单元是任务（Ask / Plan / Execute）。若要「按任务撤销」，自建时需加一层任务分组；也可以接受轮次粒度，换取与 Nava 语义一致。
-- **撤销机制**：文件写入、移动、删除仍经应用服务层的 FS 适配器走 Conatus 的 `EffectScope` 登记，按 LIFO 回滚，幂等、迟到登记安全、抗异常。
+- **Checkpoint**：父仓正在开发 `conatus_checkpoint`，**本项目最终使用它**，不自建替代实现。现有 Nava 实现是会话 / 轮次粒度的工作区文件时间旅行，抽包时以该包的能力为准。
+- **粒度需求要前置**：本产品的执行单元是任务（Ask / Plan / Execute）。若需要「按任务撤销」，这是对 `conatus_checkpoint` 的设计输入，应在包内解决，而不是在应用层再包一层分组。
+- **在包就绪前**：阶段 0 不为撤销做长期设计。验证可以先把变更保护列为观察项，或用最薄的临时方案顶住，避免与包的设计分叉。
+- **其余副作用**：应用层的非文件副作用仍走 Conatus 的 `EffectScope`，与 checkpoint 的时间旅行各管一段。
 
 「撤销可能失败」是一等状态：回滚失败的步骤要报告到具体文件，并保留可重试路径（参照 Nava 的 `revert_compensate`）。
 
@@ -316,6 +317,7 @@ React + Flutter 增加的主要成本：WebView 桥接协议与事件重放；Re
 | Office 生成与预览复杂 | 工作量失控、产物质量不稳定 | 首版 Markdown / HTML / PDF / CSV，Office 分批 |
 | React / Dart 双状态 | 界面与真实执行状态不一致 | Dart 为唯一状态权威，React 只消费投影 |
 | 实验性能力过早产品化 | API 变更与故障增加 | Team、Browser Use、Computer Use 不进首版核心 |
+| 共享包进度不确定 | 阶段 0 的撤销验证依赖 `conatus_checkpoint` | 列为观察项，先用最薄方案顶住，不与包的设计分叉 |
 | 商业价值未验证 | 投入数月但没有付费需求 | 先做真实使用与付费意愿门槛 |
 
 ## 十一、验证方案（阶段 0）
@@ -346,7 +348,7 @@ React + Flutter 增加的主要成本：WebView 桥接协议与事件重放；Re
 1. **三条任务链的可执行定义**：每条的输入样例、授权目录、期望产物、验收判据。
 2. **运行器形态**：命令还是库 + 脚本；任务如何声明；产物与运行记录落在哪里。
 3. **产物管线选型**：PDF（纯 Dart 库或无头浏览器）、CSV 解析与图表、HTML 模板、XLSX 读写的候选库、许可证与维护状态。这是零依赖取向与产品需求的第一次正面冲突。
-4. **变更保护的最小语义**：Checkpoint 粒度、存储位置、Undo 边界（撤文件不撤会话？）、撤销失败的呈现方式。
+4. **与 `conatus_checkpoint` 对齐**：任务级撤销是否由该包支持（粒度属设计输入，不在应用层补分组）；存储位置与 Undo 边界以包为准；撤销失败的呈现方式在应用层定。
 5. **评估口径落地**：第 11 节的结构化字段由谁写入、写到哪、如何汇总。
 6. **工作区安全底线**：路径校验、只读区域、审批阈值三者的组合方式——阶段 0 就会真实写文件，这是唯一必须做对的安全项。
 
