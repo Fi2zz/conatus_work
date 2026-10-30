@@ -18,7 +18,7 @@
 3. 三条链各做 **10 个任务卡**，共 30 个真实任务；先跑通再谈桌面 Alpha。
 4. 直接复用 `conatus_diff` / `conatus_fs_tools` / `conatus_checkpoint` /
    `conatus_checkpoint/revert.dart`，不重写变更保护。
-5. 阶段 0 需要补的最小能力：`move` / `mkdir` 工具、CSV 解析、SVG 图表生成。
+5. 阶段 0 需要补的最小能力：`move` / `mkdir` 工具、**allow-list 写边界 FS**（`ReadOnlyPathGuard` 是 deny-list，不够用）、CSV 解析、SVG 图表生成、产物校验器。
 6. 阶段 0 不接 Office（DOCX / XLSX / PPTX），不让产物库选型阻塞任务链验证。
 
 ---
@@ -60,11 +60,13 @@ products/conatus_work/
 │       │   └── runner.dart         # run / resume / abort
 │       └── tools/
 │           ├── move.dart           # 阶段 0 新增
-│           └── mkdir.dart          # 阶段 0 新增
+│           ├── mkdir.dart          # 阶段 0 新增
+│           └── rooted_fs.dart      # allow-list 写边界（ReadOnlyPathGuard 是 deny-list）
 ├── tasks/
 │   ├── research-cited-report.json
 │   ├── csv-sales-analysis.json
-│   └── folder-organize.json
+│   ├── folder-organize.json
+│   └── fixtures/<chain>/v01..v10/  # 每个变体的输入：brief.md / sales.csv / inbox 树
 └── var/                            # gitignored
     ├── workspaces/<run-id>/
     └── runs/<run-id>/
@@ -91,6 +93,9 @@ dart run bin/runner.dart abort <run-id>
 
 # 汇总指标
 dart run bin/runner.dart report runs/
+
+# 记录人工救场（改产物 / 补步骤 / 重跑）
+dart run bin/runner.dart edit <run-id> --artifact out/report.md --note "手动改了结论段"
 ```
 
 ### 2.4 运行器装配
@@ -100,12 +105,15 @@ dart run bin/runner.dart report runs/
 ```dart
 final Context ctx = Context.root();
 
-// 1. 文件系统：工作区限制
+// 1. 文件系统：写边界 = 根内 + 任务卡 write 白名单
+//    ReadOnlyPathGuard 是 deny-list（只能保护指定目录），LocalFileSystem(cwd:) 只是
+//    相对路径基准、不是 jail，所以「不得写出授权根」必须由 allow-list 装饰器承担。
 provideFileSystemLocal(
   ctx,
-  fs: ReadOnlyPathGuard(
+  fs: RootedFileSystem(
     inner: LocalFileSystem(cwd: workspaceRoot),
-    protectedRoots: productProtectedRoots,
+    root: workspaceRoot,
+    writablePrefixes: task.workspace.write,
   ),
 );
 
@@ -135,8 +143,15 @@ final CheckpointManager checkpoint = CheckpointManager(
 );
 
 // 4. Agent / Session / 模型
-// provideAgentLoop / provideSession / provideLlm 等按现有伞包 API 装配
+// provideAgentLoop / provideSession / provideLlm 等按现有伞包 API 装配；
+// task.network == 'deny' 时不装配 websearch / webfetch，并把工具清单写进 run.json。
 ```
+
+依赖注意：`conatus_checkpoint/revert.dart` 是第二入口，伞包只导出主入口
+（`lib/conatus.dart` 里没有它）。用到 `RevertService` 时，`conatus_work` 必须显式声明
+`conatus_checkpoint` 的 git + `path: packages/conatus_checkpoint` 直接依赖，并补
+`dependency_overrides`（workspace 形态由 filter 生成的 `pubspec_overrides.yaml` 清空）。
+其余符号继续从伞包拿，不必铺 37 条。
 
 约束：
 
@@ -167,6 +182,7 @@ final CheckpointManager checkpoint = CheckpointManager(
   },
   "inputs": ["inbox/brief.md"],
   "prompt": "交给 Agent 的任务说明",
+  "network": "allow",
   "expectedArtifacts": ["out/report.md"],
   "acceptance": ["验收判据 1", "验收判据 2"],
   "limits": {
@@ -183,10 +199,16 @@ final CheckpointManager checkpoint = CheckpointManager(
 字段约束：
 
 - `workspace.read` / `workspace.write` 必须是 `root` 下的相对路径；
-- `write` 之外一律只读；
-- `expectedArtifacts` 是硬验收，不是建议；
+- `write` 之外一律只读，由 allow-list FS 强制（见 2.4），不依赖工具自觉；
+- `network: allow | deny`：`deny` 时不装配 `websearch` / `webfetch`，`run.json.tools` 留证；
+- `expectedArtifacts` 是硬验收，由产物校验器判定（见 7.4），不是建议；
 - `checkpoint.keep` 至少 ≥ 可撤销任务数 + 1；
 - 任务卡不包含模型密钥、绝对路径、用户私有信息。
+
+### 3.3 输入与变体
+
+每条链 10 个变体，输入放 `tasks/fixtures/<chain>/v01..v10/`，任务卡按 `v01..v10` 命名。
+变体只改输入与 `prompt`，`acceptance` 保持同一套，否则 30 次运行的判定不可比。
 
 ---
 
@@ -212,8 +234,8 @@ final CheckpointManager checkpoint = CheckpointManager(
   ],
   "acceptance": [
     "每个事实性结论有引用或标注推断",
-    "sources.json 至少 6 条，含 url/title/accessedAt/quote",
-    "所有 URL 在运行时可访问",
+    "sources.json 至少 6 条，含 url/title/kind/accessedAt/fetchedAt/httpStatus/quote",
+    "只收录抓取成功的 URL（运行期事实，不做事后复检）",
     "没有写入 out/ 之外"
   ],
   "limits": { "maxMinutes": 20, "maxCostUsd": 1.5 },
@@ -233,8 +255,8 @@ final CheckpointManager checkpoint = CheckpointManager(
 ### 4.3 产物
 
 - `out/report.md`
-- `out/report.html`
-- `out/sources.json`
+- `out/report.html`：用最小 Markdown 子集渲染（标题 / 列表 / 表格 / 链接 / 脚注），不引入渲染库；超出子集的语法视为失败
+- `out/sources.json`：每条含 `kind: primary | secondary`；primary = 官方文档 / 原始数据 / 论文原文
 - `run.json`（含 token、成本、来源数、耗时）
 
 ### 4.4 验收与失败分类
@@ -242,9 +264,9 @@ final CheckpointManager checkpoint = CheckpointManager(
 | 检查 | 判据 |
 |------|------|
 | 引用覆盖 | 每个事实性结论有脚注或“推断”标记 |
-| 来源数量 | ≥ 6，其中 ≥ 3 一手来源 |
-| URL 可达 | 运行时抓取成功，非事后补录 |
-| 产物可用 | Markdown / HTML 可直接打开 |
+| 来源数量 | ≥ 6，其中 ≥ 3 条 `kind: primary` |
+| 来源真实性 | `sources.json` 只含运行期抓取成功的 URL，带 `fetchedAt` 与 `httpStatus` |
+| 产物可用 | Markdown / HTML 可直接打开，HTML 只用约定子集 |
 | 越界 | 没有写入 `out/` 之外 |
 
 失败分类：来源不足、抓取失败、引用与正文不匹配、产物无法打开、超时、超预算。
@@ -273,6 +295,7 @@ final CheckpointManager checkpoint = CheckpointManager(
   },
   "inputs": ["data/sales.csv"],
   "prompt": "分析 data/sales.csv：按月、地区计算订单数、退款率、客单价；找出退款率异常并给出可能原因；生成一张 SVG 图表和一份 Markdown 结论。不要联网。",
+  "network": "deny",
   "expectedArtifacts": [
     "out/analysis.md",
     "out/chart.svg",
@@ -283,7 +306,7 @@ final CheckpointManager checkpoint = CheckpointManager(
     "缺失/非法行在 analysis.md 中报告",
     "图表有标题、单位、月份和地区标签",
     "结论引用具体数值",
-    "没有访问网络"
+    "run.json.tools 不含 websearch / webfetch（network=deny）"
   ],
   "limits": { "maxMinutes": 10, "maxCostUsd": 0.8 },
   "checkpoint": { "enabled": true, "keep": 30 }
@@ -303,7 +326,7 @@ final CheckpointManager checkpoint = CheckpointManager(
 
 | 能力 | 阶段 0 建议 |
 |------|-------------|
-| CSV 解析 | 纯 Dart `csv` 包 |
+| CSV 解析 | 纯 Dart `csv` 包；补许可证与维护状态后再定（上游第十二节第 3 项要求） |
 | XLSX | 等选型后再开，不阻塞 CSV 链 |
 | 图表 | 直接生成 SVG，不引入图表库 |
 | PNG / PDF | 阶段 1 再做 |
@@ -371,6 +394,12 @@ final CheckpointManager checkpoint = CheckpointManager(
 
 阶段 0 先在 `conatus_work` 内实现 `move` / `mkdir`；等桌面端也稳定使用后，再考虑上提到 `conatus_fs_tools`。
 
+另一个缺口不是工具而是边界：`ReadOnlyPathGuard` 是 deny-list，无法表达「只允许写 `inbox/` 与 `out/`」。
+本链同时需要 allow-list 的 `RootedFileSystem`（见 2.4），否则「没有写入授权根之外」这条验收无法机检。
+
+dry-run 确认在 headless CLI 里没有交互通道：用 `--yes` 显式放行，缺省打印清单后退出（不执行），
+把「未确认就执行」当成失败。
+
 ### 6.4 10 个变体建议
 
 - 按类型 / 按月 / 按项目三种规则；
@@ -406,10 +435,15 @@ final CheckpointManager checkpoint = CheckpointManager(
     {
       "path": "out/report.md",
       "bytes": 12345,
-      "sha256": "..."
+      "sha256": "...",
+      "check": { "exists": true, "nonEmpty": true, "passed": true }
     }
   ],
-  "humanEdits": [],
+  "tools": ["read", "write", "edit", "move", "mkdir"],
+  "forkSessionId": null,
+  "humanEdits": [
+    { "at": "2026-10-30T10:20:00+08:00", "artifact": "out/report.md", "note": "手动改了结论段" }
+  ],
   "failure": { "category": null, "message": null }
 }
 ```
@@ -418,7 +452,28 @@ final CheckpointManager checkpoint = CheckpointManager(
 
 直接复用 Session Log 的事件流，不另造一套过程日志。
 
-### 7.3 指标汇总
+### 7.3 产物校验器
+
+`expectedArtifacts` 必须机器判定，否则 30 次运行靠人眼、结论不可复现。最小判定：
+
+- 路径存在且是文件；
+- 非空（字节数 > 0）；
+- 记录 `sha256` 与 `bytes`，便于撤销后比对与人工修改检测；
+- 任务卡可选的额外规则：最小字数、必须包含某段标题、SVG 可解析。
+
+校验不通过时 `run.json.status = failed`，`failure.category = artifact`，不进入人工判定。
+
+### 7.4 人工救场记录
+
+「80% 无需救场」是本阶段的核心门槛，必须可计数。三种记录方式，任选其一但要有：
+
+1. `dart run bin/runner.dart edit <run-id> --artifact out/report.md --note "..."`；
+2. 运行结束后对产物 `sha256` 复核，与 `run.json` 记录不一致即视为人工修改；
+3. 重跑同一任务卡时记 `rerunOf`。
+
+`humanEdits` 非空或 `rerunOf` 存在，该任务计为「需要救场」。
+
+### 7.5 指标汇总
 
 `dart run bin/runner.dart report runs/` 输出：
 
@@ -457,7 +512,11 @@ runStore.finish(
 - 任务收口必须 `await recordTurn`；
 - 失败 / 中断也要收口，并把 `snapshotError` 写进 `run.json`；
 - 撤销用 `RevertService.undo(session, checkpoint.turn - startTurn)`；
-- 不要用 `steps = 0` 调 undo；
+- 不要用 `steps = 0` 调 undo（`steps < 1` 会被当成 1，先判空）；
+- 撤销会 fork 出新会话：把 `UndoResult.stage.forkSessionId` 写进 `run.json.forkSessionId`，
+  `resume` 与后续指标都认这个 id，否则会接回旧会话；
+- headless 下 `RevertConfirmation.ask` 传 `null` 表示「不阻塞、直接撤」，不是自动确认语义，
+  验证脚本要显式依赖这一点；
 - `keep` 至少 ≥ 计划可撤销任务数 + 1，阶段 0 建议 30。
 
 ---
@@ -466,12 +525,14 @@ runStore.finish(
 
 | 周 | 内容 | 产出 |
 |----|------|------|
-| 1 | 运行器骨架、任务卡模型、run store、CLI | 能跑一个空任务并写 run.json |
-| 1-2 | `move` / `mkdir`、工作区限制、Checkpoint 接线 | 三条链的工具基座 |
-| 2 | 链 1：10 个调研任务 | 报告、来源、指标 |
-| 3 | 链 2：10 个 CSV 任务 | 分析、SVG、指标 |
-| 3-4 | 链 3：10 个整理任务 | 变更清单、撤销验证 |
-| 4 | 汇总 30 次运行，按验收门槛判定 | 阶段 0 结论 |
+| 1 | 运行器骨架、任务卡模型、run store、CLI；并行做 `RootedFileSystem` 与 `move` / `mkdir` | 能跑一个空任务并写 run.json；写边界可机检 |
+| 2 | 30 份 fixtures、产物校验器、人工救场记录；链 1 前 5 个任务 | 基座齐 + 首批报告 |
+| 2-3 | 链 1 剩余 5 个、链 2 前 5 个 | 报告与 CSV 指标 |
+| 3-4 | 链 2 剩余、链 3 全部 | 分析、SVG、变更清单、撤销验证 |
+| 4-5 | 补齐缺口、重跑失败任务、汇总 | 30 次运行 + 阶段 0 结论 |
+
+4 周是冲刺目标，按 5 周做计划。第 1 周必须同时排工具与骨架——`RootedFileSystem` 与
+`move` / `mkdir` 不到位，三条链都跑不起来，但它们不该串行等到第 2 周。
 
 阶段 0 的验收门槛沿用上游文档第十一节：
 
