@@ -244,8 +244,14 @@ Flutter 官方支持编译为原生 Windows、macOS 和 Linux 桌面应用；Con
 - **文件工具**：`conatus_fs_tools` 已落地（`read` / `write` / `edit` / `list` / `glob` / `grep` / `apply_patch` + `provideFsTools`），本项目直接复用，不再自建一套。
 - **Checkpoint**：`conatus_checkpoint` 已落地（归档 + 影子 git 后端、会话 / 轮次粒度、rsync 恢复）。本项目直接使用，不自建替代实现。
 - **Undo / Redo**：`conatus_checkpoint/revert.dart` 已落地，提供 `RevertService`、`RevertStage`、失败补偿与确认钩子；本项目只做命令接线与呈现。
-- **任务边界**：当前包是会话 / 轮次粒度，**不直接支持任务级撤销**。首版按「一任务 = 一轮」映射：任务开始时读 `manager.turn` 记为 `startTurn`，收口调用 `recordTurn(lastEventId: 任务结束事件)`（轮次 +1 并快照），应用层维护 `taskId → (startTurn, turn)`；撤销任务 = 回到 `startTurn` 那一轮。任务期间不得调用 `recordTurn`，否则边界漂移。并行任务或同轮多任务不在首版；若进入范围，再给 `conatus_checkpoint` 增加 task 边界，而不是在应用层硬分组。
+- **任务边界**：当前包是会话 / 轮次粒度，**不直接支持任务级撤销**。首版按「一任务 = 一轮」映射：任务开始时读 `manager.turn` 记为 `startTurn`，收口调用 `recordTurn(lastEventId: 任务结束事件)`（轮次 +1 并快照），应用层维护 `taskId → (startTurn, turn)`；撤销任务 = 回到 `startTurn` 那一轮。并行任务或同轮多任务不在首版；若进入范围，再给 `conatus_checkpoint` 增加 task 边界，而不是在应用层硬分组。
+- **映射成立的前提**（缺一不可）：单任务串行；任务内不调用 `recordTurn`；收口必须 `await recordTurn`，失败也要收口；`keep` 覆盖任务跨度（默认 `keep = 5`，更早的轮次会被裁剪）。
 - **撤销调用**：直接用 `RevertService.undo(current, manager.turn - startTurn)`，不要在应用层重拼「`restoreTo` + 按 `lastEventId` fork」——恢复、分叉、prompt 暂存、确认与失败补偿都在该服务内。注意两点：`undo` 收的是**相对步数**，目标轮次由它算出并校验检查点是否存在（可能已被裁剪）；撤销 / 重做会改 `manager.turn`，`taskId → startTurn` 映射必须重算，不能缓存。
+- **失败与边界状态按一等状态处理**：
+  - `recordTurn` 失败返回错误字符串且**不抛出**，而轮次已先 +1 —— 失败会留下轮次洞，后续 `undo` 的 steps 必须按实际存在的检查点计算，不能假设轮次连续。
+  - `recordTurn` 返回 `null` 同时表示「成功」和「未绑定 / 未启用」，应用层要另判 `enabled` 与绑定状态，不能把 `null` 当成功。
+  - `undo(steps)` 把 `steps < 1` 当作 1：传 0 会撤掉一轮，应用层必须先判空。
+  - `redo` 依赖 `restoreTo(fromTurn)`，该轮被裁剪时抛 `RevertException`，界面要显示「无法重做」，不能静默失败。
 - **工作区策略**：`.opencode` / `.nava` 不进入共享包默认值；桌面端必须通过 `CheckpointPolicy` 注入自己的排除 / 只读前缀，并用 `conatus_foundation` 的 `ReadOnlyPathGuard` 包住工作区。
 - **其余副作用**：应用层的非文件副作用仍走 Conatus 的 `EffectScope`，与 checkpoint 的时间旅行各管一段。
 
@@ -359,7 +365,7 @@ React + Flutter 增加的主要成本：WebView 桥接协议与事件重放；Re
 1. **三条任务链的可执行定义**：每条的输入样例、授权目录、期望产物、验收判据。
 2. **运行器形态**：命令还是库 + 脚本；任务如何声明；产物与运行记录落在哪里。
 3. **产物管线选型**：PDF（纯 Dart 库或无头浏览器）、CSV 解析与图表、HTML 模板、XLSX 读写的候选库、许可证与维护状态。这是零依赖取向与产品需求的第一次正面冲突。
-4. **与 `conatus_checkpoint` 对齐**：包已就绪，当前是会话 / 轮次粒度，**不直接支持任务级撤销**。首版按「一任务 = 一轮」映射：应用层维护 `taskId → (startTurn, turn)`，撤销用 `RevertService.undo(current, manager.turn - startTurn)`；并行任务 / 同轮多任务若进入范围，再给包加 task 边界。存储位置与 Undo 边界以包为准；撤销失败的呈现方式在应用层定。
+4. **与 `conatus_checkpoint` 对齐**：包已就绪，当前是会话 / 轮次粒度，**不直接支持任务级撤销**。首版按「一任务 = 一轮」映射：应用层维护 `taskId → (startTurn, turn)`，撤销用 `RevertService.undo(current, manager.turn - startTurn)`；并行任务 / 同轮多任务若进入范围，再给包加 task 边界。轮次洞、`steps = 0`、redo 被裁剪这三类失败要有明确呈现，不能静默。
 5. **评估口径落地**：第 11 节的结构化字段由谁写入、写到哪、如何汇总。
 6. **工作区安全底线**：路径校验、只读区域、审批阈值三者的组合方式——阶段 0 就会真实写文件，这是唯一必须做对的安全项。
 
