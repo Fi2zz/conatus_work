@@ -397,6 +397,9 @@ final CheckpointManager checkpoint = CheckpointManager(
 另一个缺口不是工具而是边界：`ReadOnlyPathGuard` 是 deny-list，无法表达「只允许写 `inbox/` 与 `out/`」。
 本链同时需要 allow-list 的 `RootedFileSystem`（见 2.4），否则「没有写入授权根之外」这条验收无法机检。
 
+`RootedFileSystem` 在 `conatus_work` 内实现，本轮不抽包；**nava 的 fs jail 保持不动**，两边的边界实现
+暂时各管一段。等桌面端稳定使用、语义确认后，再评估是否合并成共享包。
+
 dry-run 确认在 headless CLI 里没有交互通道：用 `--yes` 显式放行，缺省打印清单后退出（不执行），
 把「未确认就执行」当成失败。
 
