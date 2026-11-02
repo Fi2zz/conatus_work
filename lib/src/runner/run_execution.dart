@@ -4,6 +4,7 @@ library;
 import 'abort_signal.dart';
 import 'artifacts.dart';
 import 'assembly.dart';
+import 'llm_runtime.dart';
 import 'run_paths.dart';
 import 'run_store.dart';
 import 'task_body.dart';
@@ -20,6 +21,7 @@ class RunExecution {
     required this.paths,
     required this.store,
     this.fresh = true,
+    this.llm,
   });
 
   final TaskBody body;
@@ -32,19 +34,29 @@ class RunExecution {
   /// true 重建检查点时间线（新运行）；false 接管已有时间线（resume）。
   final bool fresh;
 
+  /// 模型运行时；为空时不装配 Agent Loop。
+  final LlmRuntime? llm;
+
   Future<RunRecord> execute() async {
     RunScope? scope;
     try {
       scope = await assembleRun(
-        task: task,
-        workspace: workspace,
-        paths: paths,
-        fresh: fresh,
+        AssemblyOptions(
+          task: task,
+          workspace: workspace,
+          paths: paths,
+          fresh: fresh,
+          llm: llm,
+        ),
       );
       _attach(scope);
       await store.save(record);
       final TaskOutcome outcome = await _runBody(scope);
       _apply(outcome);
+      record
+        ..inputTokens = outcome.tokens.prompt
+        ..outputTokens = outcome.tokens.completion
+        ..costUsd = outcome.costUsd ?? 0;
       if (record.status == TaskRunStatus.succeeded) await _checkArtifacts();
       await _snapshot(scope);
     } catch (error) {
@@ -67,7 +79,8 @@ class RunExecution {
     record
       ..startTurn = scope.checkpoint.turn
       ..sessionId = scope.session.id
-      ..tools = scope.toolNames;
+      ..tools = scope.toolNames
+      ..model = scope.modelLabel;
   }
 
   Future<TaskOutcome> _runBody(RunScope scope) async {

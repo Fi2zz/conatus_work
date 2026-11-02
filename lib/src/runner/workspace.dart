@@ -91,6 +91,21 @@ Future<void> preflightRun(TaskSpec task, {String? rootOverride}) async {
   }
 }
 
+/// 给模型的产品侧系统提示：工作区边界与产物纪律。
+SystemPrompt productSystemPrompt(TaskSpec task, WorkspacePlan workspace) {
+  final SystemPrompt prompt = SystemPrompt();
+  prompt.add(
+    '你是本地文件工作台的执行者。\n'
+    '工作区根：${workspace.rootAbsolute}\n'
+    '可写前缀：${task.write.join('、')}\n'
+    '只读前缀：${task.read.join('、')}\n'
+    '期望产物：${task.expectedArtifacts.join('、')}\n'
+    '规则：只能通过工具读写文件；不得写入可写前缀之外；'
+    '不得编造 URL 或引文；不确定的内容标注「推断」。',
+  );
+  return prompt;
+}
+
 /// 产品侧的检查点排除面：应用数据与影子仓库不进快照。
 CheckpointPolicy productCheckpointPolicy() =>
     const CheckpointPolicy(excludedPrefixes: <String>['.conatus_work', '.git']);

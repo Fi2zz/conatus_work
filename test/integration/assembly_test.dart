@@ -40,9 +40,7 @@ void main() {
     );
     await paths.create();
     final RunScope scope = await assembleRun(
-      task: card('work'),
-      workspace: workspace,
-      paths: paths,
+      AssemblyOptions(task: card('work'), workspace: workspace, paths: paths),
     );
     expect(scope.session.id, 'events');
     expect(scope.checkpoint.turn, 0);

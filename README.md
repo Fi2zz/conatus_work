@@ -79,8 +79,25 @@ dart run bin/runner.dart report var/runs
 dart run bin/runner.dart edit <runId> --artifact out/report.md --note "手动改了结论段"
 ```
 
+### 模型配置
+
+`run` / `resume` 需要 OpenAI 兼容端点，全部从环境变量读（Key 不落盘）：
+
+```bash
+export WORK_LLM_BASE_URL=https://ark.cn-beijing.volces.com/api/v3
+export WORK_LLM_MODEL=doubao-seed-1-6-250615
+export WORK_LLM_API_KEY=sk-...        # 本地端点（Ollama / vLLM）可省略
+export WORK_LLM_NAME=ark              # 可选，缺省 openai-compatible
+export WORK_LLM_PRICE_IN=0.8          # 可选，美元/百万 token，与 OUT 成对
+export WORK_LLM_PRICE_OUT=2.0
+```
+
+缺 `BASE_URL` / `MODEL` 时 `run` 在预检阶段失败（退出码 2），不创建运行目录。
+未配置单价时 `run.json.usage.costUsd` 记 0，预算判定不生效。
+
 约束：
 
 - 读写都限制在工作区根的 `read ∪ write` 前缀内，越界抛 `FS_SANDBOX_DENIED`；
 - 一任务 = 一轮检查点，`run.json.turns` 记录起止轮次；
-- 第 1 周不接 Agent Loop、不装 shell、不调模型（`model` 为 null）。
+- 不装 shell：文件操作只经 `read` / `write` / `edit` / `move` / `mkdir` 等工具；
+- `network: deny` 的任务不装配 `websearch` / `webfetch`，`run.json.tools` 可机检。

@@ -8,6 +8,7 @@ import 'package:conatus/conatus.dart';
 
 import 'abort_signal.dart';
 import 'fixtures.dart';
+import 'llm_runtime.dart';
 import 'run_execution.dart';
 import 'run_paths.dart';
 import 'run_store.dart';
@@ -45,13 +46,16 @@ class RunRequest {
 
 /// 串行运行器：一次一个任务，一任务一轮检查点。
 class Runner {
-  Runner({required this.body, this.runsDir = 'var/runs'});
+  Runner({required this.body, this.runsDir = 'var/runs', this.llm});
 
   /// 任务执行体。
   final TaskBody body;
 
   /// `var/runs` 的位置。
   final String runsDir;
+
+  /// 模型运行时；为空时不装配 Agent Loop。
+  final LlmRuntime? llm;
 
   /// 跑一张任务卡，返回落盘后的运行记录。
   Future<RunRecord> run(RunRequest request) async {
@@ -96,6 +100,7 @@ class Runner {
       workspace: workspace,
       paths: paths,
       store: store,
+      llm: llm,
     ).execute();
   }
 
@@ -124,6 +129,7 @@ class Runner {
       paths: paths,
       store: store,
       fresh: false,
+      llm: llm,
     ).execute();
   }
 

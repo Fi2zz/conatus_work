@@ -4,7 +4,10 @@ library;
 import 'dart:convert';
 import 'dart:io';
 
+import 'agent_task_body.dart';
 import 'hash.dart';
+import 'llm_config.dart';
+import 'llm_runtime.dart';
 import 'report.dart';
 import 'run_paths.dart';
 import 'run_store.dart';
@@ -59,8 +62,10 @@ Future<int> _list() async {
 Future<int> _run(List<String> args) async {
   final String? card = _positional(args);
   if (card == null) return _usage();
+  final LlmRuntime? runtime = _requireRuntime();
+  if (runtime == null) return 2;
   final TaskSpec task = await TaskSpec.load(card);
-  final RunRecord record = await Runner(body: noopTaskBody).run(
+  final RunRecord record = await Runner(body: agentTaskBody, llm: runtime).run(
     RunRequest(
       task: task,
       taskPath: File(card).absolute.path,
@@ -76,7 +81,12 @@ Future<int> _run(List<String> args) async {
 Future<int> _resume(List<String> args) async {
   final String? runId = _positional(args);
   if (runId == null) return _usage();
-  final RunRecord record = await Runner(body: noopTaskBody).resume(runId);
+  final LlmRuntime? runtime = _requireRuntime();
+  if (runtime == null) return 2;
+  final RunRecord record = await Runner(
+    body: agentTaskBody,
+    llm: runtime,
+  ).resume(runId);
   stdout.writeln(_summary(record));
   return record.status == TaskRunStatus.succeeded ? 0 : 1;
 }
@@ -84,7 +94,7 @@ Future<int> _resume(List<String> args) async {
 Future<int> _abort(List<String> args) async {
   final String? runId = _positional(args);
   if (runId == null) return _usage();
-  final RunRecord record = await Runner(body: noopTaskBody).abort(runId);
+  final RunRecord record = await Runner(body: agentTaskBody).abort(runId);
   stdout.writeln(_summary(record));
   return 0;
 }
@@ -125,6 +135,15 @@ Future<int> _edit(List<String> args) async {
   await store.save(record);
   stdout.writeln('已记录人工修改：$artifact');
   return 0;
+}
+
+LlmRuntime? _requireRuntime() {
+  try {
+    return LlmRuntime(config: llmConfigFromEnv(Platform.environment));
+  } on LlmConfigError catch (error) {
+    stderr.writeln('${error.message}：先导出 WORK_LLM_BASE_URL / WORK_LLM_MODEL');
+    return null;
+  }
 }
 
 String _summary(RunRecord record) =>
