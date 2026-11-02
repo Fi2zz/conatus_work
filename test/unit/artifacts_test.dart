@@ -36,8 +36,7 @@ void main() {
       'passed': false,
       'reason': 'missing',
     });
-    expect(empty.toJson()['check'],
-        containsPair('nonEmpty', false));
+    expect(empty.toJson()['check'], containsPair('nonEmpty', false));
     expect(ok.toJson()['check'], containsPair('nonEmpty', true));
   });
 }
