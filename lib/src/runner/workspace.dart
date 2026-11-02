@@ -106,7 +106,7 @@ SystemPrompt productSystemPrompt(
     '期望产物：${task.expectedArtifacts.join('、')}\n'
     '规则：只能通过工具读写文件；不得写入可写前缀之外；'
     '不得编造 URL 或引文；不确定的内容标注「推断」。\n'
-    '${confirmed ? '用户已确认执行，可以直接移动文件。' : '当前是 dry-run：只输出计划与清单，不要移动或删除任何文件。'}',
+    '${confirmed ? '用户已确认执行，可以直接移动文件。' : '未获确认：不要移动、删除或改动已有文件；可以读取并在 out/ 写产物。'}',
   );
   return prompt;
 }

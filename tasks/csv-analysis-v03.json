@@ -1,0 +1,48 @@
+{
+  "id": "csv-analysis-v03",
+  "chain": "csv",
+  "title": "CSV 分析（v03）",
+  "workspace": {
+    "root": "var/workspaces/csv-v03",
+    "read": [
+      "data"
+    ],
+    "write": [
+      "out"
+    ]
+  },
+  "inputs": [
+    "data/sales.csv"
+  ],
+  "prompt": "分析 data/sales.csv。销售数据，存在完全重复的订单行。目标：统计前先去重，并在报告中说明去重数量。输出 out/analysis.md（结论与可复算的数值）、out/chart.svg（带标题/单位/坐标轴标签）、out/clean.csv（清洗后的数据）。不要联网。",
+  "network": "deny",
+  "expectedArtifacts": [
+    "out/analysis.md",
+    "out/chart.svg",
+    "out/clean.csv"
+  ],
+  "acceptance": [
+    "行数、总订单、退款率可复算",
+    "缺失/非法行在 analysis.md 中报告",
+    "图表有标题、单位、月份和地区标签",
+    "结论引用具体数值",
+    "run.json.tools 不含 websearch / webfetch"
+  ],
+  "limits": {
+    "maxMinutes": 12,
+    "maxCostUsd": 0.8
+  },
+  "checkpoint": {
+    "enabled": true,
+    "keep": 30
+  },
+  "artifactRules": {
+    "out/analysis.md": {
+      "minChars": 300,
+      "maxChars": 8000
+    },
+    "out/chart.svg": {
+      "requireSvg": true
+    }
+  }
+}

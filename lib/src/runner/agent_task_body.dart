@@ -14,7 +14,8 @@ import 'task_spec.dart';
 String _prompt(RunScope scope, TaskSpec task) => scope.confirmed
     ? '${task.prompt}\n\n【已确认】用户已在命令行用 --yes 批准执行，'
           '请直接完成全部操作并写出所有期望产物，不要再等待确认。'
-    : '${task.prompt}\n\n【未确认】只输出 dry-run 清单，不要移动或删除任何文件。';
+    : '${task.prompt}\n\n【未确认】不要移动、删除或改动工作区内的已有文件；'
+          '读取与在 out/ 写产物不受限制。';
 
 /// 调用模型跑一轮；产物由运行器统一校验。
 Future<TaskOutcome> agentTaskBody(RunScope scope, TaskSpec task) async {
