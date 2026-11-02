@@ -59,16 +59,15 @@ Future<int> _list() async {
 Future<int> _run(List<String> args) async {
   final String? card = _positional(args);
   if (card == null) return _usage();
-  if (_flag(args, '--fixture') != null) {
-    stderr.writeln('--fixture 尚未实现（第 2 周）');
-    return 2;
-  }
   final TaskSpec task = await TaskSpec.load(card);
   final RunRecord record = await Runner(body: noopTaskBody).run(
-    task,
-    taskPath: File(card).absolute.path,
-    workspaceRoot: _flag(args, '--workspace'),
-    rerunOf: _flag(args, '--rerun-of'),
+    RunRequest(
+      task: task,
+      taskPath: File(card).absolute.path,
+      workspaceRoot: _flag(args, '--workspace'),
+      fixtureDir: _flag(args, '--fixture'),
+      rerunOf: _flag(args, '--rerun-of'),
+    ),
   );
   stdout.writeln(_summary(record));
   return record.status == TaskRunStatus.succeeded ? 0 : 1;

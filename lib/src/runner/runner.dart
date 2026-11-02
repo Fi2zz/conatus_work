@@ -7,6 +7,7 @@ import 'dart:io';
 import 'package:conatus/conatus.dart';
 
 import 'abort_signal.dart';
+import 'fixtures.dart';
 import 'run_execution.dart';
 import 'run_paths.dart';
 import 'run_store.dart';
@@ -15,6 +16,32 @@ import 'task_spec.dart';
 import 'workspace.dart';
 
 export 'task_body.dart' show TaskBody, TaskOutcome, noopTaskBody;
+
+/// 一次 `run` 的输入。
+class RunRequest {
+  const RunRequest({
+    required this.task,
+    required this.taskPath,
+    this.workspaceRoot,
+    this.fixtureDir,
+    this.rerunOf,
+  });
+
+  /// 任务卡。
+  final TaskSpec task;
+
+  /// 任务卡源文件（写进 `run.json.taskPath`）。
+  final String taskPath;
+
+  /// 工作区根覆盖值（CLI `--workspace`）。
+  final String? workspaceRoot;
+
+  /// fixture 目录（CLI `--fixture`）。
+  final String? fixtureDir;
+
+  /// 显式指定的重跑来源。
+  final String? rerunOf;
+}
 
 /// 串行运行器：一次一个任务，一任务一轮检查点。
 class Runner {
@@ -27,16 +54,19 @@ class Runner {
   final String runsDir;
 
   /// 跑一张任务卡，返回落盘后的运行记录。
-  Future<RunRecord> run(
-    TaskSpec task, {
-    required String taskPath,
-    String? workspaceRoot,
-    String? rerunOf,
-  }) async {
-    await preflightRun(task, rootOverride: workspaceRoot);
+  Future<RunRecord> run(RunRequest request) async {
+    final TaskSpec task = request.task;
+    final String root = resolveWorkspaceRoot(
+      task: task,
+      rootOverride: request.workspaceRoot,
+    );
+    if (request.fixtureDir != null) {
+      await copyFixture(fixtureDir: request.fixtureDir!, rootAbsolute: root);
+    }
+    await preflightRun(task, rootOverride: root);
     final WorkspacePlan workspace = await prepareWorkspace(
       task: task,
-      rootOverride: workspaceRoot,
+      rootOverride: root,
     );
     final RunPaths paths = RunPaths(
       runsDir: runsDir,
@@ -44,16 +74,20 @@ class Runner {
     );
     await paths.create();
     final RunStore store = RunStore(paths);
-    final RunRecord record = RunRecord(
-      runId: paths.runId,
-      taskId: task.id,
-      chain: task.chain,
-      taskPath: File(taskPath).absolute.path,
-      workspaceRoot: workspace.rootAbsolute,
-      sessionId: 'events',
-      pid: pid,
-      startedAt: DateTime.now(),
-    )..rerunOf = rerunOf ?? await _previousRun(task.id, workspace.rootAbsolute);
+    final RunRecord record =
+        RunRecord(
+            runId: paths.runId,
+            taskId: task.id,
+            chain: task.chain,
+            taskPath: File(request.taskPath).absolute.path,
+            workspaceRoot: workspace.rootAbsolute,
+            sessionId: 'events',
+            pid: pid,
+            startedAt: DateTime.now(),
+          )
+          ..rerunOf =
+              request.rerunOf ??
+              await _previousRun(task.id, workspace.rootAbsolute);
     await store.save(record);
     return RunExecution(
       body: body,

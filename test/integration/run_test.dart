@@ -38,9 +38,11 @@ void main() {
       runsDir: '${tmp.path}/runs',
     );
     final RunRecord record = await runner.run(
-      card(),
-      taskPath: '${tmp.path}/empty.json',
-      workspaceRoot: '${tmp.path}/work',
+      RunRequest(
+        task: card(),
+        taskPath: '${tmp.path}/empty.json',
+        workspaceRoot: '${tmp.path}/work',
+      ),
     );
     expect(record.status, TaskRunStatus.succeeded);
     expect(record.startTurn, 0);
@@ -58,9 +60,11 @@ void main() {
       runsDir: '${tmp.path}/runs',
     );
     final RunRecord record = await runner.run(
-      card(artifacts: <String>['out/report.md']),
-      taskPath: '${tmp.path}/empty.json',
-      workspaceRoot: '${tmp.path}/work',
+      RunRequest(
+        task: card(artifacts: <String>['out/report.md']),
+        taskPath: '${tmp.path}/empty.json',
+        workspaceRoot: '${tmp.path}/work',
+      ),
     );
     expect(record.status, TaskRunStatus.failed);
     expect(record.failure.category, FailureCategory.artifact);
@@ -75,9 +79,11 @@ void main() {
       },
     );
     final RunRecord record = await runner.run(
-      card(),
-      taskPath: '${tmp.path}/empty.json',
-      workspaceRoot: '${tmp.path}/work',
+      RunRequest(
+        task: card(),
+        taskPath: '${tmp.path}/empty.json',
+        workspaceRoot: '${tmp.path}/work',
+      ),
     );
     expect(record.status, TaskRunStatus.aborted);
   });
@@ -106,12 +112,51 @@ void main() {
     });
     await expectLater(
       runner.run(
-        withInput,
-        taskPath: '${tmp.path}/card.json',
-        workspaceRoot: '${tmp.path}/work2',
+        RunRequest(
+          task: withInput,
+          taskPath: '${tmp.path}/card.json',
+          workspaceRoot: '${tmp.path}/work2',
+        ),
       ),
       throwsA(isA<RunPreflightError>()),
     );
     expect(Directory('${tmp.path}/runs').existsSync(), isFalse);
+  });
+
+  test('--fixture 先拷入工作区，再通过 inputs 预检', () async {
+    final String fixture = '${tmp.path}/fixture';
+    Directory('$fixture/inbox').createSync(recursive: true);
+    File('$fixture/inbox/brief.md').writeAsStringSync('b');
+    final TaskSpec withInput = TaskSpec.parse(<String, Object?>{
+      'id': 'with-fixture',
+      'chain': 'research',
+      'title': '带 fixture',
+      'workspace': <String, Object?>{
+        'root': 'work3',
+        'read': <String>['inbox'],
+        'write': <String>['out'],
+      },
+      'inputs': <String>['inbox/brief.md'],
+      'prompt': '空跑',
+      'network': 'deny',
+      'expectedArtifacts': <String>[],
+      'acceptance': <String>[],
+      'limits': <String, Object?>{'maxMinutes': 1, 'maxCostUsd': 0.1},
+      'checkpoint': <String, Object?>{'enabled': true, 'keep': 30},
+    });
+    final Runner runner = Runner(
+      body: noopTaskBody,
+      runsDir: '${tmp.path}/runs',
+    );
+    final RunRecord record = await runner.run(
+      RunRequest(
+        task: withInput,
+        taskPath: '${tmp.path}/card.json',
+        workspaceRoot: '${tmp.path}/work3',
+        fixtureDir: fixture,
+      ),
+    );
+    expect(record.status, TaskRunStatus.succeeded);
+    expect(File('${tmp.path}/work3/inbox/brief.md').existsSync(), isTrue);
   });
 }

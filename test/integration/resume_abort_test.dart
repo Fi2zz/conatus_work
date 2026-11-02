@@ -48,9 +48,11 @@ void main() {
       },
     );
     final RunRecord firstRun = await runner.run(
-      TaskSpec.parse(cardJson()),
-      taskPath: cardPath,
-      workspaceRoot: '${tmp.path}/work',
+      RunRequest(
+        task: TaskSpec.parse(cardJson()),
+        taskPath: cardPath,
+        workspaceRoot: '${tmp.path}/work',
+      ),
     );
     expect(firstRun.status, TaskRunStatus.failed);
     expect(firstRun.failure.category, FailureCategory.internal);
@@ -67,9 +69,11 @@ void main() {
       runsDir: '${tmp.path}/runs',
     );
     final RunRecord record = await runner.run(
-      TaskSpec.parse(cardJson()),
-      taskPath: cardPath,
-      workspaceRoot: '${tmp.path}/work',
+      RunRequest(
+        task: TaskSpec.parse(cardJson()),
+        taskPath: cardPath,
+        workspaceRoot: '${tmp.path}/work',
+      ),
     );
     final RunStore store = RunStore(
       RunPaths(runsDir: runner.runsDir, runId: record.runId),
@@ -90,9 +94,11 @@ void main() {
       runsDir: '${tmp.path}/runs',
     );
     final RunRecord record = await runner.run(
-      TaskSpec.parse(cardJson()),
-      taskPath: cardPath,
-      workspaceRoot: '${tmp.path}/work',
+      RunRequest(
+        task: TaskSpec.parse(cardJson()),
+        taskPath: cardPath,
+        workspaceRoot: '${tmp.path}/work',
+      ),
     );
     await AbortSignal(
       '${tmp.path}/runs/${record.runId}/abort.request',
