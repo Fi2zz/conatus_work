@@ -107,4 +107,19 @@ void main() {
     expect(checks[0].reason, 'tooLong');
     expect(checks[1].passed, isTrue);
   });
+
+  test('check 校验器失败写进 reason', () async {
+    Directory('${tmp.path}/out').createSync();
+    File('${tmp.path}/out/changes.json').writeAsStringSync('{"operations":[]}');
+    final List<ArtifactCheck> checks = await checkArtifacts(
+      root: tmp.path,
+      expected: <String>['out/changes.json'],
+      rules: <String, ArtifactRule>{
+        'out/changes.json': const ArtifactRule(check: 'changes-manifest'),
+      },
+    );
+    expect(checks.single.passed, isFalse);
+    expect(checks.single.reason, 'invalidJson');
+    expect(checks.single.bytes, greaterThan(0));
+  });
 }

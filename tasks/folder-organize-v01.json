@@ -15,7 +15,7 @@
   "inputs": [
     "inbox"
   ],
-  "prompt": "把 inbox 下的文件按“类型/月份”整理到 inbox/organized/；不删除任何文件，冲突文件放入 inbox/quarantine/；先输出 dry-run 清单，确认后执行；执行后生成 changes.json 和 changes.md。",
+  "prompt": "把 inbox 下的文件按“类型/月份”整理到 inbox/organized/；不删除任何文件，冲突文件放入 inbox/quarantine/；先输出 dry-run 清单，确认后执行；执行后生成 changes.json 和 changes.md。\nout/changes.json 必须是 JSON 对象，且严格包含：\n- operations：数组，每项含 from / to / sha256 / reason 四个字段；\n- summary：对象，含 moved / quarantined / deleted 三个整数。\n约束：summary.deleted 必须为 0；operations 条数必须等于 moved + quarantined。\n不要给 operations 换名字（不要叫 changes），也不要省略 sha256。",
   "network": "deny",
   "expectedArtifacts": [
     "out/changes.json",
@@ -40,6 +40,9 @@
     "out/changes.md": {
       "minChars": 50,
       "maxChars": 4000
+    },
+    "out/changes.json": {
+      "check": "changes-manifest"
     }
   }
 }

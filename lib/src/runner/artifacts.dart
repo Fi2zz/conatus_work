@@ -7,6 +7,7 @@ import 'dart:io';
 import 'hash.dart';
 import 'run_store.dart';
 import 'task_spec.dart';
+import 'validators.dart';
 
 /// 按 [expected] 的顺序逐个检查 `root` 下的产物。
 Future<List<ArtifactCheck>> checkArtifacts({
@@ -58,6 +59,7 @@ String? _ruleFailure(ArtifactRule? rule, List<int> bytes) {
     if (!text.contains(needle)) return 'missingText';
   }
   if (rule.requireSvg && !_looksLikeSvg(text)) return 'invalidSvg';
+  if (rule.check != null) return validateArtifact(rule.check!, text);
   return null;
 }
 

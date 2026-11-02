@@ -37,11 +37,12 @@ class MoveTool extends Tool {
     try {
       final MoveResult result = await fs.move(from, to);
       return ToolResult.success(
-        '已移动：$from → $to',
+        '已移动：$from → $to（${result.bytes} 字节，sha256=${result.sha256 ?? '目录'}）',
         value: <String, Object?>{
           'from': result.fromPath,
           'to': result.toPath,
           'bytes': result.bytes,
+          'sha256': result.sha256,
         },
       );
     } on FsError catch (error) {

@@ -6,6 +6,7 @@ class MoveResult {
     required this.fromPath,
     required this.toPath,
     this.bytes = 0,
+    this.sha256,
   });
 
   /// 源路径（调用方传入的相对路径）。
@@ -16,6 +17,9 @@ class MoveResult {
 
   /// 移动的字节数；目录为 0。
   final int bytes;
+
+  /// 移动前源文件的 sha256；目录为 null。
+  final String? sha256;
 }
 
 /// 目录与移动原语：`FileSystem` 抽象没有它们，只在本装饰器上提供。
@@ -49,8 +53,14 @@ extension RootedFileSystemOps on RootedFileSystem {
       await Directory(sourcePath).rename(destinationPath);
       return MoveResult(fromPath: from, toPath: to);
     }
+    final String sha256 = sha256Hex(await File(sourcePath).readAsBytes());
     await File(sourcePath).rename(destinationPath);
-    return MoveResult(fromPath: from, toPath: to, bytes: info.size ?? 0);
+    return MoveResult(
+      fromPath: from,
+      toPath: to,
+      bytes: info.size ?? 0,
+      sha256: sha256,
+    );
   }
 }
 

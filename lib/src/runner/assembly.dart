@@ -119,7 +119,12 @@ Future<RunScope> assembleRun(AssemblyOptions options) async {
   provideTools(ctx);
   provideFsTools(
     ctx,
-    options: const FsToolOptions(enablePatch: true, skipDirs: _skipDirs),
+    options: const FsToolOptions(
+      enablePatch: true,
+      skipDirs: _skipDirs,
+      // 阶段 0 用文本模型：图片只返回元信息，避免把图像附件发给不支持的端点。
+      attachImages: false,
+    ),
   );
   ctx.tools.register(MkdirTool(fs: fs));
   ctx.tools.register(MoveTool(fs: fs));

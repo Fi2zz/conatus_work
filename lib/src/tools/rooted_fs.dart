@@ -12,6 +12,8 @@ import 'dart:typed_data';
 
 import 'package:conatus/conatus.dart';
 
+import '../runner/hash.dart';
+
 part 'rooted_fs_ops.dart';
 
 /// 把读写限制在工作区根与其前缀内的装饰器。

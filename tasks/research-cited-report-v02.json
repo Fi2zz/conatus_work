@@ -38,6 +38,9 @@
     "out/report.md": {
       "minChars": 1500,
       "maxChars": 20000
+    },
+    "out/sources.json": {
+      "check": "sources-json"
     }
   }
 }

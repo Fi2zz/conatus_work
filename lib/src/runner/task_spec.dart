@@ -7,6 +7,8 @@ library;
 import 'dart:convert';
 import 'dart:io';
 
+import 'validators.dart';
+
 part 'task_spec_parse.dart';
 
 /// 阶段 0 的三条任务链。
@@ -33,6 +35,7 @@ class ArtifactRule {
     this.maxChars,
     this.contains = const <String>[],
     this.requireSvg = false,
+    this.check,
   });
 
   /// 非空白字符数下限（中文按字计）。
@@ -46,6 +49,9 @@ class ArtifactRule {
 
   /// 必须是可解析的 SVG（最小检查：`<svg` 开头、含 `</svg>`）。
   final bool requireSvg;
+
+  /// 命名结构化校验器（见 `kArtifactChecks`）。
+  final String? check;
 }
 
 /// 一张待执行的任务卡。

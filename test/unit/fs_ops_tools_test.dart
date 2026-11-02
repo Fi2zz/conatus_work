@@ -33,6 +33,10 @@ void main() {
     File('${tmp.path}/out/a.txt').writeAsStringSync('12345');
     final MoveResult result = await fs.move('out/a.txt', 'out/b.txt');
     expect(result.bytes, 5);
+    expect(
+      result.sha256,
+      '5994471abb01112afcc18159f6cc74b4f511b99806da59b3caf5a9c173cacfc5',
+    );
     expect(File('${tmp.path}/out/b.txt').existsSync(), isTrue);
     File('${tmp.path}/out/c.txt').writeAsStringSync('c');
     await expectLater(

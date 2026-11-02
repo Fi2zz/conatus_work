@@ -107,4 +107,21 @@ void main() {
     };
     expect(() => TaskSpec.parse(zero), throwsA(isA<TaskSpecError>()));
   });
+
+  test('check 必须是已知校验器', () {
+    final Map<String, Object?> ok = validCard();
+    ok['artifactRules'] = <String, Object?>{
+      'out/report.md': <String, Object?>{'check': 'sources-json'},
+    };
+    expect(
+      TaskSpec.parse(ok).artifactRules['out/report.md']?.check,
+      'sources-json',
+    );
+
+    final Map<String, Object?> bad = validCard();
+    bad['artifactRules'] = <String, Object?>{
+      'out/report.md': <String, Object?>{'check': 'nope'},
+    };
+    expect(() => TaskSpec.parse(bad), throwsA(isA<TaskSpecError>()));
+  });
 }

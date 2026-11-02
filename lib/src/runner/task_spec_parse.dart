@@ -107,9 +107,14 @@ ArtifactRule _rule(String field, Object? value) {
   if (maxChars != null && (maxChars < 1 || maxChars < (minChars ?? 0))) {
     throw TaskSpecError('$field.maxChars', '必须 ≥ minChars 且 ≥ 1');
   }
+  final String? check = value['check'] as String?;
+  if (check != null && !kArtifactChecks.contains(check)) {
+    throw TaskSpecError('$field.check', '未知校验器：$check');
+  }
   return ArtifactRule(
     minChars: minChars,
     maxChars: maxChars,
+    check: check,
     contains: _optionalStrings(value, 'contains'),
     requireSvg: value['requireSvg'] as bool? ?? false,
   );
