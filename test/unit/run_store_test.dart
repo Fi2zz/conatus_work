@@ -52,6 +52,26 @@ void main() {
     expect(patched.checkpointError, 'disk full');
   });
 
+  test('时间戳带时区偏移', () async {
+    final Directory tmp = Directory.systemTemp.createTempSync('run_store_tz_');
+    addTearDown(() => tmp.deleteSync(recursive: true));
+    final RunPaths paths = RunPaths(runsDir: tmp.path, runId: 'run_tz');
+    await paths.create();
+    await RunStore(paths).save(RunRecord(
+      runId: 'run_tz',
+      taskId: 't',
+      chain: 'csv',
+      taskPath: '/t.json',
+      workspaceRoot: '/w',
+      sessionId: 'events',
+      pid: 1,
+      startedAt: DateTime(2026, 11, 2, 10, 15),
+    ));
+    final String raw = File(paths.runJsonPath).readAsStringSync();
+    expect(raw,
+        contains(RegExp(r'"startedAt": "2026-11-02T10:15:00[.0-9]*[+-]\d{2}:\d{2}"')));
+  });
+
   test('sha256 与已知向量一致', () {
     expect(sha256Hex(<int>[0x61, 0x62, 0x63]),
         'ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad');

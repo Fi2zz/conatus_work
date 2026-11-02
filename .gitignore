@@ -17,3 +17,6 @@ doc/api/
 
 # dotenv environment variables file
 .env*
+
+# 运行器产物（工作区、运行记录、检查点）
+var/

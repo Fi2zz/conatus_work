@@ -1,0 +1,13 @@
+{
+  "id": "empty-smoke",
+  "chain": "research",
+  "title": "空任务冒烟",
+  "workspace": { "root": "var/workspaces/smoke", "read": [], "write": ["out"] },
+  "inputs": [],
+  "prompt": "空跑，不做事",
+  "network": "deny",
+  "expectedArtifacts": [],
+  "acceptance": [],
+  "limits": { "maxMinutes": 1, "maxCostUsd": 0.1 },
+  "checkpoint": { "enabled": true, "keep": 30 }
+}

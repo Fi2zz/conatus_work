@@ -76,7 +76,7 @@ class HumanEdit {
   String? sha256;
 
   Map<String, Object?> toJson() => <String, Object?>{
-        'at': at.toIso8601String(),
+        'at': _iso(at),
         'artifact': artifact,
         'note': note,
         'sha256': sha256,
@@ -158,8 +158,8 @@ class RunRecord {
         'workspaceRoot': workspaceRoot,
         'pid': pid,
         'sessionId': sessionId,
-        'startedAt': startedAt.toIso8601String(),
-        'endedAt': endedAt?.toIso8601String(),
+        'startedAt': _iso(startedAt),
+        'endedAt': endedAt == null ? null : _iso(endedAt!),
         'status': status.name,
         'model': model,
         'resumeCount': resumeCount,
@@ -236,3 +236,18 @@ List<Object?> _list(Object? value) =>
 
 DateTime? _date(Object? value) =>
     value is String ? DateTime.tryParse(value) : null;
+
+/// ISO-8601 + 时区偏移：`toIso8601String()` 对本地时间不带偏移，UTC 又带 `Z`。
+String _iso(DateTime time) {
+  final DateTime local = time.toLocal();
+  final Duration offset = local.timeZoneOffset;
+  final String sign = offset.isNegative ? '-' : '+';
+  final int minutes = offset.inMinutes.abs();
+  final String stamp = '${local.year.toString().padLeft(4, '0')}-'
+      '${_two(local.month)}-${_two(local.day)}T'
+      '${_two(local.hour)}:${_two(local.minute)}:${_two(local.second)}'
+      '.${local.millisecond.toString().padLeft(3, '0')}';
+  return '$stamp$sign${_two(minutes ~/ 60)}:${_two(minutes % 60)}';
+}
+
+String _two(int value) => value.toString().padLeft(2, '0');
