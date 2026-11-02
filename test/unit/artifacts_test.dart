@@ -2,6 +2,7 @@ import 'dart:io';
 import 'package:conatus_work/src/runner/artifacts.dart';
 import 'package:conatus_work/src/runner/hash.dart';
 import 'package:conatus_work/src/runner/run_store.dart';
+import 'package:conatus_work/src/runner/task_spec.dart';
 import 'package:test/test.dart';
 
 void main() {
@@ -38,5 +39,56 @@ void main() {
     });
     expect(empty.toJson()['check'], containsPair('nonEmpty', false));
     expect(ok.toJson()['check'], containsPair('nonEmpty', true));
+  });
+
+  test('minChars / contains / requireSvg 三条规则', () async {
+    Directory('${tmp.path}/out').createSync();
+    File('${tmp.path}/out/short.md').writeAsStringSync('abc');
+    File('${tmp.path}/out/no-title.md').writeAsStringSync('正文没有标题');
+    File('${tmp.path}/out/bad.svg').writeAsStringSync('not svg');
+    File(
+      '${tmp.path}/out/good.svg',
+    ).writeAsStringSync('<?xml version="1.0"?><svg xmlns="x"></svg>');
+    final List<ArtifactCheck> checks = await checkArtifacts(
+      root: tmp.path,
+      expected: <String>[
+        'out/short.md',
+        'out/no-title.md',
+        'out/bad.svg',
+        'out/good.svg',
+      ],
+      rules: <String, ArtifactRule>{
+        'out/short.md': const ArtifactRule(minChars: 5),
+        'out/no-title.md': const ArtifactRule(contains: <String>['## 结论']),
+        'out/bad.svg': const ArtifactRule(requireSvg: true),
+        'out/good.svg': const ArtifactRule(requireSvg: true),
+      },
+    );
+    expect(checks[0].reason, 'tooShort');
+    expect(checks[1].reason, 'missingText');
+    expect(checks[2].reason, 'invalidSvg');
+    expect(checks[3].passed, isTrue);
+    expect(checks[0].bytes, 3);
+  });
+
+  test('中文按非空白字符计数', () async {
+    Directory('${tmp.path}/out').createSync();
+    File('${tmp.path}/out/zh.md').writeAsStringSync('本地 优先\n工作台');
+    final List<ArtifactCheck> checks = await checkArtifacts(
+      root: tmp.path,
+      expected: <String>['out/zh.md'],
+      rules: <String, ArtifactRule>{
+        'out/zh.md': const ArtifactRule(minChars: 8),
+      },
+    );
+    expect(checks.single.reason, 'tooShort');
+    final List<ArtifactCheck> ok = await checkArtifacts(
+      root: tmp.path,
+      expected: <String>['out/zh.md'],
+      rules: <String, ArtifactRule>{
+        'out/zh.md': const ArtifactRule(minChars: 7),
+      },
+    );
+    expect(ok.single.passed, isTrue);
   });
 }

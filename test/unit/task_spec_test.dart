@@ -68,4 +68,29 @@ void main() {
       expect(() => TaskSpec.parse(card), throwsA(isA<TaskSpecError>()));
     }
   });
+
+  test('artifactRules 解析与校验', () {
+    final Map<String, Object?> card = validCard();
+    card['artifactRules'] = <String, Object?>{
+      'out/report.md': <String, Object?>{
+        'minChars': 1500,
+        'contains': <String>['## 结论'],
+      },
+    };
+    final TaskSpec spec = TaskSpec.parse(card);
+    expect(spec.artifactRules['out/report.md']?.minChars, 1500);
+    expect(spec.artifactRules['out/report.md']?.contains, <String>['## 结论']);
+
+    final Map<String, Object?> unknown = validCard();
+    unknown['artifactRules'] = <String, Object?>{
+      'out/other.md': <String, Object?>{'minChars': 10},
+    };
+    expect(() => TaskSpec.parse(unknown), throwsA(isA<TaskSpecError>()));
+
+    final Map<String, Object?> zero = validCard();
+    zero['artifactRules'] = <String, Object?>{
+      'out/report.md': <String, Object?>{'minChars': 0},
+    };
+    expect(() => TaskSpec.parse(zero), throwsA(isA<TaskSpecError>()));
+  });
 }

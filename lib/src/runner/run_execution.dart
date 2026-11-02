@@ -98,6 +98,7 @@ class RunExecution {
     final List<ArtifactCheck> checks = await checkArtifacts(
       root: workspace.rootAbsolute,
       expected: task.expectedArtifacts,
+      rules: task.artifactRules,
     );
     record.artifacts = checks;
     if (checks.every((ArtifactCheck check) => check.passed)) return;

@@ -72,3 +72,43 @@ bool _safeRelative(String value) {
   if (value.startsWith('/') || value.contains(':')) return false;
   return !value.split(RegExp(r'[/\\]')).contains('..');
 }
+
+Map<String, ArtifactRule> _artifactRules(
+  Map<String, Object?> json,
+  List<String> artifacts,
+) {
+  final Object? raw = json['artifactRules'];
+  if (raw == null) return const <String, ArtifactRule>{};
+  if (raw is! Map<String, Object?>) {
+    throw const TaskSpecError('artifactRules', '必须是对象');
+  }
+  final Map<String, ArtifactRule> rules = <String, ArtifactRule>{};
+  for (final MapEntry<String, Object?> entry in raw.entries) {
+    if (!artifacts.contains(entry.key)) {
+      throw TaskSpecError(
+        'artifactRules.${entry.key}',
+        '路径必须在 expectedArtifacts 中',
+      );
+    }
+    rules[entry.key] = _rule('artifactRules.${entry.key}', entry.value);
+  }
+  return rules;
+}
+
+ArtifactRule _rule(String field, Object? value) {
+  if (value is! Map<String, Object?>) {
+    throw TaskSpecError(field, '必须是对象');
+  }
+  final int? minChars = value['minChars'] as int?;
+  if (minChars != null && minChars < 1) {
+    throw TaskSpecError('$field.minChars', '至少为 1');
+  }
+  return ArtifactRule(
+    minChars: minChars,
+    contains: _optionalStrings(value, 'contains'),
+    requireSvg: value['requireSvg'] as bool? ?? false,
+  );
+}
+
+List<String> _optionalStrings(Map<String, Object?> json, String key) =>
+    json[key] == null ? const <String>[] : _strings(json, key);

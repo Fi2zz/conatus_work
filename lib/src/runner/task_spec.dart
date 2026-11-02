@@ -26,6 +26,24 @@ class TaskSpecError implements Exception {
   String toString() => 'TaskSpecError($field): $message';
 }
 
+/// 单条产物的额外判定规则。
+class ArtifactRule {
+  const ArtifactRule({
+    this.minChars,
+    this.contains = const <String>[],
+    this.requireSvg = false,
+  });
+
+  /// 非空白字符数下限（中文按字计）。
+  final int? minChars;
+
+  /// 必须出现的子串。
+  final List<String> contains;
+
+  /// 必须是可解析的 SVG（最小检查：`<svg` 开头、含 `</svg>`）。
+  final bool requireSvg;
+}
+
 /// 一张待执行的任务卡。
 class TaskSpec {
   const TaskSpec({
@@ -44,6 +62,7 @@ class TaskSpec {
     required this.maxCostUsd,
     required this.checkpointEnabled,
     required this.checkpointKeep,
+    this.artifactRules = const <String, ArtifactRule>{},
   });
 
   /// 任务标识（同一链路内唯一）。
@@ -91,6 +110,9 @@ class TaskSpec {
   /// 检查点保留轮数。
   final int checkpointKeep;
 
+  /// 按产物路径追加的判定规则。
+  final Map<String, ArtifactRule> artifactRules;
+
   /// 从已解码的 JSON 对象解析；失败抛 [TaskSpecError]。
   static TaskSpec parse(Map<String, Object?> json) {
     final String chain = _string(json, 'chain');
@@ -100,6 +122,7 @@ class TaskSpec {
     final Map<String, Object?> workspace = _map(json, 'workspace');
     final Map<String, Object?> limits = _map(json, 'limits');
     final Map<String, Object?> checkpoint = _map(json, 'checkpoint');
+    final List<String> artifacts = _paths(json, 'expectedArtifacts');
     final int keep = _integer(checkpoint, 'keep');
     if (keep < 1) throw const TaskSpecError('checkpoint.keep', '至少为 1');
     return TaskSpec(
@@ -111,13 +134,14 @@ class TaskSpec {
       read: _paths(workspace, 'read'),
       write: _paths(workspace, 'write', nonEmpty: true),
       inputs: _paths(json, 'inputs'),
-      expectedArtifacts: _paths(json, 'expectedArtifacts'),
+      expectedArtifacts: artifacts,
       acceptance: _strings(json, 'acceptance'),
       allowNetwork: _network(json),
       maxMinutes: _integer(limits, 'maxMinutes'),
       maxCostUsd: _number(limits, 'maxCostUsd'),
       checkpointEnabled: _boolean(checkpoint, 'enabled'),
       checkpointKeep: keep,
+      artifactRules: _artifactRules(json, artifacts),
     );
   }
 

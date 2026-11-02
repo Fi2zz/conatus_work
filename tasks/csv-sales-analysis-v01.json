@@ -2,11 +2,25 @@
   "id": "csv-sales-analysis-v01",
   "chain": "csv",
   "title": "分析销售 CSV，找出退款率异常并生成图表",
-  "workspace": { "root": "var/workspaces/csv-v01", "read": ["data"], "write": ["out"] },
-  "inputs": ["data/sales.csv"],
+  "workspace": {
+    "root": "var/workspaces/csv-v01",
+    "read": [
+      "data"
+    ],
+    "write": [
+      "out"
+    ]
+  },
+  "inputs": [
+    "data/sales.csv"
+  ],
   "prompt": "分析 data/sales.csv：按月、地区计算订单数、退款率、客单价；找出退款率异常并给出可能原因；生成一张 SVG 图表和一份 Markdown 结论。不要联网。",
   "network": "deny",
-  "expectedArtifacts": ["out/analysis.md", "out/chart.svg", "out/clean.csv"],
+  "expectedArtifacts": [
+    "out/analysis.md",
+    "out/chart.svg",
+    "out/clean.csv"
+  ],
   "acceptance": [
     "行数、总订单、退款率可复算",
     "缺失/非法行在 analysis.md 中报告",
@@ -14,6 +28,20 @@
     "结论引用具体数值",
     "run.json.tools 不含 websearch / webfetch"
   ],
-  "limits": { "maxMinutes": 10, "maxCostUsd": 0.8 },
-  "checkpoint": { "enabled": true, "keep": 30 }
+  "limits": {
+    "maxMinutes": 10,
+    "maxCostUsd": 0.8
+  },
+  "checkpoint": {
+    "enabled": true,
+    "keep": 30
+  },
+  "artifactRules": {
+    "out/analysis.md": {
+      "minChars": 300
+    },
+    "out/chart.svg": {
+      "requireSvg": true
+    }
+  }
 }

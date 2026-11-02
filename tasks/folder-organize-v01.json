@@ -2,11 +2,25 @@
   "id": "folder-organize-v01",
   "chain": "organize",
   "title": "按类型和月份整理收件箱并生成变更清单",
-  "workspace": { "root": "var/workspaces/organize-v01", "read": ["inbox"], "write": ["inbox", "out"] },
-  "inputs": ["inbox"],
+  "workspace": {
+    "root": "var/workspaces/organize-v01",
+    "read": [
+      "inbox"
+    ],
+    "write": [
+      "inbox",
+      "out"
+    ]
+  },
+  "inputs": [
+    "inbox"
+  ],
   "prompt": "把 inbox 下的文件按“类型/月份”整理到 inbox/organized/；不删除任何文件，冲突文件放入 inbox/quarantine/；先输出 dry-run 清单，确认后执行；执行后生成 changes.json 和 changes.md。",
   "network": "deny",
-  "expectedArtifacts": ["out/changes.json", "out/changes.md"],
+  "expectedArtifacts": [
+    "out/changes.json",
+    "out/changes.md"
+  ],
   "acceptance": [
     "dry-run 清单与实际移动一致",
     "每个移动都有 oldPath/newPath/sha256/reason",
@@ -14,6 +28,17 @@
     "没有删除；冲突进入 quarantine",
     "撤销后目录树与运行前一致"
   ],
-  "limits": { "maxMinutes": 10, "maxCostUsd": 0.5 },
-  "checkpoint": { "enabled": true, "keep": 30 }
+  "limits": {
+    "maxMinutes": 10,
+    "maxCostUsd": 0.5
+  },
+  "checkpoint": {
+    "enabled": true,
+    "keep": 30
+  },
+  "artifactRules": {
+    "out/changes.md": {
+      "minChars": 50
+    }
+  }
 }
