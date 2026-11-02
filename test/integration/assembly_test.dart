@@ -94,7 +94,7 @@ void main() {
       workspace,
       confirmed: true,
     ).sections.first.text();
-    expect(pending, contains('dry-run'));
+    expect(pending, contains('未获确认'));
     expect(confirmed, contains('已确认'));
   });
 }
