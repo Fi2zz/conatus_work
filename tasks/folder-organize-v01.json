@@ -38,7 +38,8 @@
   },
   "artifactRules": {
     "out/changes.md": {
-      "minChars": 50
+      "minChars": 50,
+      "maxChars": 4000
     }
   }
 }

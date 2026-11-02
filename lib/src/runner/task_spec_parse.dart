@@ -100,11 +100,16 @@ ArtifactRule _rule(String field, Object? value) {
     throw TaskSpecError(field, '必须是对象');
   }
   final int? minChars = value['minChars'] as int?;
+  final int? maxChars = value['maxChars'] as int?;
   if (minChars != null && minChars < 1) {
     throw TaskSpecError('$field.minChars', '至少为 1');
   }
+  if (maxChars != null && (maxChars < 1 || maxChars < (minChars ?? 0))) {
+    throw TaskSpecError('$field.maxChars', '必须 ≥ minChars 且 ≥ 1');
+  }
   return ArtifactRule(
     minChars: minChars,
+    maxChars: maxChars,
     contains: _optionalStrings(value, 'contains'),
     requireSvg: value['requireSvg'] as bool? ?? false,
   );

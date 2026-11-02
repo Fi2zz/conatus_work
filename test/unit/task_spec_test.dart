@@ -93,4 +93,18 @@ void main() {
     };
     expect(() => TaskSpec.parse(zero), throwsA(isA<TaskSpecError>()));
   });
+
+  test('maxChars 必须 ≥ minChars 且 ≥ 1', () {
+    final Map<String, Object?> inverted = validCard();
+    inverted['artifactRules'] = <String, Object?>{
+      'out/report.md': <String, Object?>{'minChars': 100, 'maxChars': 50},
+    };
+    expect(() => TaskSpec.parse(inverted), throwsA(isA<TaskSpecError>()));
+
+    final Map<String, Object?> zero = validCard();
+    zero['artifactRules'] = <String, Object?>{
+      'out/report.md': <String, Object?>{'maxChars': 0},
+    };
+    expect(() => TaskSpec.parse(zero), throwsA(isA<TaskSpecError>()));
+  });
 }

@@ -30,12 +30,16 @@ class TaskSpecError implements Exception {
 class ArtifactRule {
   const ArtifactRule({
     this.minChars,
+    this.maxChars,
     this.contains = const <String>[],
     this.requireSvg = false,
   });
 
   /// 非空白字符数下限（中文按字计）。
   final int? minChars;
+
+  /// 非空白字符数上限；防止产物跑飞，不替代人工字数验收。
+  final int? maxChars;
 
   /// 必须出现的子串。
   final List<String> contains;

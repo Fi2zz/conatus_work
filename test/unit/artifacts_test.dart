@@ -91,4 +91,20 @@ void main() {
     );
     expect(ok.single.passed, isTrue);
   });
+
+  test('maxChars 超限 → tooLong，边界值放行', () async {
+    Directory('${tmp.path}/out').createSync();
+    File('${tmp.path}/out/long.md').writeAsStringSync('abcdef');
+    File('${tmp.path}/out/edge.md').writeAsStringSync('abcde');
+    final List<ArtifactCheck> checks = await checkArtifacts(
+      root: tmp.path,
+      expected: <String>['out/long.md', 'out/edge.md'],
+      rules: <String, ArtifactRule>{
+        'out/long.md': const ArtifactRule(maxChars: 5),
+        'out/edge.md': const ArtifactRule(maxChars: 5),
+      },
+    );
+    expect(checks[0].reason, 'tooLong');
+    expect(checks[1].passed, isTrue);
+  });
 }

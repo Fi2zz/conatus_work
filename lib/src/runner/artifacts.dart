@@ -51,9 +51,9 @@ Future<ArtifactCheck> _checkOne(
 String? _ruleFailure(ArtifactRule? rule, List<int> bytes) {
   if (rule == null) return null;
   final String text = utf8.decode(bytes, allowMalformed: true);
-  if (rule.minChars != null && _charCount(text) < rule.minChars!) {
-    return 'tooShort';
-  }
+  final int count = _charCount(text);
+  if (rule.minChars != null && count < rule.minChars!) return 'tooShort';
+  if (rule.maxChars != null && count > rule.maxChars!) return 'tooLong';
   for (final String needle in rule.contains) {
     if (!text.contains(needle)) return 'missingText';
   }

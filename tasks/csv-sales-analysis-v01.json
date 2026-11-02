@@ -38,7 +38,8 @@
   },
   "artifactRules": {
     "out/analysis.md": {
-      "minChars": 300
+      "minChars": 300,
+      "maxChars": 6000
     },
     "out/chart.svg": {
       "requireSvg": true
