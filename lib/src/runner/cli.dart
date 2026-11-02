@@ -13,6 +13,7 @@ import 'run_paths.dart';
 import 'run_store.dart';
 import 'runner.dart';
 import 'task_spec.dart';
+import 'undo.dart';
 
 /// 运行记录目录（相对当前工作目录）。
 const String kRunsDir = 'var/runs';
@@ -26,6 +27,7 @@ Future<int> runCli(List<String> args) async {
     'run' => _run(rest),
     'resume' => _resume(rest),
     'abort' => _abort(rest),
+    'undo' => _undo(rest),
     'report' => _report(rest),
     'edit' => _edit(rest),
     _ => _usage(),
@@ -97,6 +99,18 @@ Future<int> _abort(List<String> args) async {
   if (runId == null) return _usage();
   final RunRecord record = await Runner(body: agentTaskBody).abort(runId);
   stdout.writeln(_summary(record));
+  return 0;
+}
+
+Future<int> _undo(List<String> args) async {
+  final String? runId = _positional(args);
+  if (runId == null) return _usage();
+  final String? raw = _flag(args, '--steps');
+  final int? steps = raw == null ? null : int.tryParse(raw);
+  final RunRecord record = await Runner(
+    body: agentTaskBody,
+  ).undo(runId, steps: steps);
+  stdout.writeln('已撤销：${record.runId} forkSessionId=${record.forkSessionId}');
   return 0;
 }
 
@@ -183,6 +197,7 @@ Future<int> _usage() async {
   );
   stdout.writeln('  runner resume <runId>');
   stdout.writeln('  runner abort <runId>');
+  stdout.writeln('  runner undo <runId> [--steps N]');
   stdout.writeln('  runner report [runsDir]');
   stdout.writeln('  runner edit <runId> --artifact <rel> --note <text>');
   return 64;

@@ -19,8 +19,17 @@ dependencies:
   # 本地根包，改框架源码立刻生效。ref 由 tool/pin_conatus_refs.sh 钉版。
   conatus:
     git: {url: https://github.com/Fi2zz/conatus.git, ref: 33a213bd57d27008ae4c2f97db047ee3a7add124}
+  conatus_checkpoint:
+    git: {url: https://github.com/Fi2zz/conatus.git, ref: 33a213bd57d27008ae4c2f97db047ee3a7add124, path: packages/conatus_checkpoint}
   crypto: ^3.0.0
 
 dev_dependencies:
   lints: ^4.0.0
   test: ^1.25.0
+
+# 独立形态需要 overrides：伞包 git 源里的 conatus_checkpoint 与本节直接依赖的
+# git ref 是两种源身份，不覆盖会求解失败（workspace 形态由 filter 生成的
+# pubspec_overrides.yaml 清空）。
+dependency_overrides:
+  conatus_checkpoint:
+    git: {url: https://github.com/Fi2zz/conatus.git, ref: 33a213bd57d27008ae4c2f97db047ee3a7add124, path: packages/conatus_checkpoint}
