@@ -71,7 +71,7 @@ class RootedFileSystem implements FileSystem {
 
   @override
   Future<FsPathInfo?> lstat(String path, {String? cwd}) async {
-    _requireRead(await inner.resolve(path, cwd: cwd));
+    _requireRead(await inner.resolve(_parentOf(path), cwd: cwd));
     return inner.lstat(path, cwd: cwd);
   }
 
@@ -90,7 +90,19 @@ class RootedFileSystem implements FileSystem {
   @override
   Future<List<FsDirEntry>> listDir(FsTarget target) async {
     _requireRead(target);
-    return inner.listDir(target);
+    final List<FsDirEntry> entries = await inner.listDir(target);
+    final List<FsDirEntry> safe = <FsDirEntry>[];
+    for (final FsDirEntry entry in entries) {
+      safe.add(
+        FsDirEntry(
+          name: entry.name,
+          type: entry.type,
+          target: await inner.resolve(entry.target.displayPath),
+          size: entry.size,
+        ),
+      );
+    }
+    return safe;
   }
 
   @override
@@ -157,13 +169,20 @@ String _real(String path) {
 List<String> _prefixRoots(String rootReal, Iterable<String> prefixes) {
   final List<String> roots = <String>[];
   for (final String prefix in prefixes) {
-    if (prefix.trim().isEmpty) {
-      throw ArgumentError('读写前缀不能为空');
+    if (prefix.trim().isEmpty || _unsafePrefix(prefix)) {
+      throw ArgumentError('读写前缀必须是根下相对路径：$prefix');
     }
-    roots.add(_real('$rootReal${Platform.pathSeparator}$prefix'));
+    final String real = _real('$rootReal${Platform.pathSeparator}$prefix');
+    if (!underReadOnlyRoot(real, rootReal)) {
+      throw ArgumentError('读写前缀解析到工作区根之外：$prefix');
+    }
+    roots.add(real);
   }
   return roots;
 }
+
+bool _unsafePrefix(String prefix) =>
+    prefix.startsWith('/') || prefix.split(RegExp(r'[/\\]')).contains('..');
 
 bool _underAny(String path, List<String> roots) {
   for (final String root in roots) {
@@ -174,4 +193,3 @@ bool _underAny(String path, List<String> roots) {
 
 bool _samePath(String a, String b) =>
     underReadOnlyRoot(a, b) && underReadOnlyRoot(b, a);
-

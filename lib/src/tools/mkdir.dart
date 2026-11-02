@@ -20,8 +20,8 @@ class MkdirTool extends Tool {
 
   @override
   List<ParamSpec> get params => <ParamSpec>[
-        ParamSpec.string('path', description: '目录路径（工作区相对路径）', required: true),
-      ];
+    ParamSpec.string('path', description: '目录路径（工作区相对路径）', required: true),
+  ];
 
   @override
   Future<ToolResult> call(ToolContext context) async {

@@ -8,20 +8,20 @@ import 'task_spec.dart';
 /// 执行体的结局。
 class TaskOutcome {
   const TaskOutcome.ok()
-      : status = RunStatus.succeeded,
-        category = null,
-        message = null;
+    : status = TaskRunStatus.succeeded,
+      category = null,
+      message = null;
 
   const TaskOutcome.failed(this.category, this.message)
-      : status = RunStatus.failed;
+    : status = TaskRunStatus.failed;
 
   const TaskOutcome.aborted()
-      : status = RunStatus.aborted,
-        category = null,
-        message = null;
+    : status = TaskRunStatus.aborted,
+      category = null,
+      message = null;
 
   /// 结局状态。
-  final RunStatus status;
+  final TaskRunStatus status;
 
   /// 失败分类（仅 failed 有意义）。
   final FailureCategory? category;
@@ -36,4 +36,3 @@ typedef TaskBody = Future<TaskOutcome> Function(RunScope scope, TaskSpec task);
 /// 第 1 周的默认执行体：什么都不做，只验证装配与收口。
 Future<TaskOutcome> noopTaskBody(RunScope scope, TaskSpec task) async =>
     const TaskOutcome.ok();
-

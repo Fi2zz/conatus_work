@@ -50,15 +50,11 @@ extension RootedFileSystemOps on RootedFileSystem {
       return MoveResult(fromPath: from, toPath: to);
     }
     await File(sourcePath).rename(destinationPath);
-    return MoveResult(
-      fromPath: from,
-      toPath: to,
-      bytes: info.size ?? 0,
-    );
+    return MoveResult(fromPath: from, toPath: to, bytes: info.size ?? 0);
   }
 }
 
 String _parentOf(String path) {
-  final int cut = path.lastIndexOf(Platform.pathSeparator);
-  return cut <= 0 ? Platform.pathSeparator : path.substring(0, cut);
+  final int cut = path.lastIndexOf(RegExp(r'[/\\]'));
+  return cut <= 0 ? '.' : path.substring(0, cut);
 }

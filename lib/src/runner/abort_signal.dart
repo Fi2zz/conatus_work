@@ -13,6 +13,12 @@ class AbortSignal {
   /// 是否已被请求中断。
   bool get requested => File(flagPath).existsSync();
 
+  /// 清掉中断请求；resume 前消费陈旧标志。
+  Future<void> clear() async {
+    final File file = File(flagPath);
+    if (file.existsSync()) await file.delete();
+  }
+
   /// 写入中断请求；重复调用幂等。
   Future<void> request() async {
     final File file = File(flagPath);

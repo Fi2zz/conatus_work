@@ -7,6 +7,7 @@
 /// 落地，装配入口放 `lib/src/`，单文件单职责（沿用 conatus 仓库的约束）。
 library;
 
+export 'src/runner/assembly.dart' show RunScope;
 export 'src/runner/cli.dart' show kRunsDir, runCli;
 export 'src/runner/run_store.dart'
     show
@@ -16,7 +17,7 @@ export 'src/runner/run_store.dart'
         HumanEdit,
         RunFailure,
         RunRecord,
-        RunStatus,
+        TaskRunStatus,
         RunStore,
         applySnapshot;
 export 'src/runner/runner.dart'

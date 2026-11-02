@@ -25,6 +25,7 @@ class RunScope {
     required this.session,
     required this.paths,
     required this.toolNames,
+    this.baselineError,
   });
 
   /// 本次运行的上下文树。
@@ -47,6 +48,9 @@ class RunScope {
 
   /// 已注册工具名。
   final List<String> toolNames;
+
+  /// turn 0 基线快照的错误（成功为 null）。
+  final String? baselineError;
 
   /// 关闭会话并释放整棵上下文。
   Future<void> dispose() async {
@@ -99,7 +103,9 @@ Future<RunScope> assembleRun({
     ),
     options: options,
   );
-  await (fresh ? checkpoint.reset('events') : checkpoint.bind('events'));
+  final String? baselineError = await (fresh
+      ? checkpoint.reset('events')
+      : checkpoint.bind('events'));
   await checkpoint.flush();
   ctx.provide('checkpointManager', checkpoint);
 
@@ -111,5 +117,6 @@ Future<RunScope> assembleRun({
     session: session,
     paths: paths,
     toolNames: ctx.tools.names,
+    baselineError: baselineError,
   );
 }

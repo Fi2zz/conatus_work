@@ -44,11 +44,15 @@ Future<WorkspacePlan> prepareWorkspace({
   required TaskSpec task,
   String? rootOverride,
 }) async {
-  final String root = resolveWorkspaceRoot(task: task, rootOverride: rootOverride);
+  final String root = resolveWorkspaceRoot(
+    task: task,
+    rootOverride: rootOverride,
+  );
   await Directory(root).create(recursive: true);
   for (final String prefix in task.write) {
-    await Directory('$root${Platform.pathSeparator}$prefix')
-        .create(recursive: true);
+    await Directory(
+      '$root${Platform.pathSeparator}$prefix',
+    ).create(recursive: true);
   }
   return WorkspacePlan(
     rootAbsolute: root,
@@ -57,10 +61,39 @@ Future<WorkspacePlan> prepareWorkspace({
   );
 }
 
+/// 预检失败：工作区根或输入不满足运行条件。
+class RunPreflightError implements Exception {
+  const RunPreflightError(this.message);
+
+  /// 人可读的失败说明。
+  final String message;
+
+  @override
+  String toString() => 'RunPreflightError: $message';
+}
+
+/// 不落盘的预检：根可用、输入都在。
+Future<void> preflightRun(TaskSpec task, {String? rootOverride}) async {
+  final String root = resolveWorkspaceRoot(
+    task: task,
+    rootOverride: rootOverride,
+  );
+  final FileSystemEntityType type = await FileSystemEntity.type(root);
+  if (type != FileSystemEntityType.notFound &&
+      type != FileSystemEntityType.directory) {
+    throw RunPreflightError('工作区根不是目录：$root');
+  }
+  for (final String input in task.inputs) {
+    final String path = '$root${Platform.pathSeparator}$input';
+    if (await FileSystemEntity.type(path) == FileSystemEntityType.notFound) {
+      throw RunPreflightError('输入不存在：$input');
+    }
+  }
+}
+
 /// 产品侧的检查点排除面：应用数据与影子仓库不进快照。
-CheckpointPolicy productCheckpointPolicy() => const CheckpointPolicy(
-      excludedPrefixes: <String>['.conatus_work', '.git'],
-    );
+CheckpointPolicy productCheckpointPolicy() =>
+    const CheckpointPolicy(excludedPrefixes: <String>['.conatus_work', '.git']);
 
 bool _isAbsolute(String path) =>
     path.startsWith('/') || RegExp(r'^[A-Za-z]:').hasMatch(path);

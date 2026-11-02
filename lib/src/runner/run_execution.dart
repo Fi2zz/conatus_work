@@ -45,11 +45,11 @@ class RunExecution {
       await store.save(record);
       final TaskOutcome outcome = await _runBody(scope);
       _apply(outcome);
-      if (record.status == RunStatus.succeeded) await _checkArtifacts();
+      if (record.status == TaskRunStatus.succeeded) await _checkArtifacts();
       await _snapshot(scope);
     } catch (error) {
       record
-        ..status = RunStatus.failed
+        ..status = TaskRunStatus.failed
         ..failure = RunFailure(
           category: FailureCategory.internal,
           message: '$error',
@@ -79,18 +79,18 @@ class RunExecution {
 
   void _apply(TaskOutcome outcome) {
     switch (outcome.status) {
-      case RunStatus.aborted:
-        record.status = RunStatus.aborted;
-      case RunStatus.failed:
+      case TaskRunStatus.aborted:
+        record.status = TaskRunStatus.aborted;
+      case TaskRunStatus.failed:
         record
-          ..status = RunStatus.failed
+          ..status = TaskRunStatus.failed
           ..failure = RunFailure(
             category: outcome.category ?? FailureCategory.internal,
             message: outcome.message,
           );
-      case RunStatus.running:
-      case RunStatus.succeeded:
-        record.status = RunStatus.succeeded;
+      case TaskRunStatus.running:
+      case TaskRunStatus.succeeded:
+        record.status = TaskRunStatus.succeeded;
     }
   }
 
@@ -102,7 +102,7 @@ class RunExecution {
     record.artifacts = checks;
     if (checks.every((ArtifactCheck check) => check.passed)) return;
     record
-      ..status = RunStatus.failed
+      ..status = TaskRunStatus.failed
       ..failure = RunFailure(
         category: FailureCategory.artifact,
         message: '期望产物未通过检查',
@@ -110,9 +110,10 @@ class RunExecution {
   }
 
   Future<void> _snapshot(RunScope scope) async {
-    final String? error = await scope.checkpoint
-        .recordTurn(lastEventId: scope.session.lastEventId);
-    applySnapshot(record, error);
+    final String? turnError = await scope.checkpoint.recordTurn(
+      lastEventId: scope.session.lastEventId,
+    );
+    applySnapshot(record, scope.baselineError ?? turnError);
     record.endTurn = scope.checkpoint.turn;
   }
 }

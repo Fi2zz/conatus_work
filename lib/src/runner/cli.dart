@@ -35,17 +35,20 @@ Future<int> _list() async {
     stderr.writeln('没有 tasks/ 目录');
     return 1;
   }
-  final List<File> cards = dir
-      .listSync()
-      .whereType<File>()
-      .where((File file) => file.path.endsWith('.json'))
-      .toList()
-    ..sort((File a, File b) => a.path.compareTo(b.path));
+  final List<File> cards =
+      dir
+          .listSync()
+          .whereType<File>()
+          .where((File file) => file.path.endsWith('.json'))
+          .toList()
+        ..sort((File a, File b) => a.path.compareTo(b.path));
   for (final File file in cards) {
     try {
       final TaskSpec spec = await TaskSpec.load(file.path);
-      stdout.writeln('${spec.id} | ${spec.chain} | ${spec.title} | '
-          '${spec.expectedArtifacts.join(', ')}');
+      stdout.writeln(
+        '${spec.id} | ${spec.chain} | ${spec.title} | '
+        '${spec.expectedArtifacts.join(', ')}',
+      );
     } on TaskSpecError catch (error) {
       stdout.writeln('${file.path} | 不合法：${error.message}');
     }
@@ -68,7 +71,7 @@ Future<int> _run(List<String> args) async {
     rerunOf: _flag(args, '--rerun-of'),
   );
   stdout.writeln(_summary(record));
-  return record.status == RunStatus.succeeded ? 0 : 1;
+  return record.status == TaskRunStatus.succeeded ? 0 : 1;
 }
 
 Future<int> _resume(List<String> args) async {
@@ -76,7 +79,7 @@ Future<int> _resume(List<String> args) async {
   if (runId == null) return _usage();
   final RunRecord record = await Runner(body: noopTaskBody).resume(runId);
   stdout.writeln(_summary(record));
-  return record.status == RunStatus.succeeded ? 0 : 1;
+  return record.status == TaskRunStatus.succeeded ? 0 : 1;
 }
 
 Future<int> _abort(List<String> args) async {
@@ -92,8 +95,7 @@ Future<int> _report(List<String> args) async {
   final List<RunRecord> records = <RunRecord>[];
   if (dir.existsSync()) {
     for (final FileSystemEntity entity in dir.listSync()) {
-      final File file =
-          File('${entity.path}${Platform.pathSeparator}run.json');
+      final File file = File('${entity.path}${Platform.pathSeparator}run.json');
       if (!file.existsSync()) continue;
       final RunRecord? record = _tryLoad(file);
       if (record != null) records.add(record);
@@ -110,14 +112,17 @@ Future<int> _edit(List<String> args) async {
   if (runId == null || artifact == null || note == null) return _usage();
   final RunStore store = RunStore(RunPaths(runsDir: kRunsDir, runId: runId));
   final RunRecord record = await store.load();
-  final File file =
-      File('${record.workspaceRoot}${Platform.pathSeparator}$artifact');
-  record.humanEdits.add(HumanEdit(
-    at: DateTime.now(),
-    artifact: artifact,
-    note: note,
-    sha256: file.existsSync() ? sha256Hex(file.readAsBytesSync()) : null,
-  ));
+  final File file = File(
+    '${record.workspaceRoot}${Platform.pathSeparator}$artifact',
+  );
+  record.humanEdits.add(
+    HumanEdit(
+      at: DateTime.now(),
+      artifact: artifact,
+      note: note,
+      sha256: file.existsSync() ? sha256Hex(file.readAsBytesSync()) : null,
+    ),
+  );
   await store.save(record);
   stdout.writeln('已记录人工修改：$artifact');
   return 0;
@@ -154,7 +159,9 @@ RunRecord? _tryLoad(File file) {
 Future<int> _usage() async {
   stdout.writeln('用法：');
   stdout.writeln('  runner list');
-  stdout.writeln('  runner run <card> [--workspace <dir>] [--rerun-of <runId>]');
+  stdout.writeln(
+    '  runner run <card> [--workspace <dir>] [--rerun-of <runId>]',
+  );
   stdout.writeln('  runner resume <runId>');
   stdout.writeln('  runner abort <runId>');
   stdout.writeln('  runner report [runsDir]');

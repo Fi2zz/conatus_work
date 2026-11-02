@@ -30,7 +30,9 @@ class RunStore {
 
   /// 读取 `run.json`。
   Future<RunRecord> load() async {
-    final Object? decoded = jsonDecode(await File(paths.runJsonPath).readAsString());
+    final Object? decoded = jsonDecode(
+      await File(paths.runJsonPath).readAsString(),
+    );
     if (decoded is! Map<String, Object?>) {
       throw const FormatException('run.json 必须是 JSON 对象');
     }
@@ -41,8 +43,9 @@ class RunStore {
 /// 把检查点收口结果写进记录：只动检查点状态，不改任务状态。
 RunRecord applySnapshot(RunRecord record, String? error) {
   record
-    ..checkpointStatus =
-        error == null ? CheckpointStatus.ok : CheckpointStatus.error
+    ..checkpointStatus = error == null
+        ? CheckpointStatus.ok
+        : CheckpointStatus.error
     ..checkpointError = error;
   return record;
 }

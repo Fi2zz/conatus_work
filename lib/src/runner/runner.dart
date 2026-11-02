@@ -4,7 +4,7 @@ library;
 import 'dart:convert';
 import 'dart:io';
 
-import 'package:conatus/conatus.dart' hide RunStatus;
+import 'package:conatus/conatus.dart';
 
 import 'abort_signal.dart';
 import 'run_execution.dart';
@@ -33,11 +33,16 @@ class Runner {
     String? workspaceRoot,
     String? rerunOf,
   }) async {
-    final RunPaths paths =
-        RunPaths(runsDir: runsDir, runId: newRunId(DateTime.now()));
+    await preflightRun(task, rootOverride: workspaceRoot);
+    final WorkspacePlan workspace = await prepareWorkspace(
+      task: task,
+      rootOverride: workspaceRoot,
+    );
+    final RunPaths paths = RunPaths(
+      runsDir: runsDir,
+      runId: newRunId(DateTime.now()),
+    );
     await paths.create();
-    final WorkspacePlan workspace =
-        await prepareWorkspace(task: task, rootOverride: workspaceRoot);
     final RunStore store = RunStore(paths);
     final RunRecord record = RunRecord(
       runId: paths.runId,
@@ -48,8 +53,7 @@ class Runner {
       sessionId: 'events',
       pid: pid,
       startedAt: DateTime.now(),
-    )..rerunOf =
-        rerunOf ?? await _previousRun(task.id, workspace.rootAbsolute);
+    )..rerunOf = rerunOf ?? await _previousRun(task.id, workspace.rootAbsolute);
     await store.save(record);
     return RunExecution(
       body: body,
@@ -71,8 +75,9 @@ class Runner {
       task: task,
       rootOverride: record.workspaceRoot,
     );
+    await AbortSignal(paths.abortFlagPath).clear();
     record
-      ..status = RunStatus.running
+      ..status = TaskRunStatus.running
       ..pid = pid
       ..resumeCount += 1
       ..endedAt = null;
@@ -115,7 +120,7 @@ class Runner {
     await checkpoint.flush();
     applySnapshot(record, await checkpoint.recordTurn());
     record
-      ..status = RunStatus.aborted
+      ..status = TaskRunStatus.aborted
       ..endTurn = checkpoint.turn
       ..endedAt = DateTime.now();
     await store.save(record);
@@ -138,7 +143,6 @@ class Runner {
     return found;
   }
 }
-
 
 RunRecord? _tryLoad(String runDir) {
   final File file = File('$runDir${Platform.pathSeparator}run.json');

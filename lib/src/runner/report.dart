@@ -19,12 +19,15 @@ String renderReport(Iterable<RunRecord> records) {
 
 String _row(String chain, List<RunRecord> rows) {
   final int total = rows.length;
-  final int succeeded =
-      rows.where((RunRecord r) => r.status == RunStatus.succeeded).length;
-  final int failed =
-      rows.where((RunRecord r) => r.status == RunStatus.failed).length;
-  final int aborted =
-      rows.where((RunRecord r) => r.status == RunStatus.aborted).length;
+  final int succeeded = rows
+      .where((RunRecord r) => r.status == TaskRunStatus.succeeded)
+      .length;
+  final int failed = rows
+      .where((RunRecord r) => r.status == TaskRunStatus.failed)
+      .length;
+  final int aborted = rows
+      .where((RunRecord r) => r.status == TaskRunStatus.aborted)
+      .length;
   final int rescued = rows.where(_rescued).length;
   final List<ArtifactCheck> artifacts = <ArtifactCheck>[
     for (final RunRecord r in rows) ...r.artifacts,

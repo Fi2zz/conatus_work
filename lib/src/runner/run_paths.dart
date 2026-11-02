@@ -6,7 +6,8 @@ import 'dart:math';
 
 /// 生成 `run_<yyyyMMdd-HHmmss>-<4 hex>` 形式的运行标识。
 String newRunId(DateTime now, [Random? random]) {
-  final String stamp = '${_pad(now.year, 4)}${_pad(now.month, 2)}'
+  final String stamp =
+      '${_pad(now.year, 4)}${_pad(now.month, 2)}'
       '${_pad(now.day, 2)}-${_pad(now.hour, 2)}${_pad(now.minute, 2)}'
       '${_pad(now.second, 2)}';
   final int suffix = (random ?? Random()).nextInt(0x10000);

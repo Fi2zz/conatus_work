@@ -16,8 +16,7 @@ class MoveTool extends Tool {
   String get name => 'move';
 
   @override
-  String get description =>
-      '移动文件或目录（不覆盖已存在目标）。源与目标都必须在可写范围内。';
+  String get description => '移动文件或目录（不覆盖已存在目标）。源与目标都必须在可写范围内。';
 
   @override
   ToolRisk get riskLevel => ToolRisk.medium;
@@ -27,9 +26,9 @@ class MoveTool extends Tool {
 
   @override
   List<ParamSpec> get params => <ParamSpec>[
-        ParamSpec.string('from', description: '源路径', required: true),
-        ParamSpec.string('to', description: '目标路径', required: true),
-      ];
+    ParamSpec.string('from', description: '源路径', required: true),
+    ParamSpec.string('to', description: '目标路径', required: true),
+  ];
 
   @override
   Future<ToolResult> call(ToolContext context) async {

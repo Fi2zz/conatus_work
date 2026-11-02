@@ -25,4 +25,19 @@ void main() {
     expect(checks[2].bytes, 3);
     expect(checks[2].sha256, sha256Hex(<int>[0x61, 0x62, 0x63]));
   });
+
+  test('run.json 的 check 形状含 exists / nonEmpty / passed', () {
+    final ArtifactCheck missing = ArtifactCheck(path: 'a', reason: 'missing');
+    final ArtifactCheck empty = ArtifactCheck(path: 'b', reason: 'empty');
+    final ArtifactCheck ok = ArtifactCheck(path: 'c', passed: true);
+    expect(missing.toJson()['check'], <String, Object?>{
+      'exists': false,
+      'nonEmpty': false,
+      'passed': false,
+      'reason': 'missing',
+    });
+    expect(empty.toJson()['check'],
+        containsPair('nonEmpty', false));
+    expect(ok.toJson()['check'], containsPair('nonEmpty', true));
+  });
 }

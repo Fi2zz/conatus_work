@@ -36,23 +36,33 @@ void main() {
     expect(File('${tmp.path}/out/b.txt').existsSync(), isTrue);
     File('${tmp.path}/out/c.txt').writeAsStringSync('c');
     await expectLater(
-        fs.move('out/b.txt', 'out/c.txt'), throwsA(isA<FsError>()));
+      fs.move('out/b.txt', 'out/c.txt'),
+      throwsA(isA<FsError>()),
+    );
     expect(File('${tmp.path}/out/c.txt').readAsStringSync(), 'c');
   });
 
   test('move 源在只读区或目标越界都拒绝', () async {
     File('${tmp.path}/inbox/x.txt').writeAsStringSync('x');
     await expectLater(
-        fs.move('inbox/x.txt', 'out/x.txt'), throwsA(isA<FsError>()));
-    await expectLater(fs.move('out/x.txt', '../y.txt'), throwsA(isA<FsError>()));
+      fs.move('inbox/x.txt', 'out/x.txt'),
+      throwsA(isA<FsError>()),
+    );
+    await expectLater(
+      fs.move('out/x.txt', '../y.txt'),
+      throwsA(isA<FsError>()),
+    );
   });
 
   test('工具形状与执行', () async {
     final MkdirTool mkdir = MkdirTool(fs: fs);
     expect(mkdir.name, 'mkdir');
     expect(mkdir.params.map((p) => p.name), <String>['path']);
-    final ToolResult ok = await mkdir.call(const ToolContext(
-        ToolCall(name: 'mkdir', arguments: <String, Object?>{'path': 'out/d'})));
+    final ToolResult ok = await mkdir.call(
+      const ToolContext(
+        ToolCall(name: 'mkdir', arguments: <String, Object?>{'path': 'out/d'}),
+      ),
+    );
     expect(ok.isError, isFalse);
     final MoveTool move = MoveTool(fs: fs);
     expect(move.name, 'move');
