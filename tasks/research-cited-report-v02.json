@@ -27,7 +27,7 @@
     "没有写入 out/ 之外"
   ],
   "limits": {
-    "maxMinutes": 12,
+    "maxMinutes": 20,
     "maxCostUsd": 1.5
   },
   "checkpoint": {
