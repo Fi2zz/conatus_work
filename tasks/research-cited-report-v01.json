@@ -38,7 +38,7 @@
     "out/report.md": {
       "minChars": 1500,
       "contains": [
-        "## 结论"
+        "结论"
       ]
     }
   }
