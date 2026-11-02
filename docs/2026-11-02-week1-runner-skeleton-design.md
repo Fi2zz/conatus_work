@@ -121,8 +121,9 @@ Future<MoveResult> move(String from, String to); // 目标已存在则失败，�
 1. 解析并校验任务卡（纯函数）。
 2. 预检，不落盘：root 可创建、`inputs` 存在、`write` 前缀合法、`keep ≥ 1`。
 3. 分配 `runId = run_<yyyyMMdd-HHmmss>-<4hex>`，建 `var/runs/<runId>/`。
-4. 先写一次 `run.json`（`status: running`、`pid`、`startedAt`、`chain`、`tools`），
-   进程被杀也留痕。
+4. 先写一次 `run.json`（`status: running`、`pid`、`startedAt`、`chain`、`taskPath`、
+   `tools`），进程被杀也留痕。`taskPath` 存绝对路径，供 `resume` / `abort` 重读任务卡
+   拿提示词与检查点选项。
 5. 装配：`SessionStore(JsonlSessionPersistence(dir: runDir))` 以会话 id `events`
    建会话，正好落成 `events.jsonl`；`openCheckpointStore(root: workspaceRoot,
    projectDir: runDir)`。
@@ -142,7 +143,7 @@ Future<MoveResult> move(String from, String to); // 目标已存在则失败，�
 | 命令 | 行为 |
 |---|---|
 | `resume <run-id>` | 读 `run.json` → `open('events')` → `checkpoint.bind('events')` + `flush()` → `startTurn = 当前 turn`，更新 `turns.start` 与 `pid` → 重跑执行体 → 再 `recordTurn`；`run.json.resumeCount` +1，不记 `rerunOf` |
-| `abort <run-id>` | pid 存活：写 `abort.request`，运行器在下一个检查点（第 1 周为执行体结束后）收口并标 `aborted`；pid 已死：当场 `bind` + `recordTurn` + 标 `aborted` |
+| `abort <run-id>` | pid 存活：写 `abort.request`，运行器在下一个检查点（第 1 周为执行体结束后）收口并标 `aborted`；pid 已死：用 `run.json.taskPath` 重读任务卡取检查点选项，当场 `bind` + `recordTurn` + 标 `aborted` |
 
 `abort` 必须跨进程可见，否则「中断与恢复能正确工作」无法演示。第 1 周只做标志文件 +
 pid 存活判断，不做信号量与 Kill。
@@ -159,6 +160,7 @@ dart run bin/runner.dart edit   <runId> --artifact out/report.md --note "手动�
 ```
 
 - 相对路径一律相对当前工作目录解析；CLI 不做 chdir。
+- `--workspace` 是**工作区根**，直接覆盖任务卡的 `workspace.root`；不传时用任务卡的值。
 - `--fixture` 第 2 周实现：把 fixture 树拷进工作区，已存在则拒绝覆盖。
 - `rerunOf` 自动识别：同一 `taskId` + 同一 `workspace.root` 已有记录时自动填，
   `--rerun-of` 可覆盖。
@@ -207,7 +209,8 @@ dart run bin/runner.dart edit   <runId> --artifact out/report.md --note "手动�
   "runId": "run_20261102-101500-a1b2",
   "taskId": "research-cited-report-v01",
   "chain": "research",
-  "workspaceRoot": "var/workspaces/research-001",
+  "taskPath": "/abs/path/tasks/research-cited-report-v01.json",
+  "workspaceRoot": "/Users/me/REPO/conatus/products/conatus_work/var/workspaces/research-001",
   "pid": 48213,
   "sessionId": "events",
   "startedAt": "2026-11-02T10:15:00+08:00",
@@ -231,7 +234,8 @@ dart run bin/runner.dart edit   <runId> --artifact out/report.md --note "手动�
 `failure.category ∈ {artifact, llm, tool, timeout, budget, checkpoint, internal}`。
 
 首次落盘在检查点绑定之前，因此 `turns.start` / `turns.end` 记 `null`，绑定后回填；
-`checkpoint.status ∈ {pending, ok, error}`，收口时改写。
+`checkpoint.status ∈ {pending, ok, error}`，收口时改写。`workspaceRoot` 与 `taskPath`
+都存**绝对路径**，`resume` / `abort` 换 cwd 也能接回。
 
 ## 八、测试清单
 
