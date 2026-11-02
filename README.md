@@ -84,13 +84,22 @@ dart run bin/runner.dart edit <runId> --artifact out/report.md --note "手动改
 `run` / `resume` 需要 OpenAI 兼容端点，全部从环境变量读（Key 不落盘）：
 
 ```bash
-export WORK_LLM_BASE_URL=https://ark.cn-beijing.volces.com/api/v3
-export WORK_LLM_MODEL=doubao-seed-1-6-250615
-export WORK_LLM_API_KEY=sk-...        # 本地端点（Ollama / vLLM）可省略
-export WORK_LLM_NAME=ark              # 可选，缺省 openai-compatible
-export WORK_LLM_PRICE_IN=0.8          # 可选，美元/百万 token，与 OUT 成对
-export WORK_LLM_PRICE_OUT=2.0
+# OpenCode Go（推荐；请求自动带 x-opencode-session）
+export WORK_LLM_BASE_URL=https://opencode.ai/zen/go/v1
+export WORK_LLM_MODEL=deepseek-v4.1-flash
+export WORK_LLM_API_KEY=oc_sk_...
+export WORK_LLM_NAME=opencode-go
+
+# 或任意 OpenAI 兼容端点（豆包 ARK / DeepSeek / Ollama）
+# export WORK_LLM_BASE_URL=https://ark.cn-beijing.volces.com/api/v3
+# export WORK_LLM_MODEL=doubao-seed-1-6-250615
+# export WORK_LLM_API_KEY=sk-...      # 本地端点（Ollama / vLLM）可省略
+# export WORK_LLM_NAME=ark
+# export WORK_LLM_PRICE_IN=0.8        # 可选，美元/百万 token，与 OUT 成对
+# export WORK_LLM_PRICE_OUT=2.0
 ```
+
+`baseURL` 只写到 `/v1`：provider 自己拼 `/chat/completions`。
 
 缺 `BASE_URL` / `MODEL` 时 `run` 在预检阶段失败（退出码 2），不创建运行目录。
 未配置单价时 `run.json.usage.costUsd` 记 0，预算判定不生效。
