@@ -12,6 +12,8 @@ import 'dart:typed_data';
 
 import 'package:conatus/conatus.dart';
 
+part 'rooted_fs_ops.dart';
+
 /// 把读写限制在工作区根与其前缀内的装饰器。
 class RootedFileSystem implements FileSystem {
   /// 用被装饰的 [inner]、根 [root] 与两组前缀构造。
@@ -172,3 +174,4 @@ bool _underAny(String path, List<String> roots) {
 
 bool _samePath(String a, String b) =>
     underReadOnlyRoot(a, b) && underReadOnlyRoot(b, a);
+
