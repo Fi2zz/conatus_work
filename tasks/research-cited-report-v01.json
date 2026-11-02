@@ -37,7 +37,7 @@
   "artifactRules": {
     "out/report.md": {
       "minChars": 1500,
-      "maxChars": 12000,
+      "maxChars": 20000,
       "contains": [
         "结论"
       ]

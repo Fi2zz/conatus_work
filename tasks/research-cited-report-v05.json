@@ -1,0 +1,46 @@
+{
+  "id": "research-cited-report-v05",
+  "chain": "research",
+  "title": "Rust 异步运行时的调度实现",
+  "workspace": {
+    "root": "var/workspaces/research-v05",
+    "read": [
+      "inbox"
+    ],
+    "write": [
+      "out"
+    ]
+  },
+  "inputs": [
+    "inbox/brief.md"
+  ],
+  "prompt": "按 brief.md 的要求完成调研；最多 10 次网页抓取；至少 6 个来源，其中 3 个一手来源；输出报告与 sources.json，每个事实性结论带脚注；不确定内容标注推断；不得编造 URL。",
+  "network": "allow",
+  "expectedArtifacts": [
+    "out/report.md",
+    "out/sources.json"
+  ],
+  "acceptance": [
+    "每个事实性结论有引用或标注推断",
+    "sources.json 至少 6 条，含 url/title/kind/accessedAt/fetchedAt/httpStatus/quote",
+    "只收录抓取成功的 URL",
+    "没有写入 out/ 之外"
+  ],
+  "limits": {
+    "maxMinutes": 12,
+    "maxCostUsd": 1.5
+  },
+  "checkpoint": {
+    "enabled": true,
+    "keep": 30
+  },
+  "artifactRules": {
+    "out/report.md": {
+      "minChars": 1500,
+      "maxChars": 20000,
+      "contains": [
+        "结论"
+      ]
+    }
+  }
+}
