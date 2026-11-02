@@ -64,3 +64,23 @@ bash tool/pin_conatus_refs.sh <sha>    # 钉到指定 commit
 ```
 
 提交本仓库 `pubspec.yaml`，让本仓库 CI 立刻验证新组合。
+
+## 最小任务运行器（阶段 0 第 1 周）
+
+`bin/runner.dart` 是薄 CLI，库在 `lib/src/runner/`。任务用 JSON 任务卡声明，
+运行记录落在 `var/runs/<runId>/`（已 gitignore）。
+
+```bash
+dart run bin/runner.dart list
+dart run bin/runner.dart run tasks/empty-smoke.json --workspace var/workspaces/smoke
+dart run bin/runner.dart resume <runId>
+dart run bin/runner.dart abort <runId>
+dart run bin/runner.dart report var/runs
+dart run bin/runner.dart edit <runId> --artifact out/report.md --note "手动改了结论段"
+```
+
+约束：
+
+- 读写都限制在工作区根的 `read ∪ write` 前缀内，越界抛 `FS_SANDBOX_DENIED`；
+- 一任务 = 一轮检查点，`run.json.turns` 记录起止轮次；
+- 第 1 周不接 Agent Loop、不装 shell、不调模型（`model` 为 null）。

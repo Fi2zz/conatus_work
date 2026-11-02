@@ -18,7 +18,8 @@ dependencies:
   # 独立形态经 git 源拉 conatus 伞包；在 conatus 工作区内由 workspace 解析到
   # 本地根包，改框架源码立刻生效。ref 由 tool/pin_conatus_refs.sh 钉版。
   conatus:
-    git: {url: https://github.com/Fi2zz/conatus.git, ref: 64edb7930857e36f7a32d5ef4ace95e5371a522f}
+    git: {url: https://github.com/Fi2zz/conatus.git, ref: 33a213bd57d27008ae4c2f97db047ee3a7add124}
+  crypto: ^3.0.0
 
 dev_dependencies:
   lints: ^4.0.0
