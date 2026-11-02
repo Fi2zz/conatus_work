@@ -92,7 +92,11 @@ Future<void> preflightRun(TaskSpec task, {String? rootOverride}) async {
 }
 
 /// 给模型的产品侧系统提示：工作区边界与产物纪律。
-SystemPrompt productSystemPrompt(TaskSpec task, WorkspacePlan workspace) {
+SystemPrompt productSystemPrompt(
+  TaskSpec task,
+  WorkspacePlan workspace, {
+  bool confirmed = false,
+}) {
   final SystemPrompt prompt = SystemPrompt();
   prompt.add(
     '你是本地文件工作台的执行者。\n'
@@ -101,7 +105,8 @@ SystemPrompt productSystemPrompt(TaskSpec task, WorkspacePlan workspace) {
     '只读前缀：${task.read.join('、')}\n'
     '期望产物：${task.expectedArtifacts.join('、')}\n'
     '规则：只能通过工具读写文件；不得写入可写前缀之外；'
-    '不得编造 URL 或引文；不确定的内容标注「推断」。',
+    '不得编造 URL 或引文；不确定的内容标注「推断」。\n'
+    '${confirmed ? '用户已确认执行，可以直接移动文件。' : '当前是 dry-run：只输出计划与清单，不要移动或删除任何文件。'}',
   );
   return prompt;
 }

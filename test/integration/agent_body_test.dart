@@ -11,6 +11,9 @@ import 'package:test/test.dart';
 
 /// 按预设序列回放的模型：不联网、不花钱。
 class ScriptedLlm implements LlmProvider {
+  /// 最后一次收到的用户文本。
+  String lastUserText = '';
+
   ScriptedLlm(this.responses);
 
   final List<LlmResult> responses;
@@ -25,6 +28,10 @@ class ScriptedLlm implements LlmProvider {
     Map<String, dynamic>? options,
     List<Map<String, dynamic>>? tools,
   }) async {
+    lastUserText = messages
+        .where((LlmMessage m) => m.role == 'user')
+        .map((LlmMessage m) => m.content)
+        .join('\n');
     final LlmResult response =
         responses[calls < responses.length ? calls : responses.length - 1];
     calls += 1;
@@ -171,5 +178,30 @@ void main() {
     );
     await paths.create();
     expect(Directory(paths.runDir).existsSync(), isTrue);
+  });
+
+  test('confirmed 时把 --yes 写进用户回合', () async {
+    final ScriptedLlm llm = ScriptedLlm(<LlmResult>[
+      const LlmResult(content: 'done', provider: 's', model: 's'),
+    ]);
+    final Runner runner = Runner(
+      body: agentTaskBody,
+      runsDir: '${tmp.path}/runs',
+      llm: LlmRuntime(
+        config: const LlmConfig(baseUrl: 'http://fake', model: 'fake'),
+        provider: llm,
+      ),
+    );
+    await runner.run(
+      RunRequest(
+        task: card(),
+        taskPath: '${tmp.path}/card.json',
+        workspaceRoot: '${tmp.path}/work',
+        confirmed: true,
+      ),
+    );
+    final String last = llm.lastUserText;
+    expect(last, contains('--yes'));
+    expect(last, contains('已确认'));
   });
 }

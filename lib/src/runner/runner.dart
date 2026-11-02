@@ -26,6 +26,7 @@ class RunRequest {
     this.workspaceRoot,
     this.fixtureDir,
     this.rerunOf,
+    this.confirmed = false,
   });
 
   /// 任务卡。
@@ -42,6 +43,9 @@ class RunRequest {
 
   /// 显式指定的重跑来源。
   final String? rerunOf;
+
+  /// 用户是否已确认执行（`--yes`）。
+  final bool confirmed;
 }
 
 /// 串行运行器：一次一个任务，一任务一轮检查点。
@@ -101,6 +105,7 @@ class Runner {
       paths: paths,
       store: store,
       llm: llm,
+      confirmed: request.confirmed,
     ).execute();
   }
 

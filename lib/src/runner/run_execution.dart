@@ -22,6 +22,7 @@ class RunExecution {
     required this.store,
     this.fresh = true,
     this.llm,
+    this.confirmed = false,
   });
 
   final TaskBody body;
@@ -37,6 +38,9 @@ class RunExecution {
   /// 模型运行时；为空时不装配 Agent Loop。
   final LlmRuntime? llm;
 
+  /// 用户是否已确认执行。
+  final bool confirmed;
+
   Future<RunRecord> execute() async {
     RunScope? scope;
     try {
@@ -47,6 +51,7 @@ class RunExecution {
           paths: paths,
           fresh: fresh,
           llm: llm,
+          confirmed: confirmed,
         ),
       );
       _attach(scope);

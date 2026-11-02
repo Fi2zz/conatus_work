@@ -24,6 +24,7 @@ class AssemblyOptions {
     required this.paths,
     this.fresh = true,
     this.llm,
+    this.confirmed = false,
   });
 
   /// 任务卡。
@@ -40,6 +41,9 @@ class AssemblyOptions {
 
   /// 模型运行时；为空时只装配文件工具（第 1 周的空跑）。
   final LlmRuntime? llm;
+
+  /// 用户是否已确认执行（headless 下由 `--yes` 给出）。
+  final bool confirmed;
 }
 
 /// 一次运行持有的框架对象。
@@ -55,6 +59,7 @@ class RunScope {
     this.baselineError,
     this.agent,
     this.modelLabel,
+    this.confirmed = false,
   });
 
   /// 本次运行的上下文树。
@@ -86,6 +91,9 @@ class RunScope {
 
   /// 写进 `run.json.model` 的标签。
   final String? modelLabel;
+
+  /// 用户是否已在命令行确认执行。
+  final bool confirmed;
 
   /// 关闭会话并释放整棵上下文。
   Future<void> dispose() async {
@@ -146,7 +154,13 @@ Future<RunScope> assembleRun(AssemblyOptions options) async {
       : checkpoint.bind('events'));
   await checkpoint.flush();
   ctx.provide('checkpointManager', checkpoint);
-  final bool hasLlm = _provideModel(ctx, options.llm, task, workspace);
+  final bool hasLlm = _provideModel(
+    ctx,
+    options.llm,
+    task,
+    workspace,
+    options.confirmed,
+  );
   final AgentLoop? agent = hasLlm
       ? provideAgentLoop(ctx, session: session, maxSteps: 40)
       : null;
@@ -162,6 +176,7 @@ Future<RunScope> assembleRun(AssemblyOptions options) async {
     baselineError: baselineError,
     agent: agent,
     modelLabel: options.llm?.modelLabel,
+    confirmed: options.confirmed,
   );
 }
 
@@ -171,11 +186,15 @@ bool _provideModel(
   LlmRuntime? llm,
   TaskSpec task,
   WorkspacePlan workspace,
+  bool confirmed,
 ) {
   if (llm == null) return false;
   provideLlm(ctx, llm: FallbackLlm(<LlmProvider>[llm.provider]));
   final ModelRate? rate = llm.rate;
   if (rate != null) ctx.provide('modelRate', rate);
-  provideSystemPrompt(ctx, prompt: productSystemPrompt(task, workspace));
+  provideSystemPrompt(
+    ctx,
+    prompt: productSystemPrompt(task, workspace, confirmed: confirmed),
+  );
   return true;
 }

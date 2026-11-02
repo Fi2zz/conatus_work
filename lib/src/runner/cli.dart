@@ -72,6 +72,7 @@ Future<int> _run(List<String> args) async {
       workspaceRoot: _flag(args, '--workspace'),
       fixtureDir: _flag(args, '--fixture'),
       rerunOf: _flag(args, '--rerun-of'),
+      confirmed: args.contains('--yes'),
     ),
   );
   stdout.writeln(_summary(record));

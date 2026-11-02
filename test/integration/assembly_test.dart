@@ -78,4 +78,23 @@ void main() {
       '/abs/x',
     );
   });
+
+  test('系统提示区分 dry-run 与已确认', () {
+    const WorkspacePlan workspace = WorkspacePlan(
+      rootAbsolute: '/tmp/w',
+      readPrefixes: <String>['inbox', 'out'],
+      writePrefixes: <String>['inbox', 'out'],
+    );
+    final String pending = productSystemPrompt(
+      card('work'),
+      workspace,
+    ).sections.first.text();
+    final String confirmed = productSystemPrompt(
+      card('work'),
+      workspace,
+      confirmed: true,
+    ).sections.first.text();
+    expect(pending, contains('dry-run'));
+    expect(confirmed, contains('已确认'));
+  });
 }
