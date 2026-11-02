@@ -4,6 +4,9 @@ library;
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:conatus/conatus.dart' hide RunStatus;
+
+import 'abort_signal.dart';
 import 'run_execution.dart';
 import 'run_paths.dart';
 import 'run_store.dart';
@@ -56,6 +59,67 @@ class Runner {
       paths: paths,
       store: store,
     ).execute();
+  }
+
+  /// 恢复一次未完成的运行：接回同一会话与检查点时间线。
+  Future<RunRecord> resume(String runId) async {
+    final RunPaths paths = RunPaths(runsDir: runsDir, runId: runId);
+    final RunStore store = RunStore(paths);
+    final RunRecord record = await store.load();
+    final TaskSpec task = await TaskSpec.load(record.taskPath);
+    final WorkspacePlan workspace = await prepareWorkspace(
+      task: task,
+      rootOverride: record.workspaceRoot,
+    );
+    record
+      ..status = RunStatus.running
+      ..pid = pid
+      ..resumeCount += 1
+      ..endedAt = null;
+    await store.save(record);
+    return RunExecution(
+      body: body,
+      record: record,
+      task: task,
+      workspace: workspace,
+      paths: paths,
+      store: store,
+      fresh: false,
+    ).execute();
+  }
+
+  /// 请求中断；进程已死时当场收口并标 `aborted`。
+  Future<RunRecord> abort(String runId) async {
+    final RunPaths paths = RunPaths(runsDir: runsDir, runId: runId);
+    final RunStore store = RunStore(paths);
+    final RunRecord record = await store.load();
+    if (pidAlive(record.pid)) {
+      await AbortSignal(paths.abortFlagPath).request();
+      return record;
+    }
+    final TaskSpec task = await TaskSpec.load(record.taskPath);
+    final CheckpointOptions options = CheckpointOptions(
+      enabled: task.checkpointEnabled,
+      keep: task.checkpointKeep,
+      policy: productCheckpointPolicy(),
+    );
+    final CheckpointManager checkpoint = CheckpointManager(
+      store: await openCheckpointStore(
+        options: options,
+        root: record.workspaceRoot,
+        projectDir: paths.runDir,
+      ),
+      options: options,
+    );
+    await checkpoint.bind(record.sessionId);
+    await checkpoint.flush();
+    applySnapshot(record, await checkpoint.recordTurn());
+    record
+      ..status = RunStatus.aborted
+      ..endTurn = checkpoint.turn
+      ..endedAt = DateTime.now();
+    await store.save(record);
+    return record;
   }
 
   /// 找同一任务卡 + 同一工作区的上一次运行，用于记 `rerunOf`。

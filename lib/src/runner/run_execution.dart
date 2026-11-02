@@ -19,6 +19,7 @@ class RunExecution {
     required this.workspace,
     required this.paths,
     required this.store,
+    this.fresh = true,
   });
 
   final TaskBody body;
@@ -28,10 +29,18 @@ class RunExecution {
   final RunPaths paths;
   final RunStore store;
 
+  /// true 重建检查点时间线（新运行）；false 接管已有时间线（resume）。
+  final bool fresh;
+
   Future<RunRecord> execute() async {
     RunScope? scope;
     try {
-      scope = await assembleRun(task: task, workspace: workspace, paths: paths);
+      scope = await assembleRun(
+        task: task,
+        workspace: workspace,
+        paths: paths,
+        fresh: fresh,
+      );
       _attach(scope);
       await store.save(record);
       final TaskOutcome outcome = await _runBody(scope);
