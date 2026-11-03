@@ -1,8 +1,15 @@
+import { useEffect } from 'react'
 import type { JSX } from 'react'
 
+import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog'
+import { ApprovalBar } from '@/features/approval/ApprovalBar'
 import { ArtifactPanel } from '@/features/artifacts/ArtifactPanel'
 import { ChangePanel } from '@/features/changes/ChangePanel'
+import { CheckpointPanel } from '@/features/checkpoints/CheckpointPanel'
+import { Composer } from '@/features/conversation/Composer'
 import { Timeline } from '@/features/conversation/Timeline'
+import { SettingsPage } from '@/features/settings/SettingsPage'
+import { CommandPalette } from '@/features/tasks/CommandPalette'
 import { TaskList } from '@/features/tasks/TaskList'
 import { cn } from '@/lib/utils'
 import { useUiStore, type RightTab } from '@/state/ui-state'
@@ -25,10 +32,7 @@ function RightPane(): JSX.Element {
             key={item.value}
             type="button"
             onClick={() => setTab(item.value)}
-            className={cn(
-              'pb-1.5',
-              tab === item.value ? 'border-b-2 border-accent text-ink' : 'text-ink-muted',
-            )}
+            className={cn('pb-1.5', tab === item.value ? 'border-b-2 border-accent text-ink' : 'text-ink-muted')}
           >
             {item.label}
           </button>
@@ -37,9 +41,23 @@ function RightPane(): JSX.Element {
       <div className="flex min-h-0 flex-1 flex-col">
         {tab === 'artifacts' ? <ArtifactPanel /> : null}
         {tab === 'changes' ? <ChangePanel /> : null}
-        {tab === 'checkpoints' ? <p className="p-3 text-[12px] text-ink-muted">检查点面板接线中。</p> : null}
+        {tab === 'checkpoints' ? <CheckpointPanel /> : null}
       </div>
     </aside>
+  )
+}
+
+function SettingsDialog(): JSX.Element {
+  const open = useUiStore((state) => state.settingsOpen)
+  const setOpen = useUiStore((state) => state.setSettingsOpen)
+  if (!open) return <></>
+  return (
+    <Dialog open onOpenChange={setOpen}>
+      <DialogContent labelledBy="settings-title">
+        <DialogTitle id="settings-title">设置</DialogTitle>
+        <SettingsPage />
+      </DialogContent>
+    </Dialog>
   )
 }
 
@@ -48,6 +66,26 @@ export function Shell(): JSX.Element {
   const runs = useWorkbench((state) => state.runs)
   const activeRunId = useWorkbench((state) => state.activeRunId)
   const setActive = useWorkbenchStore((store) => store.setActive)
+  const setCommandOpen = useUiStore((state) => state.setCommandOpen)
+  const setUndoDialog = useUiStore((state) => state.setUndoDialog)
+  const setSettingsOpen = useUiStore((state) => state.setSettingsOpen)
+
+  useEffect(() => {
+    function onKeyDown(event: KeyboardEvent): void {
+      if (!(event.metaKey || event.ctrlKey)) return
+      const key = event.key.toLowerCase()
+      if (key === 'k') {
+        event.preventDefault()
+        setCommandOpen(true)
+      }
+      if (key === 'z') {
+        event.preventDefault()
+        setUndoDialog(true)
+      }
+    }
+    window.addEventListener('keydown', onKeyDown)
+    return () => window.removeEventListener('keydown', onKeyDown)
+  }, [setCommandOpen, setUndoDialog])
 
   const summaries = order.map((id) => runs[id]).filter(Boolean)
   const active = activeRunId ? runs[activeRunId] : undefined
@@ -77,7 +115,9 @@ export function Shell(): JSX.Element {
           onSelect={setActive}
         />
         <div className="mt-auto flex items-center justify-between border-t border-line px-3 py-2 text-[11px] text-ink-muted">
-          <span>设置</span>
+          <button type="button" onClick={() => setSettingsOpen(true)} className="hover:text-ink">
+            设置
+          </button>
           <span data-testid="undo-scope-label">
             可撤销 {Math.max(0, active?.checkpoints.turns.length ?? 0)} 轮
           </span>
@@ -96,9 +136,13 @@ export function Shell(): JSX.Element {
         <section data-testid="timeline" className="min-h-0 flex-1">
           <Timeline />
         </section>
+        {active?.approval ? <ApprovalBar runId={active.id} request={active.approval} /> : null}
+        <Composer />
       </main>
 
       <RightPane />
+      <CommandPalette />
+      <SettingsDialog />
     </div>
   )
 }

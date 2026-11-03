@@ -12,6 +12,7 @@ interface UiState {
   undoDialog: boolean
   composerDraft: string
   commandOpen: boolean
+  settingsOpen: boolean
   setFilter: (filter: TimelineFilter) => void
   toggleExpanded: (key: string) => void
   setRightTab: (tab: RightTab) => void
@@ -20,6 +21,7 @@ interface UiState {
   setUndoDialog: (open: boolean) => void
   setComposerDraft: (text: string) => void
   setCommandOpen: (open: boolean) => void
+  setSettingsOpen: (open: boolean) => void
 }
 
 export const useUiStore = create<UiState>((set) => ({
@@ -31,6 +33,7 @@ export const useUiStore = create<UiState>((set) => ({
   undoDialog: false,
   composerDraft: '',
   commandOpen: false,
+  settingsOpen: false,
   setFilter: (filter) => set({ filter }),
   toggleExpanded: (key) =>
     set((state) => {
@@ -45,4 +48,5 @@ export const useUiStore = create<UiState>((set) => ({
   setUndoDialog: (undoDialog) => set({ undoDialog }),
   setComposerDraft: (composerDraft) => set({ composerDraft }),
   setCommandOpen: (commandOpen) => set({ commandOpen }),
+  setSettingsOpen: (settingsOpen) => set({ settingsOpen }),
 }))
