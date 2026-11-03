@@ -20,3 +20,11 @@ test('research replay shows a long timeline', async ({ page }) => {
   const rows = page.locator('[data-testid^="timeline-entry-"], [data-testid="tool-group"]')
   expect(await rows.count()).toBeGreaterThan(20)
 })
+
+test('stopping a running replay aborts it and offers retry', async ({ page }) => {
+  await page.goto('/?fixture=research-cited-report-v01&speed=0.01')
+  await expect(page.getByTestId('run-header')).toContainText('running')
+  await page.getByTestId('stop-button').click()
+  await expect(page.getByTestId('run-header')).toContainText('aborted')
+  await expect(page.getByTestId('retry-button')).toBeVisible()
+})

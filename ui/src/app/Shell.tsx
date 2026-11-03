@@ -1,6 +1,7 @@
-import { useEffect } from 'react'
-import type { JSX } from 'react'
+import { useEffect, useRef } from 'react'
+import type { JSX, PointerEvent as ReactPointerEvent } from 'react'
 
+import { getTransport } from '@/bridge/transport-store'
 import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog'
 import { ApprovalBar } from '@/features/approval/ApprovalBar'
 import { ArtifactPanel } from '@/features/artifacts/ArtifactPanel'
@@ -22,6 +23,14 @@ const TABS: Array<{ value: RightTab; label: string }> = [
   { value: 'changes', label: '变更' },
   { value: 'checkpoints', label: '检查点' },
 ]
+
+const RAIL_WIDTH = 56
+const LIST_WIDTH = 240
+const DEFAULT_RIGHT = 380
+
+function clampWidth(width: number): number {
+  return Math.min(560, Math.max(320, width))
+}
 
 function RightPane(): JSX.Element {
   const tab = useUiStore((state) => state.rightTab)
@@ -63,6 +72,68 @@ function SettingsDialog(): JSX.Element {
   )
 }
 
+function LeftRail(): JSX.Element {
+  const runs = useWorkbench((state) => state.runs)
+  const order = useWorkbench((state) => state.order)
+  const activeRunId = useWorkbench((state) => state.activeRunId)
+  const setActive = useWorkbenchStore((store) => store.setActive)
+  return (
+    <aside
+      data-testid="left-rail"
+      className="flex min-h-0 flex-col items-center gap-2 border-r border-line bg-panel-muted py-2"
+    >
+      {order.map((id) => (
+        <button
+          key={id}
+          type="button"
+          title={runs[id]?.title ?? id}
+          onClick={() => setActive(id)}
+          className={cn(
+            'flex h-7 w-7 items-center justify-center rounded text-[11px]',
+            id === activeRunId ? 'bg-panel text-ink' : 'text-ink-muted hover:bg-panel',
+          )}
+        >
+          {runs[id]?.title.slice(0, 1) ?? '·'}
+        </button>
+      ))}
+    </aside>
+  )
+}
+
+function Splitter(): JSX.Element {
+  const rightWidth = useUiStore((state) => state.rightWidth)
+  const setRightWidth = useUiStore((state) => state.setRightWidth)
+  const drag = useRef<{ startX: number; startWidth: number } | null>(null)
+
+  function onPointerDown(event: ReactPointerEvent<HTMLDivElement>): void {
+    drag.current = { startX: event.clientX, startWidth: rightWidth }
+    event.currentTarget.setPointerCapture?.(event.pointerId)
+  }
+
+  function onPointerMove(event: ReactPointerEvent<HTMLDivElement>): void {
+    if (!drag.current) return
+    setRightWidth(clampWidth(drag.current.startWidth - (event.clientX - drag.current.startX)))
+  }
+
+  function onPointerUp(): void {
+    drag.current = null
+  }
+
+  return (
+    <div
+      data-testid="right-splitter"
+      role="separator"
+      aria-orientation="vertical"
+      onPointerDown={onPointerDown}
+      onPointerMove={onPointerMove}
+      onPointerUp={onPointerUp}
+      onPointerCancel={onPointerUp}
+      onDoubleClick={() => setRightWidth(DEFAULT_RIGHT)}
+      className="w-1 cursor-col-resize bg-line/60 hover:bg-accent/60"
+    />
+  )
+}
+
 export function Shell(): JSX.Element {
   const order = useWorkbench((state) => state.order)
   const runs = useWorkbench((state) => state.runs)
@@ -71,6 +142,9 @@ export function Shell(): JSX.Element {
   const setCommandOpen = useUiStore((state) => state.setCommandOpen)
   const setUndoDialog = useUiStore((state) => state.setUndoDialog)
   const setSettingsOpen = useUiStore((state) => state.setSettingsOpen)
+  const leftCollapsed = useUiStore((state) => state.leftCollapsed)
+  const toggleLeft = useUiStore((state) => state.toggleLeft)
+  const rightWidth = useUiStore((state) => state.rightWidth)
 
   useEffect(() => {
     function onKeyDown(event: KeyboardEvent): void {
@@ -91,36 +165,71 @@ export function Shell(): JSX.Element {
 
   const summaries = order.map((id) => runs[id]).filter(Boolean)
   const active = activeRunId ? runs[activeRunId] : undefined
+  const running = active?.status === 'running' || active?.status === 'pending'
+  const retryable = active?.status === 'failed' || active?.status === 'aborted'
+
+  async function stop(): Promise<void> {
+    if (!active) return
+    await getTransport().cancelTask(active.id)
+  }
+
+  async function retry(): Promise<void> {
+    if (!active) return
+    const result = await getTransport().startTask(active.taskId)
+    if (result.ok) setActive(result.value.runId)
+  }
 
   return (
-    <div className="grid h-full grid-cols-[240px_minmax(0,1fr)_380px] bg-canvas text-ink">
+    <div
+      data-testid="shell"
+      className="grid h-full bg-canvas text-ink"
+      style={{
+        gridTemplateColumns: `${leftCollapsed ? RAIL_WIDTH : LIST_WIDTH}px minmax(0,1fr) 4px ${rightWidth}px`,
+      }}
+    >
       <aside className="flex min-h-0 flex-col border-r border-line bg-panel-muted">
         <div className="flex items-center justify-between gap-2 border-b border-line px-3 py-2">
-          <span className="text-[12px] font-semibold">工作台</span>
-          <button type="button" className="rounded border border-line bg-panel px-1.5 py-0.5 text-[11px]">
-            新任务
+          {leftCollapsed ? null : <span className="text-[12px] font-semibold">工作台</span>}
+          <button
+            type="button"
+            data-testid="left-toggle"
+            onClick={toggleLeft}
+            className="rounded border border-line bg-panel px-1.5 py-0.5 text-[11px] text-ink-muted"
+          >
+            {leftCollapsed ? '»' : '«'}
           </button>
+          {leftCollapsed ? null : (
+            <button type="button" className="rounded border border-line bg-panel px-1.5 py-0.5 text-[11px]">
+              新任务
+            </button>
+          )}
         </div>
-        <TaskList
-          runs={summaries.map((run) => ({
-            id: run.id,
-            taskId: run.taskId,
-            title: run.title,
-            chain: run.chain,
-            status: run.status,
-            model: run.model,
-            startedAt: run.startedAt,
-            endedAt: run.endedAt,
-            usage: run.usage,
-          }))}
-          activeId={activeRunId}
-          onSelect={setActive}
-        />
+        {leftCollapsed ? (
+          <LeftRail />
+        ) : (
+          <TaskList
+            runs={summaries.map((run) => ({
+              id: run.id,
+              taskId: run.taskId,
+              title: run.title,
+              chain: run.chain,
+              status: run.status,
+              model: run.model,
+              startedAt: run.startedAt,
+              endedAt: run.endedAt,
+              usage: run.usage,
+            }))}
+            activeId={activeRunId}
+            onSelect={setActive}
+          />
+        )}
         <div className="mt-auto flex items-center justify-between border-t border-line px-3 py-2 text-[11px] text-ink-muted">
           <button type="button" onClick={() => setSettingsOpen(true)} className="hover:text-ink">
             设置
           </button>
-          <span data-testid="undo-scope-label">可撤销 {active ? undoScope(active).steps : 0} 轮</span>
+          {leftCollapsed ? null : (
+            <span data-testid="undo-scope-label">可撤销 {active ? undoScope(active).steps : 0} 轮</span>
+          )}
         </div>
       </aside>
 
@@ -136,6 +245,26 @@ export function Shell(): JSX.Element {
             {active?.synthetic ? (
               <span className="rounded border border-warning/50 px-1 text-[10px] text-warning">合成数据</span>
             ) : null}
+            {running ? (
+              <button
+                type="button"
+                data-testid="stop-button"
+                onClick={() => void stop()}
+                className="rounded border border-line px-1.5 py-0.5 text-[11px]"
+              >
+                停止
+              </button>
+            ) : null}
+            {retryable ? (
+              <button
+                type="button"
+                data-testid="retry-button"
+                onClick={() => void retry()}
+                className="rounded border border-line px-1.5 py-0.5 text-[11px]"
+              >
+                重试
+              </button>
+            ) : null}
             {active ? `${active.status} · ${active.model} · $${active.usage.costUsd.toFixed(4)}` : ''}
           </span>
         </header>
@@ -146,6 +275,7 @@ export function Shell(): JSX.Element {
         <Composer />
       </main>
 
+      <Splitter />
       <RightPane />
       <CommandPalette />
       <SettingsDialog />

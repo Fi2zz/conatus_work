@@ -141,3 +141,39 @@ it('openTask folds only up to now and leaves emission seqs untouched', async () 
   scheduler.advance(6000)
   expect(seen.filter((seq) => seq >= 0)).toEqual([0, 1])
 })
+
+it('cancelTask stops pending events and aborts the run', async () => {
+  const scheduler = new ManualScheduler()
+  const transport = createReplayTransport(fixtureWith([100, 5000]), { scheduler })
+  const events: BridgeEvent[] = []
+  transport.subscribe((event) => events.push(event))
+  await transport.connect()
+  scheduler.advance(200)
+
+  const before = events.length
+  const result = await transport.cancelTask('run-x')
+  expect(result).toMatchObject({ ok: true, value: { status: 'aborted' } })
+  scheduler.advance(10_000)
+  const after = events.slice(before)
+  expect(after.some((event) => event.type === 'task/status' && event.data.status === 'aborted')).toBe(true)
+  expect(after.filter((event) => event.type === 'message/user')).toHaveLength(0)
+})
+
+it('startTask replays the fixture under a new run id', async () => {
+  const scheduler = new ManualScheduler()
+  const transport = createReplayTransport(fixtureWith([100, 400]), { scheduler })
+  const events: BridgeEvent[] = []
+  transport.subscribe((event) => events.push(event))
+  await transport.connect()
+  scheduler.advance(2000)
+
+  const started = await transport.startTask('task-x')
+  if (!started.ok) throw new Error('expected ok')
+  expect(started.value.runId).not.toBe('run-x')
+
+  scheduler.advance(2000)
+  const replay = events.filter((event) => 'runId' in event && event.runId === started.value.runId)
+  expect(replay[0].type).toBe('task/started')
+  expect(replay[0].seq).toBe(0)
+  expect(replay.filter((event) => event.type === 'message/user')).toHaveLength(2)
+})

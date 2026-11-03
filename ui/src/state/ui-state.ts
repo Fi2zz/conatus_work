@@ -5,6 +5,7 @@ export type TimelineFilter = 'key' | 'all'
 
 interface UiState {
   filter: TimelineFilter
+  leftCollapsed: boolean
   expandedKeys: Set<string>
   rightTab: RightTab
   rightWidth: number
@@ -15,6 +16,7 @@ interface UiState {
   settingsOpen: boolean
   undoNotice: { runId: string; targetTurn: number; steps: number } | null
   setFilter: (filter: TimelineFilter) => void
+  toggleLeft: () => void
   toggleExpanded: (key: string) => void
   setRightTab: (tab: RightTab) => void
   setRightWidth: (width: number) => void
@@ -28,6 +30,7 @@ interface UiState {
 
 export const useUiStore = create<UiState>((set) => ({
   filter: 'key',
+  leftCollapsed: false,
   expandedKeys: new Set<string>(),
   rightTab: 'artifacts',
   rightWidth: 380,
@@ -38,6 +41,7 @@ export const useUiStore = create<UiState>((set) => ({
   settingsOpen: false,
   undoNotice: null,
   setFilter: (filter) => set({ filter }),
+  toggleLeft: () => set((state) => ({ leftCollapsed: !state.leftCollapsed })),
   toggleExpanded: (key) =>
     set((state) => {
       const expandedKeys = new Set(state.expandedKeys)

@@ -13,7 +13,13 @@ npm run dev
 默认加载 `organize-v01` 回放。URL 参数：
 
 - `?fixture=<id>`：切换回放数据
-- `?speed=<n>`：回放倍速，`0` 表示直接到终态
+- `?speed=<n>`：回放倍速，`0` 表示直接到终态；小于 `1` 会放慢，便于观察运行中状态
+
+界面操作：
+
+- 任务头在运行中显示「停止」（中断回放、状态转 `aborted`），失败/中断后显示「重试」（同一 fixture 另起一条 run）
+- 左栏 `«` 折叠成 56px 轨道；中/右栏之间的分隔条可拖拽（320–560px），双击复位 380px
+- `⌘K` 切任务，`⌘Z` 打开撤销确认（不直接执行）
 
 可用 fixture：
 
@@ -31,7 +37,7 @@ npm run dev
 
 ```bash
 npm test          # Vitest：reducer / selector / 组件 / 确定性
-npm run e2e       # Playwright：3 条真实回放 + 4 条边界（需先 npm run build）
+npm run e2e       # Playwright：4 条真实回放 + 4 条边界（需先 npm run build）
 npm run lint      # tsc --noEmit
 ```
 
