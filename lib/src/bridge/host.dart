@@ -7,16 +7,23 @@ import 'dart:convert';
 
 import '../runner/run_types.dart';
 import 'bridge.dart';
+import 'task_service.dart';
 
 /// 协议版本。信封里不带版本或版本不符的一律拒绝。
 const int kProtocolVersion = 1;
 
 /// 命令分发器。异常一律收敛成错误帧，不向上抛。
 class BridgeHost {
-  BridgeHost({required this.bridge});
+  BridgeHost({required this.bridge, this.tasks, this.push});
 
   /// 底层命令实现。
   final WorkbenchBridge bridge;
+
+  /// 真实执行服务；未接线时 `task.start` / `task.cards` 回错误。
+  final TaskService? tasks;
+
+  /// 异步事件出口（运行期增量事件从这里推给前端）。
+  final void Function(String json)? push;
 
   /// 处理一条入站帧，返回要发回前端的帧。
   Future<List<String>> dispatch(String raw) async {
@@ -82,6 +89,21 @@ class BridgeHost {
             .artifacts
             .any((Map<String, Object?> item) => item['path'] == path && item['truncated'] == true);
         return <String, Object?>{'content': content, 'truncated': truncated};
+      case 'task.cards':
+        final TaskService service = _tasks();
+        return <Object?>[
+          for (final TaskCard card in service.cards()) card.toJson(),
+        ];
+      case 'task.start':
+        final TaskService service = _tasks();
+        final String runId = await service.start(
+          cardId: _requireString(payload, 'cardId'),
+          onEvent: (Map<String, Object?> event) => push?.call(_eventFrame(event)),
+        );
+        return <String, Object?>{'runId': runId};
+      case 'task.cancel':
+        await _tasks().cancel(_requireString(payload, 'runId'));
+        return <String, Object?>{'status': 'aborted'};
       case 'diff.open':
         final Map<String, Object?>? changes = bridge.changes(
           _requireString(payload, 'runId'),
@@ -113,6 +135,12 @@ class BridgeHost {
       default:
         throw ArgumentError('未知命令：$command');
     }
+  }
+
+  TaskService _tasks() {
+    final TaskService? service = tasks;
+    if (service == null) throw StateError('真实执行未接线（缺 TaskService）');
+    return service;
   }
 
   String _requireString(Map<String, Object?> payload, String key) {

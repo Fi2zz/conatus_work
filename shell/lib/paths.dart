@@ -36,6 +36,15 @@ String? findUiDir(List<String> roots) {
   return null;
 }
 
+/// 第一个含有 `tasks` 的根目录。
+String? findTasksDir(List<String> roots) {
+  for (final String root in roots) {
+    final String candidate = '$root/tasks';
+    if (Directory(candidate).existsSync()) return candidate;
+  }
+  return null;
+}
+
 /// 第一个含有 `var/runs` 的根目录。
 String? findRunsDir(List<String> roots) {
   for (final String root in roots) {

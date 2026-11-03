@@ -9,6 +9,7 @@ import type {
   RunStatus,
   RunSummary,
   RunView,
+  TaskCard,
   UndoResult,
 } from './types'
 import { applyEvent } from '@/state/apply-event'
@@ -218,13 +219,15 @@ export function createWebViewTransport(options: Options = {}): BridgeTransport {
 
     listTasks: () => request<RunSummary[]>('task.list'),
 
+    listCards: () => request<TaskCard[]>('task.cards'),
+
     async openTask(runId: string) {
       const result = await request<ReplayFixture>('task.open', { runId })
       if (!result.ok) return result as CommandResult<RunView>
       return { ok: true, value: viewOf(parseFixture(result.value)) }
     },
 
-    startTask: (cardId: string) => Promise.resolve(unsupported<{ runId: string }>(`task.start(${cardId})`)),
+    startTask: (cardId: string) => request<{ runId: string }>('task.start', { cardId }),
     cancelTask: (runId: string) => Promise.resolve(unsupported<{ status: RunStatus }>(`task.cancel(${runId})`)),
     sendMessage: () => Promise.resolve(unsupported<void>('message.send')),
     respondApproval: () => Promise.resolve(unsupported<void>('approval.respond')),

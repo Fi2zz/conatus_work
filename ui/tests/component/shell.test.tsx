@@ -83,3 +83,21 @@ it('asks the host for a run whose timeline is still empty', async () => {
   expect(asked).toEqual(['run-b'])
   expect(await screen.findByText('来自宿主的事件')).toBeInTheDocument()
 })
+
+it('starts a task from the card picker', async () => {
+  const transport = createStubTransport([summaryOf()])
+  const started: string[] = []
+  transport.listCards = async () => ({
+    ok: true,
+    value: [{ id: 'move-v01', title: '移动一个文件', chain: 'organize', path: '/tmp/card.json' }],
+  })
+  transport.startTask = async (cardId: string) => {
+    started.push(cardId)
+    return { ok: true, value: { runId: 'run-a' } }
+  }
+  render(<App transport={transport} />)
+  await screen.findByTestId('task-list')
+  await userEvent.click(screen.getByTestId('new-task-button'))
+  await userEvent.click(await screen.findByText('移动一个文件'))
+  expect(started).toEqual(['move-v01'])
+})

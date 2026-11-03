@@ -59,7 +59,9 @@ class _ShellAppState extends State<ShellApp> {
         _env('CONATUS_WORK_RUNS') ??
         findRunsDir(roots) ??
         '${Directory(uiDir).parent.parent.path}/var/runs';
-    debugPrint('conatus shell: ui=$uiDir runs=$runsDir');
+    final String tasksDir =
+        _env('CONATUS_WORK_TASKS') ?? findTasksDir(roots) ?? '${Directory(uiDir).parent.parent.path}/tasks';
+    debugPrint('conatus shell: ui=$uiDir runs=$runsDir tasks=$tasksDir');
     try {
       final AssetServer server = AssetServer(root: Directory(uiDir));
       await server.start();

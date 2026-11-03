@@ -1,7 +1,8 @@
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import type { JSX, PointerEvent as ReactPointerEvent } from 'react'
 
 import { getTransport, hasTransport } from '@/bridge/transport-store'
+import type { TaskCard } from '@/bridge/types'
 import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog'
 import { ApprovalBar } from '@/features/approval/ApprovalBar'
 import { ArtifactPanel } from '@/features/artifacts/ArtifactPanel'
@@ -55,6 +56,70 @@ function RightPane(): JSX.Element {
         {tab === 'checkpoints' ? <CheckpointPanel /> : null}
       </div>
     </aside>
+  )
+}
+
+function NewTaskDialog(): JSX.Element {
+  const open = useUiStore((state) => state.newTaskOpen)
+  const setOpen = useUiStore((state) => state.setNewTaskOpen)
+  const adoptRun = useWorkbenchStore((store) => store.adoptRun)
+  const [cards, setCards] = useState<TaskCard[]>([])
+  const [error, setError] = useState<string | null>(null)
+
+  useEffect(() => {
+    if (!open || !hasTransport()) return
+    void getTransport()
+      .listCards()
+      .then((result) => {
+        if (result.ok) setCards(result.value)
+        else setError(result.error.message)
+      })
+      .catch((cause: unknown) => setError(String(cause)))
+  }, [open])
+
+  async function pick(card: TaskCard): Promise<void> {
+    setOpen(false)
+    setError(null)
+    const started = await getTransport().startTask(card.id)
+    if (!started.ok) {
+      setError(started.error.message)
+      setOpen(true)
+      return
+    }
+    const view = await getTransport().openTask(started.value.runId)
+    if (view.ok) adoptRun(view.value)
+  }
+
+  if (!open) return <></>
+  return (
+    <Dialog open onOpenChange={setOpen}>
+      <DialogContent labelledBy="new-task-title">
+        <DialogTitle id="new-task-title">新任务</DialogTitle>
+        <div data-testid="new-task-dialog">
+          {error ? <p className="mb-2 text-[12px] text-danger">{error}</p> : null}
+          {cards.length === 0 ? (
+            <p className="text-[12px] text-ink-muted">没有可用的任务卡。</p>
+          ) : (
+            <ul className="max-h-72 overflow-auto">
+              {cards.map((card) => (
+                <li key={card.id}>
+                  <button
+                    type="button"
+                    onClick={() => void pick(card)}
+                    className="w-full rounded px-2 py-1 text-left text-[12px] hover:bg-panel-muted"
+                  >
+                    <span className="block truncate">{card.title}</span>
+                    <span className="block truncate text-[10.5px] text-ink-muted">
+                      {card.chain} · {card.id}
+                    </span>
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+      </DialogContent>
+    </Dialog>
   )
 }
 
@@ -143,6 +208,7 @@ export function Shell(): JSX.Element {
   const setCommandOpen = useUiStore((state) => state.setCommandOpen)
   const setUndoDialog = useUiStore((state) => state.setUndoDialog)
   const setSettingsOpen = useUiStore((state) => state.setSettingsOpen)
+  const setNewTaskOpen = useUiStore((state) => state.setNewTaskOpen)
   const leftCollapsed = useUiStore((state) => state.leftCollapsed)
   const toggleLeft = useUiStore((state) => state.toggleLeft)
   const rightWidth = useUiStore((state) => state.rightWidth)
@@ -212,7 +278,12 @@ export function Shell(): JSX.Element {
             {leftCollapsed ? '»' : '«'}
           </button>
           {leftCollapsed ? null : (
-            <button type="button" className="rounded border border-line bg-panel px-1.5 py-0.5 text-[11px]">
+            <button
+              type="button"
+              data-testid="new-task-button"
+              onClick={() => setNewTaskOpen(true)}
+              className="rounded border border-line bg-panel px-1.5 py-0.5 text-[11px]"
+            >
               新任务
             </button>
           )}
@@ -291,6 +362,7 @@ export function Shell(): JSX.Element {
       <Splitter />
       <RightPane />
       <CommandPalette />
+      <NewTaskDialog />
       <SettingsDialog />
       <UndoDialogHost />
     </div>

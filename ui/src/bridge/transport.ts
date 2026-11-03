@@ -6,6 +6,7 @@ import type {
   RunStatus,
   RunSummary,
   RunView,
+  TaskCard,
   UndoResult,
 } from './types'
 
@@ -14,6 +15,7 @@ export interface BridgeTransport {
   disconnect(): void
   subscribe(listener: (event: BridgeEvent) => void): () => void
   listTasks(): Promise<CommandResult<RunSummary[]>>
+  listCards(): Promise<CommandResult<TaskCard[]>>
   openTask(runId: string): Promise<CommandResult<RunView>>
   startTask(cardId: string): Promise<CommandResult<{ runId: string }>>
   cancelTask(runId: string): Promise<CommandResult<{ status: RunStatus }>>

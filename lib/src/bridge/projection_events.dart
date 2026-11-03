@@ -3,89 +3,111 @@ library;
 
 import 'projection_io.dart';
 
+/// 把原始会话事件逐条映射成桥接事件。
+///
+/// 有状态：记录每个工具调用的开始时间与自增 `seq`，所以同一个实例要按顺序喂事件。
+/// 投影（一次性读全量）与运行期尾随（增量读）共用它，避免两套映射漂移。
+class EventMapper {
+  EventMapper(this.startedAt);
+
+  /// 运行开始时间（ISO 字符串），用来算毫秒偏移。
+  final String startedAt;
+
+  int _seq = 0;
+  final Map<String, int> _startedCallAt = <String, int>{};
+
+  int get seq => _seq;
+
+  /// 映射一条原始事件；返回零或多条桥接事件（assistant 消息会展开成多条）。
+  List<Map<String, Object?>> map(Map<String, Object?> event) {
+    final int base = epochMs(startedAt) ?? 0;
+    final int at = _offsetOf(event['time'], base);
+    final List<Map<String, Object?>> out = <Map<String, Object?>>[];
+
+    switch (event['type']) {
+      case 'user/message':
+        out.add(<String, Object?>{
+          'seq': _seq++,
+          'at': at,
+          'type': 'message/user',
+          'data': <String, Object?>{'text': _text(event['data'], 'text')},
+        });
+      case 'assistant/message':
+        final Object? id = event['id'];
+        out.add(<String, Object?>{
+          'seq': _seq++,
+          'at': at,
+          'type': 'message/assistant/done',
+          'data': <String, Object?>{
+            'entryId': id is String && id.isNotEmpty ? id : 'assistant-$_seq',
+            'text': _text(event['data'], 'text'),
+            if (_hasText(event['data'], 'reasoning'))
+              'reasoning': _text(event['data'], 'reasoning'),
+          },
+        });
+        final Map<String, Object?> data = _mapOf(event['data']);
+        for (final Object? call in _listOf(data['toolCalls'])) {
+          final Map<String, Object?> tool = _mapOf(call);
+          final String callId = tool['id'] is String ? tool['id']! as String : '';
+          _startedCallAt[callId] = at;
+          out.add(<String, Object?>{
+            'seq': _seq++,
+            'at': at,
+            'type': 'tool/started',
+            'data': <String, Object?>{
+              'callId': callId,
+              'name': tool['name'] ?? 'unknown',
+              'args': tool['arguments'] ?? '{}',
+            },
+          });
+        }
+      case 'tool/result':
+        final Map<String, Object?> data = _mapOf(event['data']);
+        final String callId = data['callId'] is String
+            ? data['callId']! as String
+            : 'call-${_seq + 1}';
+        final int startedAtMs = _startedCallAt[callId] ?? at;
+        final String content = data['content'] is String
+            ? data['content']! as String
+            : '';
+        out.add(<String, Object?>{
+          'seq': _seq++,
+          'at': at,
+          'type': 'tool/finished',
+          'data': <String, Object?>{
+            'callId': callId,
+            'name': data['name'] ?? 'unknown',
+            'ok': data['isError'] != true,
+            'summary': firstLine(content),
+            'content': clipContent(content),
+            'durationMs': at - startedAtMs < 0 ? 0 : at - startedAtMs,
+          },
+        });
+    }
+    return out;
+  }
+}
+
 /// 把原始 `events.jsonl` 条目投影成桥接事件，并按 `(at, 原序)` 重排后重新编号。
 List<Map<String, Object?>> buildEventStream(
   List<Map<String, Object?>> rawEvents,
   String startedAt,
 ) {
-  final int base = epochMs(startedAt) ?? 0;
+  final EventMapper mapper = EventMapper(startedAt);
   final List<Map<String, Object?>> out = <Map<String, Object?>>[];
-  final Map<String, int> startedCallAt = <String, int>{};
-  int seq = 0;
-
   for (final Map<String, Object?> event in rawEvents) {
-    final int at = _offsetOf(event['time'], base);
-
-    if (event['type'] == 'user/message') {
-      out.add(<String, Object?>{
-        'seq': seq++,
-        'at': at,
-        'type': 'message/user',
-        'data': <String, Object?>{'text': _text(event['data'], 'text')},
-      });
-      continue;
-    }
-
-    if (event['type'] == 'assistant/message') {
-      seq += 1;
-      final Object? id = event['id'];
-      out.add(<String, Object?>{
-        'seq': seq - 1,
-        'at': at,
-        'type': 'message/assistant/done',
-        'data': <String, Object?>{
-          'entryId': id is String && id.isNotEmpty ? id : 'assistant-$seq',
-          'text': _text(event['data'], 'text'),
-          if (_hasText(event['data'], 'reasoning'))
-            'reasoning': _text(event['data'], 'reasoning'),
-        },
-      });
-      final Map<String, Object?> data = _mapOf(event['data']);
-      for (final Object? call in _listOf(data['toolCalls'])) {
-        final Map<String, Object?> tool = _mapOf(call);
-        final String callId = tool['id'] is String ? tool['id']! as String : '';
-        startedCallAt[callId] = at;
-        out.add(<String, Object?>{
-          'seq': seq++,
-          'at': at,
-          'type': 'tool/started',
-          'data': <String, Object?>{
-            'callId': callId,
-            'name': tool['name'] ?? 'unknown',
-            'args': tool['arguments'] ?? '{}',
-          },
-        });
-      }
-      continue;
-    }
-
-    if (event['type'] == 'tool/result') {
-      final Map<String, Object?> data = _mapOf(event['data']);
-      final String callId = data['callId'] is String ? data['callId']! as String : 'call-${seq + 1}';
-      final int startedAtMs = startedCallAt[callId] ?? at;
-      final String content = data['content'] is String ? data['content']! as String : '';
-      seq += 1;
-      out.add(<String, Object?>{
-        'seq': seq - 1,
-        'at': at,
-        'type': 'tool/finished',
-        'data': <String, Object?>{
-          'callId': callId,
-          'name': data['name'] ?? 'unknown',
-          'ok': data['isError'] != true,
-          'summary': firstLine(content),
-          'content': clipContent(content),
-          'durationMs': at - startedAtMs < 0 ? 0 : at - startedAtMs,
-        },
-      });
-    }
+    out.addAll(mapper.map(event));
   }
 
   final List<MapEntry<int, Map<String, Object?>>> indexed =
       <MapEntry<int, Map<String, Object?>>>[
-        for (int i = 0; i < out.length; i += 1) MapEntry<int, Map<String, Object?>>(i, out[i]),
+        for (int i = 0; i < out.length; i += 1)
+          MapEntry<int, Map<String, Object?>>(i, out[i]),
       ];
-  indexed.sort((MapEntry<int, Map<String, Object?>> a, MapEntry<int, Map<String, Object?>> b) {
+  indexed.sort((
+    MapEntry<int, Map<String, Object?>> a,
+    MapEntry<int, Map<String, Object?>> b,
+  ) {
     final int byAt = (a.value['at']! as int).compareTo(b.value['at']! as int);
     return byAt != 0 ? byAt : a.key.compareTo(b.key);
   });
@@ -106,7 +128,8 @@ String firstLine(String text) {
 }
 
 /// 工具输出正文：超过 2000 字符截断。
-String clipContent(String text) => text.length > 2000 ? '${text.substring(0, 2000)}…' : text;
+String clipContent(String text) =>
+    text.length > 2000 ? '${text.substring(0, 2000)}…' : text;
 
 int _offsetOf(Object? time, int base) {
   final int parsed = epochMs(time) ?? base;
@@ -117,7 +140,8 @@ int _offsetOf(Object? time, int base) {
 Map<String, Object?> _mapOf(Object? value) =>
     value is Map<String, Object?> ? value : <String, Object?>{};
 
-List<Object?> _listOf(Object? value) => value is List<Object?> ? value : <Object?>[];
+List<Object?> _listOf(Object? value) =>
+    value is List<Object?> ? value : <Object?>[];
 
 String _text(Object? data, String key) {
   final Object? value = _mapOf(data)[key];

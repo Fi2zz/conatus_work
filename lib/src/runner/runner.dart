@@ -62,7 +62,7 @@ class Runner {
   final LlmRuntime? llm;
 
   /// 跑一张任务卡，返回落盘后的运行记录。
-  Future<RunRecord> run(RunRequest request) async {
+  Future<RunRecord> run(RunRequest request, {String? runId}) async {
     final TaskSpec task = request.task;
     final String root = resolveWorkspaceRoot(
       task: task,
@@ -78,7 +78,7 @@ class Runner {
     );
     final RunPaths paths = RunPaths(
       runsDir: runsDir,
-      runId: newRunId(DateTime.now()),
+      runId: runId ?? newRunId(DateTime.now()),
     );
     await paths.create();
     final RunStore store = RunStore(paths);

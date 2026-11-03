@@ -137,6 +137,13 @@ export interface WorkbenchState {
   seenSeqs: Record<string, true>
 }
 
+export interface TaskCard {
+  id: string
+  title: string
+  chain: string
+  path: string
+}
+
 export type BridgeErrorCode = 'NOT_FOUND' | 'PRUNED' | 'STALE_TURN' | 'DENIED' | 'INTERNAL'
 
 export interface BridgeError {
