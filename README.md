@@ -59,8 +59,9 @@ info（`--fatal-infos` 必红），去掉 overrides 则因「git ref 与解析�
 把运行记录翻译成 React 侧消费的契约，不启动进程：
 
 - `projection.dart`：`projectRunDir(dir)` → `RunFixture`（与 `ui/src/bridge/types.ts` 同形）
-- `bridge.dart`：`WorkbenchBridge` 提供 `listTasks` / `openTask` / `changes` / `readArtifact` / `undo`
-- `undo` 直接复用阶段 0 的 `Runner.undo`（检查点 + 会话分叉）；`redo` 未接线（需要 undo 时的 `RevertStage`，当前未持久化）
+- `bridge.dart`：`WorkbenchBridge` 提供 `listTasks` / `openTask` / `changes` / `readArtifact` / `undo` / `redo`
+- `undo` 复用 `Runner.undo`（检查点 + 会话分叉），并把撤销点写到 `<runDir>/revert-stage.json`；
+  `redo` 读这份撤销点走 `RevertService.redo`，成功后删除。撤销点存在即表示「可重做」。
 
 对拍：`test/fixtures/projection/organize-v01/` 是自包含的投影输入（`run.json` + `events.jsonl` + `task.json` + `workspace/`），
 Dart 投影结果必须与已提交的 `ui/src/fixtures/runs/organize-v01.json` 深度相等：
@@ -93,6 +94,8 @@ dart run bin/runner.dart list
 dart run bin/runner.dart run tasks/empty-smoke.json --workspace var/workspaces/smoke
 dart run bin/runner.dart resume <runId>
 dart run bin/runner.dart abort <runId>
+dart run bin/runner.dart undo <runId>
+dart run bin/runner.dart redo <runId>
 dart run bin/runner.dart report var/runs
 dart run bin/runner.dart edit <runId> --artifact out/report.md --note "手动改了结论段"
 ```

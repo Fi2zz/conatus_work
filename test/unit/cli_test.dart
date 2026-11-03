@@ -10,6 +10,14 @@ void main() {
     expect(await runCli(<String>['run', '/nonexistent/card.json']), 1);
   });
 
+  test('redo 缺少 runId 时打印用法并返回 64', () async {
+    expect(await runCli(<String>['redo']), 64);
+  });
+
+  test('redo 未知运行返回 1 而不是抛栈', () async {
+    expect(await runCli(<String>['redo', 'run_nope']), 1);
+  });
+
   test('未知子命令返回 64', () async {
     expect(await runCli(<String>['nope']), 64);
   });

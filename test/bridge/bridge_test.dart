@@ -56,9 +56,14 @@ void main() {
     );
   });
 
+  test('没有撤销点时 redo 明确报错', () async {
+    await expectLater(bridge.redo('organize-v01'), throwsA(isA<StateError>()));
+  });
+
   test('未知 runId 被拒绝', () {
     expect(() => bridge.openTask('nope'), throwsA(isA<StateError>()));
     expect(() => bridge.openTask('../etc/passwd'), throwsA(isA<StateError>()));
     expect(() => bridge.undo('nope'), throwsA(isA<StateError>()));
+    expect(() => bridge.redo('nope'), throwsA(isA<StateError>()));
   });
 }

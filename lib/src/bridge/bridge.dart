@@ -93,13 +93,16 @@ class WorkbenchBridge {
     return content;
   }
 
-  /// 撤销一次运行，复用阶段 0 的 `Runner.undo`（检查点 + 会话分叉）。
-  ///
-  /// 注意：`redo` 尚未接线——`RevertService.redo` 需要 undo 时的 `RevertStage`，
-  /// 当前运行器没有持久化它。宿主调用 `redo` 时应回 `NOT_FOUND`/`INTERNAL`。
+  /// 撤销一次运行，复用阶段 0 的 `Runner.undo`（检查点 + 会话分叉 + 撤销点落盘）。
   Future<RunRecord> undo(String runId, {int? steps}) {
     _runDir(runId);
     return Runner(body: noopTaskBody, runsDir: runsDir).undo(runId, steps: steps);
+  }
+
+  /// 重做上次撤销；没有撤销点时抛 [StateError]。
+  Future<RunRecord> redo(String runId) {
+    _runDir(runId);
+    return Runner(body: noopTaskBody, runsDir: runsDir).redo(runId);
   }
 
   String _runDir(String runId) {

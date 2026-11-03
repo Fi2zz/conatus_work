@@ -29,6 +29,7 @@ Future<int> runCli(List<String> args) async {
       'resume' => _resume(rest),
       'abort' => _abort(rest),
       'undo' => _undo(rest),
+      'redo' => _redo(rest),
       'report' => _report(rest),
       'edit' => _edit(rest),
       _ => _usage(),
@@ -120,6 +121,14 @@ Future<int> _undo(List<String> args) async {
   return 0;
 }
 
+Future<int> _redo(List<String> args) async {
+  final String? runId = _positional(args);
+  if (runId == null) return _usage();
+  final RunRecord record = await Runner(body: agentTaskBody).redo(runId);
+  stdout.writeln('已重做：${record.runId}');
+  return 0;
+}
+
 Future<int> _report(List<String> args) async {
   final Directory dir = Directory(_positional(args) ?? kRunsDir);
   final List<RunRecord> records = <RunRecord>[];
@@ -204,6 +213,7 @@ Future<int> _usage() async {
   stdout.writeln('  runner resume <runId>');
   stdout.writeln('  runner abort <runId>');
   stdout.writeln('  runner undo <runId> [--steps N]');
+  stdout.writeln('  runner redo <runId>');
   stdout.writeln('  runner report [runsDir]');
   stdout.writeln('  runner edit <runId> --artifact <rel> --note <text>');
   return 64;
