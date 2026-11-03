@@ -121,6 +121,7 @@ class _ShellAppState extends State<ShellApp> {
         await Future<void>.delayed(const Duration(seconds: 3));
         final Object mounted = await controller.runJavaScriptReturningResult(
           'JSON.stringify({root: document.getElementById("root").innerHTML.length, '
+          'tasks: document.querySelectorAll("[data-testid=\\"task-list\\"] button").length, '
           'errors: window.__errors || []})',
         );
         debugPrint('page settled: $mounted');

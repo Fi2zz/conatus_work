@@ -144,6 +144,10 @@
 5. **空目录不被检查点恢复**：影子 git 不跟踪空目录，撤销后 `out/` 会消失，靠下一次
    `prepareWorkspace` 重建。
 6. **单机单模型验证**：只跑了 `deepseek-v4.1-flash`，跨模型的任务成功率仍是未知数。
+   已补 GLM-5.3-Flash 的 6 任务验证（见五之二），结论是契约可移植、长任务稳定性有差异。
+7. ~~**超时后进程被遗留连接吊住**~~：已修。根因是 `conatus_search` 的 provider / fetcher
+   各自新建 `http.Client` 且从不关闭；现在由 `provideSearch` / `provideWebTools` 统一持有
+   并随上下文释放，CLI 另以 `exit()` 收口。超时路径实测 3 秒内退出（修复前可挂十几分钟）。
 
 ## 八、建议
 
