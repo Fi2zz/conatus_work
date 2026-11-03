@@ -35,11 +35,21 @@ void main() {
     return jsonDecode(frames.single) as Map<String, Object?>;
   }
 
-  test('hello 回 welcome', () async {
+  test('hello 回 welcome 并推一条 snapshot 事件', () async {
     final List<String> frames = await host.dispatch(
       jsonEncode(<String, Object?>{'v': 1, 'kind': 'hello'}),
     );
-    expect(jsonDecode(frames.single), containsPair('kind', 'welcome'));
+    expect(frames, hasLength(2));
+    expect(jsonDecode(frames.first), containsPair('kind', 'welcome'));
+
+    final Map<String, Object?> event =
+        jsonDecode(frames.last) as Map<String, Object?>;
+    expect(event['kind'], 'event');
+    final Map<String, Object?> snapshot =
+        event['event']! as Map<String, Object?>;
+    expect(snapshot['type'], 'snapshot');
+    final Map<String, Object?> data = snapshot['data']! as Map<String, Object?>;
+    expect(data['runs'], hasLength(1));
   });
 
   test('task.list 返回任务摘要', () async {
@@ -51,9 +61,10 @@ void main() {
   });
 
   test('task.open 返回与已提交 fixture 一致的投影', () async {
-    final Map<String, Object?> frame = await call('task.open', <String, Object?>{
-      'runId': 'organize-v01',
-    });
+    final Map<String, Object?> frame = await call(
+      'task.open',
+      <String, Object?>{'runId': 'organize-v01'},
+    );
     final Object? expected = jsonDecode(
       File(committedFixture).readAsStringSync(),
     );
@@ -61,19 +72,20 @@ void main() {
   });
 
   test('artifact.read 返回正文与截断标记', () async {
-    final Map<String, Object?> frame = await call('artifact.read', <String, Object?>{
-      'runId': 'organize-v01',
-      'path': 'out/changes.md',
-    });
+    final Map<String, Object?> frame = await call(
+      'artifact.read',
+      <String, Object?>{'runId': 'organize-v01', 'path': 'out/changes.md'},
+    );
     final Map<String, Object?> value = frame['value']! as Map<String, Object?>;
     expect(value['truncated'], isFalse);
     expect((value['content']! as String).startsWith('#'), isTrue);
   });
 
   test('diff.open 返回变更集', () async {
-    final Map<String, Object?> frame = await call('diff.open', <String, Object?>{
-      'runId': 'organize-v01',
-    });
+    final Map<String, Object?> frame = await call(
+      'diff.open',
+      <String, Object?>{'runId': 'organize-v01'},
+    );
     final Map<String, Object?> value = frame['value']! as Map<String, Object?>;
     expect(value['summary'], containsPair('moved', 10));
   });
@@ -86,32 +98,39 @@ void main() {
 
   test('坏 JSON 回错误帧', () async {
     final List<String> frames = await host.dispatch('{nope');
-    final Map<String, Object?> frame = jsonDecode(frames.single) as Map<String, Object?>;
+    final Map<String, Object?> frame =
+        jsonDecode(frames.single) as Map<String, Object?>;
     expect(frame['ok'], isFalse);
     expect((frame['error']! as Map<String, Object?>)['code'], 'INTERNAL');
   });
 
   test('缺 id 的命令被拒绝', () async {
     final List<String> frames = await host.dispatch(
-      jsonEncode(<String, Object?>{'v': 1, 'kind': 'command', 'command': 'task.list'}),
+      jsonEncode(<String, Object?>{
+        'v': 1,
+        'kind': 'command',
+        'command': 'task.list',
+      }),
     );
-    final Map<String, Object?> frame = jsonDecode(frames.single) as Map<String, Object?>;
+    final Map<String, Object?> frame =
+        jsonDecode(frames.single) as Map<String, Object?>;
     expect(frame['ok'], isFalse);
   });
 
   test('未知 runId 回 NOT_FOUND', () async {
-    final Map<String, Object?> frame = await call('task.open', <String, Object?>{
-      'runId': '../../etc',
-    });
+    final Map<String, Object?> frame = await call(
+      'task.open',
+      <String, Object?>{'runId': '../../etc'},
+    );
     expect(frame['ok'], isFalse);
     expect((frame['error']! as Map<String, Object?>)['code'], 'NOT_FOUND');
   });
 
   test('未登记的产物路径回 NOT_FOUND', () async {
-    final Map<String, Object?> frame = await call('artifact.read', <String, Object?>{
-      'runId': 'organize-v01',
-      'path': 'out/secrets.txt',
-    });
+    final Map<String, Object?> frame = await call(
+      'artifact.read',
+      <String, Object?>{'runId': 'organize-v01', 'path': 'out/secrets.txt'},
+    );
     expect((frame['error']! as Map<String, Object?>)['code'], 'NOT_FOUND');
   });
 }

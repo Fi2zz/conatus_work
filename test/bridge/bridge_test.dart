@@ -13,8 +13,11 @@ void main() {
 
   setUp(() {
     runsRoot = Directory.systemTemp.createTempSync('work-bridge-');
-    final Directory target = Directory('${runsRoot.path}/organize-v01')..createSync();
-    for (final FileSystemEntity entity in Directory(_inputDir).listSync(recursive: true)) {
+    final Directory target = Directory('${runsRoot.path}/organize-v01')
+      ..createSync();
+    for (final FileSystemEntity entity in Directory(
+      _inputDir,
+    ).listSync(recursive: true)) {
       if (entity is! File) continue;
       final String relative = entity.path.substring(_inputDir.length + 1);
       final File copy = File('${target.path}/$relative');
@@ -40,11 +43,17 @@ void main() {
   });
 
   test('changes 返回记录里的移动数', () {
-    expect(bridge.changes('organize-v01')?['summary'], containsPair('moved', 10));
+    expect(
+      bridge.changes('organize-v01')?['summary'],
+      containsPair('moved', 10),
+    );
   });
 
   test('readArtifact 返回登记过的产物正文', () {
-    final String content = bridge.readArtifact('organize-v01', 'out/changes.md');
+    final String content = bridge.readArtifact(
+      'organize-v01',
+      'out/changes.md',
+    );
     expect(content, isNotEmpty);
     expect(content.startsWith('#'), isTrue);
   });

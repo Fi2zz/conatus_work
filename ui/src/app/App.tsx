@@ -2,6 +2,7 @@ import type { JSX } from 'react'
 import { useEffect, useState } from 'react'
 
 import { createReplayTransport } from '@/bridge/replay-transport'
+import { createWebViewTransport } from '@/bridge/webview-transport'
 import type { BridgeTransport } from '@/bridge/transport'
 import { findFixture } from '@/fixtures'
 
@@ -9,6 +10,11 @@ import { readFixtureParam } from './fixture-param'
 import { ErrorBoundary } from './error-boundary'
 import { AppProvider } from './provider'
 import { Shell } from './Shell'
+
+function hasNativeChannel(): boolean {
+  const host = (window as unknown as { conatus?: { postMessage?: unknown } }).conatus
+  return typeof host?.postMessage === 'function'
+}
 
 interface AppProps {
   transport?: BridgeTransport
@@ -20,6 +26,11 @@ export default function App({ transport }: AppProps = {}): JSX.Element {
 
   useEffect(() => {
     if (transport) return
+    // 原生壳里存在 JavaScriptChannel，直接走宿主；否则按 URL 参数回放 fixture。
+    if (hasNativeChannel()) {
+      setResolved(createWebViewTransport())
+      return
+    }
     const { fixtureId, speed } = readFixtureParam(window.location.search)
     const entry = findFixture(fixtureId)
     if (!entry) {
@@ -50,7 +61,11 @@ export default function App({ transport }: AppProps = {}): JSX.Element {
   }
 
   if (!resolved) {
-    return <div className="p-6 text-[12px] text-ink-muted">正在加载回放数据…</div>
+    return (
+      <div data-testid="boot-status" className="p-6 text-[12px] text-ink-muted">
+        {hasNativeChannel() ? '正在连接宿主…' : '正在加载回放数据…'}
+      </div>
+    )
   }
 
   return (

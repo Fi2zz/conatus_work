@@ -10,9 +10,7 @@ const String _expectedPath = 'ui/src/fixtures/runs/organize-v01.json';
 void main() {
   test('organize-v01 投影与已提交的 UI fixture 完全一致', () {
     final RunFixture fixture = projectRunDir(_inputDir);
-    final Object? expected = jsonDecode(
-      File(_expectedPath).readAsStringSync(),
-    );
+    final Object? expected = jsonDecode(File(_expectedPath).readAsStringSync());
     expect(fixture.toJson(), equals(expected));
   });
 
@@ -30,7 +28,10 @@ void main() {
 
   test('产物正文与变更集来自自包含的 workspace', () {
     final RunFixture fixture = projectRunDir(_inputDir);
-    expect(fixture.files.keys, containsAll(<String>['out/changes.json', 'out/changes.md']));
+    expect(
+      fixture.files.keys,
+      containsAll(<String>['out/changes.json', 'out/changes.md']),
+    );
     expect(fixture.changes?['summary'], containsPair('moved', 10));
     expect(fixture.run['workspaceRoot'], 'workspace');
   });

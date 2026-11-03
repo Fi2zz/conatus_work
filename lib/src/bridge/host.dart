@@ -29,7 +29,10 @@ class BridgeHost {
       return <String>[_error(null, 'INTERNAL', '不支持的协议版本：$version')];
     }
     if (decoded['kind'] == 'hello') {
-      return <String>[_frame(<String, Object?>{'v': kProtocolVersion, 'kind': 'welcome'})];
+      return <String>[
+        _frame(<String, Object?>{'v': kProtocolVersion, 'kind': 'welcome'}),
+        _eventFrame(_snapshot()),
+      ];
     }
     final Object? id = decoded['id'];
     if (decoded['kind'] != 'command' || id is! String || id.isEmpty) {
@@ -49,6 +52,18 @@ class BridgeHost {
       return <String>[_error(id, 'INTERNAL', '$error')];
     }
   }
+
+  Map<String, Object?> _snapshot() => <String, Object?>{
+    'seq': -1,
+    'at': 0,
+    'type': 'snapshot',
+    'data': <String, Object?>{
+      'runs': <Object?>[
+        for (final RunSummary task in bridge.listTasks()) task.toJson(),
+      ],
+      'activeRunId': null,
+    },
+  };
 
   Future<Object?> _run(String command, Map<String, Object?> payload) async {
     switch (command) {
@@ -121,6 +136,12 @@ Map<String, Object?> _payloadOf(Object? value) =>
     value is Map<String, Object?> ? value : <String, Object?>{};
 
 String _frame(Map<String, Object?> frame) => jsonEncode(frame);
+
+String _eventFrame(Map<String, Object?> event) => _frame(<String, Object?>{
+  'v': kProtocolVersion,
+  'kind': 'event',
+  'event': event,
+});
 
 String _result(String id, Object? value) => _frame(<String, Object?>{
   'v': kProtocolVersion,

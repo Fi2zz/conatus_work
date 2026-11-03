@@ -42,7 +42,7 @@ export function TaskList({ runs, activeId, onSelect }: TaskListProps): JSX.Eleme
   if (runs.length === 0) {
     return (
       <div data-testid="task-list-empty" className="p-4 text-ink-muted">
-        还没有任务。选择一个回放数据，或新建任务。
+        还没有任务。
       </div>
     )
   }

@@ -38,7 +38,16 @@ export function createStubTransport(runs: RunSummary[], activeRunId: string | nu
       return ok(runs)
     },
     async openTask(runId) {
-      return ok({ id: runId } as RunView)
+      const summary = runs.find((run) => run.id === runId)
+      if (!summary) return { ok: false, error: { code: 'NOT_FOUND', message: runId } }
+      const view: RunView = {
+        ...summary,
+        timeline: [],
+        artifacts: [],
+        changes: null,
+        checkpoints: { currentTurn: 0, startTurn: 0, keep: 5, turns: [], gaps: [] },
+      }
+      return ok(view)
     },
     async startTask() {
       return ok({ runId: runs[0]?.id ?? '' })

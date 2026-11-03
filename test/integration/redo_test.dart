@@ -59,7 +59,9 @@ void main() {
   test('undo 把撤销点落盘，redo 用它把文件恢复回去', () async {
     await runner.undo(record.runId);
     expect(File('${tmp.path}/work/inbox/a.txt').existsSync(), isTrue);
-    final File stage = File('${tmp.path}/runs/${record.runId}/revert-stage.json');
+    final File stage = File(
+      '${tmp.path}/runs/${record.runId}/revert-stage.json',
+    );
     expect(stage.existsSync(), isTrue);
 
     final RunRecord redone = await runner.redo(record.runId);

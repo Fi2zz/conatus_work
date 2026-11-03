@@ -1,7 +1,7 @@
 import { useEffect, useRef } from 'react'
 import type { JSX, PointerEvent as ReactPointerEvent } from 'react'
 
-import { getTransport } from '@/bridge/transport-store'
+import { getTransport, hasTransport } from '@/bridge/transport-store'
 import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog'
 import { ApprovalBar } from '@/features/approval/ApprovalBar'
 import { ArtifactPanel } from '@/features/artifacts/ArtifactPanel'
@@ -139,6 +139,7 @@ export function Shell(): JSX.Element {
   const runs = useWorkbench((state) => state.runs)
   const activeRunId = useWorkbench((state) => state.activeRunId)
   const setActive = useWorkbenchStore((store) => store.setActive)
+  const adoptRun = useWorkbenchStore((store) => store.adoptRun)
   const setCommandOpen = useUiStore((state) => state.setCommandOpen)
   const setUndoDialog = useUiStore((state) => state.setUndoDialog)
   const setSettingsOpen = useUiStore((state) => state.setSettingsOpen)
@@ -162,6 +163,18 @@ export function Shell(): JSX.Element {
     window.addEventListener('keydown', onKeyDown)
     return () => window.removeEventListener('keydown', onKeyDown)
   }, [setCommandOpen, setUndoDialog])
+
+  function selectTask(runId: string): void {
+    setActive(runId)
+    const existing = runs[runId]
+    if (!hasTransport() || (existing && existing.timeline.length > 0)) return
+    void getTransport()
+      .openTask(runId)
+      .then((result) => {
+        if (result.ok) adoptRun(result.value)
+      })
+      .catch(() => undefined)
+  }
 
   const summaries = order.map((id) => runs[id]).filter(Boolean)
   const active = activeRunId ? runs[activeRunId] : undefined
@@ -220,7 +233,7 @@ export function Shell(): JSX.Element {
               usage: run.usage,
             }))}
             activeId={activeRunId}
-            onSelect={setActive}
+            onSelect={selectTask}
           />
         )}
         <div className="mt-auto flex items-center justify-between border-t border-line px-3 py-2 text-[11px] text-ink-muted">

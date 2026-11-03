@@ -57,3 +57,29 @@ it('shows a failure card instead of a blank page', () => {
   )
   expect(screen.getByTestId('render-error')).toHaveTextContent('炸了')
 })
+
+it('asks the host for a run whose timeline is still empty', async () => {
+  const runs = [summaryOf(), summaryOf({ id: 'run-b', title: '任务 B', startedAt: '2026-11-03T11:00:00+08:00' })]
+  const transport = createStubTransport(runs, 'run-a')
+  const original = transport.openTask
+  const asked: string[] = []
+  transport.openTask = (runId: string) => {
+    asked.push(runId)
+    return original(runId).then((result) =>
+      result.ok
+        ? {
+            ok: true as const,
+            value: {
+              ...result.value,
+              timeline: [{ kind: 'user' as const, id: 'u1', at: 0, text: '来自宿主的事件' }],
+            },
+          }
+        : result,
+    )
+  }
+  render(<App transport={transport} />)
+  await screen.findByTestId('task-list')
+  await userEvent.click(screen.getByText('任务 B'))
+  expect(asked).toEqual(['run-b'])
+  expect(await screen.findByText('来自宿主的事件')).toBeInTheDocument()
+})

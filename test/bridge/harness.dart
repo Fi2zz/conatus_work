@@ -7,7 +7,9 @@ const String committedFixture = 'ui/src/fixtures/runs/organize-v01.json';
 Directory prepareRunsRoot(String runId) {
   final Directory root = Directory.systemTemp.createTempSync('work-runs-');
   final Directory target = Directory('${root.path}/$runId')..createSync();
-  for (final FileSystemEntity entity in Directory(projectionInput).listSync(recursive: true)) {
+  for (final FileSystemEntity entity in Directory(
+    projectionInput,
+  ).listSync(recursive: true)) {
     if (entity is! File) continue;
     final String relative = entity.path.substring(projectionInput.length + 1);
     final File copy = File('${target.path}/$relative');
