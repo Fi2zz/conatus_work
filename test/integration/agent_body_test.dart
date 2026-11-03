@@ -11,13 +11,11 @@ import 'package:test/test.dart';
 
 /// 按预设序列回放的模型：不联网、不花钱。
 class ScriptedLlm implements LlmProvider {
-  /// 最后一次收到的用户文本。
-  String lastUserText = '';
-
   ScriptedLlm(this.responses);
 
   final List<LlmResult> responses;
   int calls = 0;
+  String lastUserText = '';
 
   @override
   String get name => 'scripted';
@@ -36,6 +34,68 @@ class ScriptedLlm implements LlmProvider {
         responses[calls < responses.length ? calls : responses.length - 1];
     calls += 1;
     return response;
+  }
+
+  @override
+  Stream<LlmStreamEvent> chatStream(
+    List<LlmMessage> messages, {
+    Map<String, dynamic>? options,
+    List<Map<String, dynamic>>? tools,
+  }) => const Stream<LlmStreamEvent>.empty();
+
+  @override
+  void close() {}
+}
+
+/// 第一次正常，之后抛错。
+class FailAfterFirst implements LlmProvider {
+  FailAfterFirst(this.inner);
+
+  final LlmProvider inner;
+  int calls = 0;
+
+  @override
+  String get name => 'fail-after-first';
+
+  @override
+  Future<LlmResult> chat(
+    List<LlmMessage> messages, {
+    Map<String, dynamic>? options,
+    List<Map<String, dynamic>>? tools,
+  }) {
+    calls += 1;
+    if (calls > 1) throw const LlmException('fake', 'boom');
+    return inner.chat(messages, options: options, tools: tools);
+  }
+
+  @override
+  Stream<LlmStreamEvent> chatStream(
+    List<LlmMessage> messages, {
+    Map<String, dynamic>? options,
+    List<Map<String, dynamic>>? tools,
+  }) => const Stream<LlmStreamEvent>.empty();
+
+  @override
+  void close() {}
+}
+
+/// 慢模型：用于触发超时。
+class SlowLlm implements LlmProvider {
+  SlowLlm(this.delay);
+
+  final Duration delay;
+
+  @override
+  String get name => 'slow';
+
+  @override
+  Future<LlmResult> chat(
+    List<LlmMessage> messages, {
+    Map<String, dynamic>? options,
+    List<Map<String, dynamic>>? tools,
+  }) async {
+    await Future<void>.delayed(delay);
+    return const LlmResult(content: 'late', provider: 'slow', model: 'slow');
   }
 
   @override
@@ -70,26 +130,31 @@ LlmResult finish() => const LlmResult(
   usage: <String, dynamic>{'prompt_tokens': 10, 'completion_tokens': 5},
 );
 
-TaskSpec card({double maxCostUsd = 5}) => TaskSpec.parse(<String, Object?>{
-  'id': 'agent-v01',
-  'chain': 'research',
-  'title': '模型任务',
-  'workspace': <String, Object?>{
-    'root': 'work',
-    'read': <String>[],
-    'write': <String>['out'],
-  },
-  'inputs': <String>[],
-  'prompt': '写一份报告到 out/report.md',
-  'network': 'deny',
-  'expectedArtifacts': <String>['out/report.md'],
-  'artifactRules': <String, Object?>{
-    'out/report.md': <String, Object?>{'minChars': 10},
-  },
-  'acceptance': <String>[],
-  'limits': <String, Object?>{'maxMinutes': 5, 'maxCostUsd': maxCostUsd},
-  'checkpoint': <String, Object?>{'enabled': true, 'keep': 30},
-});
+TaskSpec card({double maxCostUsd = 5, int? maxSeconds}) =>
+    TaskSpec.parse(<String, Object?>{
+      'id': 'agent-v01',
+      'chain': 'research',
+      'title': '模型任务',
+      'workspace': <String, Object?>{
+        'root': 'work',
+        'read': <String>[],
+        'write': <String>['out'],
+      },
+      'inputs': <String>[],
+      'prompt': '写一份报告到 out/report.md',
+      'network': 'deny',
+      'expectedArtifacts': <String>['out/report.md'],
+      'artifactRules': <String, Object?>{
+        'out/report.md': <String, Object?>{'minChars': 10},
+      },
+      'acceptance': <String>[],
+      'limits': <String, Object?>{
+        'maxMinutes': 5,
+        'maxCostUsd': maxCostUsd,
+        if (maxSeconds != null) 'maxSeconds': maxSeconds,
+      },
+      'checkpoint': <String, Object?>{'enabled': true, 'keep': 30},
+    });
 
 void main() {
   late Directory tmp;
@@ -200,23 +265,14 @@ void main() {
         confirmed: true,
       ),
     );
-    final String last = llm.lastUserText;
-    expect(last, contains('--yes'));
-    expect(last, contains('已确认'));
+    expect(llm.lastUserText, contains('--yes'));
+    expect(llm.lastUserText, contains('已确认'));
   });
 
   test('模型中途抛错时，已完成的调用用量仍被记录', () async {
-    final ScriptedLlm llm = ScriptedLlm(<LlmResult>[
-      writeReport(),
-      const LlmResult(
-        content: '',
-        provider: 's',
-        model: 's',
-        usage: <String, dynamic>{'prompt_tokens': 0, 'completion_tokens': 0},
-      ),
-    ]);
-    // 第二次调用抛错：用量应停在第 1 次（10/5）。
-    final LlmProvider failing = _FailAfterFirst(llm);
+    final LlmProvider failing = FailAfterFirst(
+      ScriptedLlm(<LlmResult>[writeReport(), finish()]),
+    );
     final Runner runner = Runner(
       body: agentTaskBody,
       runsDir: '${tmp.path}/runs',
@@ -237,34 +293,24 @@ void main() {
     expect(record.inputTokens, 10);
     expect(record.outputTokens, 5);
   });
-}
 
-class _FailAfterFirst implements LlmProvider {
-  _FailAfterFirst(this.inner);
-  final LlmProvider inner;
-  int calls = 0;
-
-  @override
-  String get name => 'fail-after-first';
-
-  @override
-  Future<LlmResult> chat(
-    List<LlmMessage> messages, {
-    Map<String, dynamic>? options,
-    List<Map<String, dynamic>>? tools,
-  }) {
-    calls += 1;
-    if (calls > 1) throw const LlmException('fake', 'boom');
-    return inner.chat(messages, options: options, tools: tools);
-  }
-
-  @override
-  Stream<LlmStreamEvent> chatStream(
-    List<LlmMessage> messages, {
-    Map<String, dynamic>? options,
-    List<Map<String, dynamic>>? tools,
-  }) => const Stream<LlmStreamEvent>.empty();
-
-  @override
-  void close() {}
+  test('超时：慢模型触发 timeout', () async {
+    final Runner runner = Runner(
+      body: agentTaskBody,
+      runsDir: '${tmp.path}/runs',
+      llm: LlmRuntime(
+        config: const LlmConfig(baseUrl: 'http://fake', model: 'fake'),
+        provider: SlowLlm(const Duration(seconds: 5)),
+      ),
+    );
+    final RunRecord record = await runner.run(
+      RunRequest(
+        task: card(maxSeconds: 1),
+        taskPath: '${tmp.path}/card.json',
+        workspaceRoot: '${tmp.path}/work',
+      ),
+    );
+    expect(record.status, TaskRunStatus.failed);
+    expect(record.failure.category, FailureCategory.timeout);
+  });
 }

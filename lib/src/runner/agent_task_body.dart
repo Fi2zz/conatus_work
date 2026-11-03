@@ -46,7 +46,8 @@ Future<TaskOutcome> agentTaskBody(RunScope scope, TaskSpec task) async {
     );
   }
   final AgentCancel cancel = AgentCancel();
-  final Timer timer = Timer(Duration(minutes: task.maxMinutes), cancel.cancel);
+  final int seconds = task.maxSeconds ?? task.maxMinutes * 60;
+  final Timer timer = Timer(Duration(seconds: seconds), cancel.cancel);
   try {
     await agent.run(_prompt(scope, task), cancel: cancel);
     return _outcome(scope, task);

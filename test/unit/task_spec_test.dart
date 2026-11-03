@@ -124,4 +124,21 @@ void main() {
     };
     expect(() => TaskSpec.parse(bad), throwsA(isA<TaskSpecError>()));
   });
+
+  test('maxSeconds 必须 ≥ 1', () {
+    final Map<String, Object?> bad = validCard();
+    bad['limits'] = <String, Object?>{
+      'maxMinutes': 5,
+      'maxCostUsd': 1.0,
+      'maxSeconds': 0,
+    };
+    expect(() => TaskSpec.parse(bad), throwsA(isA<TaskSpecError>()));
+    final Map<String, Object?> ok = validCard();
+    ok['limits'] = <String, Object?>{
+      'maxMinutes': 5,
+      'maxCostUsd': 1.0,
+      'maxSeconds': 3,
+    };
+    expect(TaskSpec.parse(ok).maxSeconds, 3);
+  });
 }

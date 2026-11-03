@@ -55,4 +55,19 @@ void main() {
     expect(text, contains('succeeded=1/1'));
     expect(text, contains('rescued=1'));
   });
+
+  test('每行带 P50/P95，末尾带失败分类与救场构成', () {
+    final RunRecord a = rec('research', TaskRunStatus.succeeded, task: 'a')
+      ..startedAt = DateTime(2026, 11, 2, 10)
+      ..endedAt = DateTime(2026, 11, 2, 10, 4);
+    final RunRecord b = rec('research', TaskRunStatus.failed, task: 'b')
+      ..startedAt = DateTime(2026, 11, 2, 11)
+      ..endedAt = DateTime(2026, 11, 2, 11, 8)
+      ..failure = RunFailure(category: FailureCategory.artifact);
+    final String text = renderReport(<RunRecord>[a, b]);
+    expect(text, contains('p50=4.0min'));
+    expect(text, contains('p95=8.0min'));
+    expect(text, contains('failures=artifact:1'));
+    expect(text, contains('rescuedBy=rerun:0,human:0'));
+  });
 }

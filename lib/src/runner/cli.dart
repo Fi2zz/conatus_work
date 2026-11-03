@@ -22,16 +22,22 @@ const String kRunsDir = 'var/runs';
 Future<int> runCli(List<String> args) async {
   if (args.isEmpty) return _usage();
   final List<String> rest = args.sublist(1);
-  return switch (args.first) {
-    'list' => _list(),
-    'run' => _run(rest),
-    'resume' => _resume(rest),
-    'abort' => _abort(rest),
-    'undo' => _undo(rest),
-    'report' => _report(rest),
-    'edit' => _edit(rest),
-    _ => _usage(),
-  };
+  try {
+    return await switch (args.first) {
+      'list' => _list(),
+      'run' => _run(rest),
+      'resume' => _resume(rest),
+      'abort' => _abort(rest),
+      'undo' => _undo(rest),
+      'report' => _report(rest),
+      'edit' => _edit(rest),
+      _ => _usage(),
+    };
+  } catch (error) {
+    // 兜底：坏 JSON、文件不存在、上游异常都收敛成可读错误，不抛栈给用户。
+    stderr.writeln('命令失败：$error');
+    return 1;
+  }
 }
 
 Future<int> _list() async {
@@ -64,9 +70,9 @@ Future<int> _list() async {
 Future<int> _run(List<String> args) async {
   final String? card = _positional(args);
   if (card == null) return _usage();
+  final TaskSpec task = await TaskSpec.load(card);
   final LlmRuntime? runtime = _requireRuntime();
   if (runtime == null) return 2;
-  final TaskSpec task = await TaskSpec.load(card);
   final RunRecord record = await Runner(body: agentTaskBody, llm: runtime).run(
     RunRequest(
       task: task,

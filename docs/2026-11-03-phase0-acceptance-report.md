@@ -113,9 +113,11 @@
 进入桌面 Alpha 前的三件事，按优先级：
 
 1. ~~修「超时/取消用量丢失」~~ —— 已完成（`usage_meter.dart`）。
-2. 补超时与预算的集成测试，让 `maxMinutes` / `maxCostUsd` 成为可验证的约束。
-3. 把本报告的四张表做成 `report` 的固定输出（成功率、P50/P95、失败分类、救场归因），
-   之后每轮 30 个任务都能一键回归。
+2. ~~补超时与预算的集成测试~~ —— 已完成：`limits.maxSeconds` 提供秒级钩子，
+   `超时：慢模型触发 timeout` 与 `成本超限 → failed/budget` 都是端到端用例。
+3. ~~把四张表做成 `report` 固定输出~~ —— 已完成：`report` 现在输出每链
+   `succeeded` / `artifactRate` / `p50` / `p95`，末尾两行 `failures=` 与
+   `rescuedBy=rerun:…,human:…`。
 
 不建议现在就扩 UI：三条链的数据说明「文件交付」已经成立，但「不同模型上的稳定性」和
 「长任务失败恢复」还没验证，这两项才是 Alpha 的真实风险。

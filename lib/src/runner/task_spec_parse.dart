@@ -122,3 +122,12 @@ ArtifactRule _rule(String field, Object? value) {
 
 List<String> _optionalStrings(Map<String, Object?> json, String key) =>
     json[key] == null ? const <String>[] : _strings(json, key);
+
+int? _optionalSeconds(Map<String, Object?> limits) {
+  final Object? value = limits['maxSeconds'];
+  if (value == null) return null;
+  if (value is! int || value < 1) {
+    throw const TaskSpecError('limits.maxSeconds', '必须是不小于 1 的整数');
+  }
+  return value;
+}

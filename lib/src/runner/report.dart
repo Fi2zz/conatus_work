@@ -14,6 +14,8 @@ String renderReport(Iterable<RunRecord> records) {
   final List<String> lines = <String>[
     for (final String chain in chains) _row(chain, byChain[chain]!),
     _row('total', latest),
+    _failureLine(records),
+    _rescueLine(latest),
   ];
   return lines.join('\n');
 }
@@ -37,7 +39,9 @@ String _row(String chain, List<RunRecord> rows) {
   return '$chain\ttotal=$total\tsucceeded=$succeeded/$total\tfailed=$failed'
       '\taborted=$aborted\trescued=$rescued'
       '\trescueRate=${_percent(rescued, total)}%'
-      '\tartifactRate=${_percent(passed, artifacts.length)}%';
+      '\tartifactRate=${_percent(passed, artifacts.length)}%'
+      '\tp50=${_minutes(_percentile(rows, 0.5))}'
+      '\tp95=${_minutes(_percentile(rows, 0.95))}';
 }
 
 /// 同一任务多次尝试只保留最近一次：任务数按任务卡算，不按进程算。
@@ -50,6 +54,52 @@ List<RunRecord> _latestPerTask(Iterable<RunRecord> records) {
     }
   }
   return byTask.values.toList();
+}
+
+/// 最近一次运行的耗时（分钟），缺失按 0 计。
+double _duration(RunRecord record) {
+  final DateTime? ended = record.endedAt;
+  if (ended == null) return 0;
+  final double minutes = ended.difference(record.startedAt).inSeconds / 60;
+  return minutes < 0 ? 0 : minutes;
+}
+
+double _percentile(List<RunRecord> rows, double p) {
+  if (rows.isEmpty) return 0;
+  final List<double> values = <double>[
+    for (final RunRecord r in rows) _duration(r),
+  ]..sort();
+  // 最近秩法：p50 取较小者，p95 取最大者。
+  final int index = (p * values.length).ceil() - 1;
+  return values[index.clamp(0, values.length - 1)];
+}
+
+String _minutes(double value) => '${value.toStringAsFixed(1)}min';
+
+String _failureLine(Iterable<RunRecord> records) {
+  final Map<String, int> counts = <String, int>{};
+  for (final RunRecord record in records) {
+    final String? category = record.failure.category?.name;
+    if (category == null) continue;
+    counts[category] = (counts[category] ?? 0) + 1;
+  }
+  final List<String> keys = counts.keys.toList()..sort();
+  final String body = keys.isEmpty
+      ? 'none:0'
+      : keys.map((k) => '$k:${counts[k]}').join(',');
+  return 'failures=$body';
+}
+
+String _rescueLine(Iterable<RunRecord> latest) {
+  int rerun = 0;
+  int human = 0;
+  int tasks = 0;
+  for (final RunRecord record in latest) {
+    tasks += 1;
+    if (record.rerunOf != null) rerun += 1;
+    if (record.humanEdits.isNotEmpty) human += 1;
+  }
+  return 'rescuedBy=rerun:$rerun,human:$human (tasks=$tasks)';
 }
 
 bool _rescued(RunRecord record) =>

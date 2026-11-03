@@ -69,6 +69,7 @@ class TaskSpec {
     required this.acceptance,
     required this.allowNetwork,
     required this.maxMinutes,
+    this.maxSeconds,
     required this.maxCostUsd,
     required this.checkpointEnabled,
     required this.checkpointKeep,
@@ -108,8 +109,11 @@ class TaskSpec {
   /// 是否允许联网。
   final bool allowNetwork;
 
-  /// 单次运行时长上限。
+  /// 单次运行时长上限（分钟）。
   final int maxMinutes;
+
+  /// 秒级时长上限；测试与小任务用，优先于 [maxMinutes]。
+  final int? maxSeconds;
 
   /// 单次运行成本上限（美元）。
   final double maxCostUsd;
@@ -148,6 +152,7 @@ class TaskSpec {
       acceptance: _strings(json, 'acceptance'),
       allowNetwork: _network(json),
       maxMinutes: _integer(limits, 'maxMinutes'),
+      maxSeconds: _optionalSeconds(limits),
       maxCostUsd: _number(limits, 'maxCostUsd'),
       checkpointEnabled: _boolean(checkpoint, 'enabled'),
       checkpointKeep: keep,

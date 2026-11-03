@@ -108,5 +108,7 @@ export WORK_LLM_NAME=opencode-go
 
 - 读写都限制在工作区根的 `read ∪ write` 前缀内，越界抛 `FS_SANDBOX_DENIED`；
 - 一任务 = 一轮检查点，`run.json.turns` 记录起止轮次；
+- 时长上限用 `limits.maxMinutes`，测试或极短任务可用 `limits.maxSeconds` 覆盖；
+- `report` 输出每链成功率、P50/P95、失败分类与救场构成（`rescuedBy=rerun:…,human:…`）；
 - 不装 shell：文件操作只经 `read` / `write` / `edit` / `move` / `mkdir` 等工具；
 - `network: deny` 的任务不装配 `websearch` / `webfetch`，`run.json.tools` 可机检。
