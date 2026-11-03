@@ -141,9 +141,7 @@ class TaskService {
       },
     });
 
-    unawaited(
-      _execute(task, path, runId, paths, emit, root, runtime, fixture),
-    );
+    unawaited(_execute(task, path, runId, paths, emit, root, runtime, fixture));
     return runId;
   }
 

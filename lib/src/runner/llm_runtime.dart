@@ -63,21 +63,18 @@ class LlmRuntime {
     LlmConfig config,
     String sessionId, [
     http.Client? client,
-  ]) =>
-      FallbackLlm(<LlmProvider>[
-        OpenAiCompatibleProvider(
-          name: config.providerName,
-          baseUrl: config.baseUrl,
-          model: config.model,
-          client: client,
-          // 本地兼容端点通常不校验 Key；provider 要求非空，缺省用 `local` 占位。
-          apiKey: config.apiKey ?? 'local',
-          // OpenCode Go 要求稳定的会话 id；其它兼容端点会忽略未知头。
-          headersProvider: () => <String, String>{
-            'x-opencode-session': sessionId,
-          },
-        ),
-      ]);
+  ]) => FallbackLlm(<LlmProvider>[
+    OpenAiCompatibleProvider(
+      name: config.providerName,
+      baseUrl: config.baseUrl,
+      model: config.model,
+      client: client,
+      // 本地兼容端点通常不校验 Key；provider 要求非空，缺省用 `local` 占位。
+      apiKey: config.apiKey ?? 'local',
+      // OpenCode Go 要求稳定的会话 id；其它兼容端点会忽略未知头。
+      headersProvider: () => <String, String>{'x-opencode-session': sessionId},
+    ),
+  ]);
 }
 
 /// 生成 `ses_<32 hex>` 形式的会话 id。

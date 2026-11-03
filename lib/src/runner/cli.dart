@@ -75,16 +75,17 @@ Future<int> _run(List<String> args) async {
   final TaskSpec task = await TaskSpec.load(card);
   final LlmRuntime? runtime = _requireRuntime();
   if (runtime == null) return 2;
-  final RunRecord record = await Runner(body: agentTaskBody, llm: runtime).run(
-    RunRequest(
-      task: task,
-      taskPath: File(card).absolute.path,
-      workspaceRoot: _flag(args, '--workspace'),
-      fixtureDir: _flag(args, '--fixture'),
-      rerunOf: _flag(args, '--rerun-of'),
-      confirmed: args.contains('--yes'),
-    ),
-  );
+  final RunRecord record =
+      await Runner(body: agentTaskBody, llm: runtime, runsDir: kRunsDir).run(
+        RunRequest(
+          task: task,
+          taskPath: File(card).absolute.path,
+          workspaceRoot: _flag(args, '--workspace'),
+          fixtureDir: _flag(args, '--fixture'),
+          rerunOf: _flag(args, '--rerun-of'),
+          confirmed: args.contains('--yes'),
+        ),
+      );
   stdout.writeln(_summary(record));
   return record.status == TaskRunStatus.succeeded ? 0 : 1;
 }
@@ -97,6 +98,7 @@ Future<int> _resume(List<String> args) async {
   final RunRecord record = await Runner(
     body: agentTaskBody,
     llm: runtime,
+    runsDir: kRunsDir,
   ).resume(runId);
   stdout.writeln(_summary(record));
   return record.status == TaskRunStatus.succeeded ? 0 : 1;
@@ -105,7 +107,10 @@ Future<int> _resume(List<String> args) async {
 Future<int> _abort(List<String> args) async {
   final String? runId = _positional(args);
   if (runId == null) return _usage();
-  final RunRecord record = await Runner(body: agentTaskBody).abort(runId);
+  final RunRecord record = await Runner(
+    body: agentTaskBody,
+    runsDir: kRunsDir,
+  ).abort(runId);
   stdout.writeln(_summary(record));
   return 0;
 }
@@ -117,6 +122,7 @@ Future<int> _undo(List<String> args) async {
   final int? steps = raw == null ? null : int.tryParse(raw);
   final RunRecord record = await Runner(
     body: agentTaskBody,
+    runsDir: kRunsDir,
   ).undo(runId, steps: steps);
   stdout.writeln('已撤销：${record.runId} forkSessionId=${record.forkSessionId}');
   return 0;
@@ -125,7 +131,10 @@ Future<int> _undo(List<String> args) async {
 Future<int> _redo(List<String> args) async {
   final String? runId = _positional(args);
   if (runId == null) return _usage();
-  final RunRecord record = await Runner(body: agentTaskBody).redo(runId);
+  final RunRecord record = await Runner(
+    body: agentTaskBody,
+    runsDir: kRunsDir,
+  ).redo(runId);
   stdout.writeln('已重做：${record.runId}');
   return 0;
 }
