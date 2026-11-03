@@ -34,6 +34,10 @@ it('compares two runs side by side', async () => {
     ok: true,
     value: (runId === 'run-b' ? right : left) as never,
   })
+  transport.readArtifact = async (runId: string, path: string) => ({
+    ok: true,
+    value: { content: `${runId}:${path}`, truncated: false },
+  })
 
   useUiStore.setState({ compareOpen: false })
   render(<App transport={transport} />)
@@ -46,4 +50,8 @@ it('compares two runs side by side', async () => {
   expect(screen.getByTestId('compare-changes')).toHaveTextContent('移动')
   expect(screen.getByText('仅基准有')).toBeInTheDocument()
   expect(screen.getByText('out/changes.json')).toBeInTheDocument()
+
+  const panes = await screen.findAllByTestId(/compare-content-/)
+  expect(panes[0]).toHaveTextContent('run-a:out/changes.md')
+  expect(panes[1]).toHaveTextContent('run-b:out/changes.md')
 })

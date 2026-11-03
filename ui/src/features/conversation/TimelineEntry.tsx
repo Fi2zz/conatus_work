@@ -114,10 +114,19 @@ export function EntryRow({ entry, expanded, onToggle }: EntryRowProps): JSX.Elem
               {entry.reasoning}
             </p>
           ) : null}
-          <div
-            className="prose-wb"
-            dangerouslySetInnerHTML={{ __html: renderMarkdown(entry.text) }}
-          />
+          {entry.streaming ? (
+            <p data-testid="assistant-streaming" className="prose-wb whitespace-pre-wrap">
+              {entry.text}
+              <span aria-hidden className="stream-caret">
+                ▍
+              </span>
+            </p>
+          ) : (
+            <div
+              className="prose-wb"
+              dangerouslySetInnerHTML={{ __html: renderMarkdown(entry.text) }}
+            />
+          )}
         </div>
       </div>
     )

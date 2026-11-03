@@ -170,6 +170,24 @@ body {
   animation: rise var(--dur) var(--ease) both;
 }
 
+@keyframes caret-blink {
+  0%,
+  45% {
+    opacity: 1;
+  }
+  55%,
+  100% {
+    opacity: 0.15;
+  }
+}
+
+.stream-caret {
+  display: inline-block;
+  margin-left: 1px;
+  color: var(--accent);
+  animation: caret-blink 1s steps(2, start) infinite;
+}
+
 @keyframes pulse-dot {
   0%,
   100% {

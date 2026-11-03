@@ -99,6 +99,36 @@ void main() {
     expect((value['content']! as String).startsWith('#'), isTrue);
   });
 
+  test('artifact.reveal 把绝对路径交给宿主', () async {
+    final List<String> revealed = <String>[];
+    final BridgeHost picker = BridgeHost(
+      bridge: WorkbenchBridge(runsDir: runsRoot.path),
+      revealArtifact: (String path) async => revealed.add(path),
+    );
+    final List<String> frames = await picker.dispatch(
+      jsonEncode(<String, Object?>{
+        'v': 1,
+        'kind': 'command',
+        'id': 'c7',
+        'command': 'artifact.reveal',
+        'payload': <String, Object?>{'runId': 'organize-v01', 'path': 'out/changes.md'},
+      }),
+    );
+    final Map<String, Object?> frame =
+        jsonDecode(frames.single) as Map<String, Object?>;
+    expect(frame['ok'], isTrue);
+    expect(revealed.single, endsWith('out/changes.md'));
+    expect(revealed.single, startsWith('/'));
+  });
+
+  test('未接线时 artifact.reveal 明确报错', () async {
+    final Map<String, Object?> frame = await call('artifact.reveal', <String, Object?>{
+      'runId': 'organize-v01',
+      'path': 'out/changes.md',
+    });
+    expect(frame['ok'], isFalse);
+  });
+
   test('二进制产物回 base64，文本产物回 utf8', () async {
     final Directory runDir = Directory('${runsRoot.path}/organize-v01');
     final File png = File('${runDir.path}/workspace/out/pic.png')

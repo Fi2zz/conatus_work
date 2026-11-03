@@ -244,6 +244,9 @@ export function createWebViewTransport(options: Options = {}): BridgeTransport {
     undo: (runId: string, steps: number) => request<UndoResult>('undo', { runId, steps }),
     redo: (runId: string, steps: number) => request<RedoResult>('redo', { runId, steps }),
 
+    revealArtifact: (runId: string, path: string) =>
+      request<{ path: string }>('artifact.reveal', { runId, path }),
+
     readArtifact: (runId: string, path: string) =>
       request<{ content: string; truncated: boolean; encoding?: 'utf8' | 'base64' }>('artifact.read', {
         runId,

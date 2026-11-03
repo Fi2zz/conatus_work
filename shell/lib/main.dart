@@ -109,6 +109,9 @@ class _ShellAppState extends State<ShellApp> {
           tasks: TaskService(runsDir: runsDir, tasksDir: tasksDir),
           push: push,
           chooseWorkspace: () => getDirectoryPath(confirmButtonText: '选择工作区'),
+          revealArtifact: (String path) async {
+            await Process.run('open', <String>['-R', path]);
+          },
         ),
         post: push,
       );

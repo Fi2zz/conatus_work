@@ -102,6 +102,10 @@ class WorkbenchBridge {
     return file;
   }
 
+  /// 产物的绝对路径（宿主用它打开所在文件夹）。
+  String artifactPath(String runId, String path) =>
+      _artifactFile(runId, path).absolute.path;
+
   /// 读产物原始字节（图片、PDF 等二进制产物用）。
   Uint8List readArtifactBytes(String runId, String path) {
     final File file = _artifactFile(runId, path);

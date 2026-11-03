@@ -61,3 +61,25 @@ it('shows an unknown-events badge when the counter is non-zero', () => {
   render(<Timeline unknownEvents={2} />)
   expect(screen.getByTestId('unknown-events-badge')).toHaveTextContent('2')
 })
+
+it('renders a streaming assistant message as plain text with a caret', () => {
+  seedRun([
+    {
+      kind: 'assistant',
+      id: 'a9',
+      at: 5,
+      text: '正在整理',
+      streaming: true,
+    },
+  ])
+  render(<Timeline />)
+  const streaming = screen.getByTestId('assistant-streaming')
+  expect(streaming).toHaveTextContent('正在整理')
+  expect(streaming.querySelector('.stream-caret')).not.toBeNull()
+})
+
+it('switches to markdown once the message is done', () => {
+  seedRun([{ kind: 'assistant', id: 'a9', at: 5, text: '## 结论\n\n数据可用。', streaming: false }])
+  render(<Timeline />)
+  expect(screen.getByRole('heading', { name: '结论' })).toBeInTheDocument()
+})

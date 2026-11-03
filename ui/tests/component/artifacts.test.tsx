@@ -1,4 +1,5 @@
 import { render, screen } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
 
 import { renderMarkdown } from '@/features/artifacts/markdown'
 import { ArtifactPanel } from '@/features/artifacts/ArtifactPanel'
@@ -74,4 +75,18 @@ it('explains binary artifacts it cannot preview', async () => {
   seedArtifacts([artifact('out/archive.zip')], {}, { 'out/archive.zip': 'UEsDBA==' })
   render(<ArtifactPanel />)
   expect(await screen.findByText(/暂不支持内嵌预览/)).toBeInTheDocument()
+})
+
+it('asks the host to reveal the artifact in the file manager', async () => {
+  const calls: string[] = []
+  seedArtifacts([artifact('out/a.md')], { 'out/a.md': '# 标题' })
+  const module = await import('@/bridge/transport-store')
+  const transport = module.getTransport()
+  transport.revealArtifact = async (_runId: string, path: string) => {
+    calls.push(path)
+    return { ok: true, value: { path: `/abs/${path}` } }
+  }
+  render(<ArtifactPanel />)
+  await userEvent.click(await screen.findByTestId('reveal-artifact'))
+  expect(calls).toEqual(['out/a.md'])
 })

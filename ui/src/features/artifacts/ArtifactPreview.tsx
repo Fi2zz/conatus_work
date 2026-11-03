@@ -164,6 +164,17 @@ export function ArtifactPreview({ runId, artifact }: ArtifactPreviewProps): JSX.
 
   return (
     <div data-testid="artifact-preview" className="flex min-h-0 flex-1 flex-col">
+      <div className="flex items-center justify-between gap-2 border-b border-line/70 px-3 py-1">
+        <span className="min-w-0 truncate font-mono text-[10.5px] text-ink-muted">{artifact.path}</span>
+        <button
+          type="button"
+          data-testid="reveal-artifact"
+          onClick={() => void getTransport().revealArtifact(runId, artifact.path)}
+          className="shrink-0 rounded-sm px-1 text-[10.5px] text-ink-muted hover:bg-panel-muted hover:text-ink"
+        >
+          在 Finder 中显示
+        </button>
+      </div>
       {state.status === 'ok' && state.encoding === 'utf8' && state.truncated ? (
         <p
           data-testid="artifact-truncated"

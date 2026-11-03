@@ -20,6 +20,7 @@ class BridgeHost {
     this.tasks,
     this.push,
     this.chooseWorkspace,
+    this.revealArtifact,
   });
 
   /// 底层命令实现。
@@ -33,6 +34,9 @@ class BridgeHost {
 
   /// 打开系统文件选择器选工作区；未接线时回 null。
   final Future<String?> Function()? chooseWorkspace;
+
+  /// 在系统文件管理器里定位产物；未接线时回错误。
+  final Future<void> Function(String path)? revealArtifact;
 
   /// 处理一条入站帧，返回要发回前端的帧。
   Future<List<String>> dispatch(String raw) async {
@@ -114,6 +118,14 @@ class BridgeHost {
         return <Object?>[
           for (final TaskCard card in service.cards()) card.toJson(),
         ];
+      case 'artifact.reveal':
+        final String revealRun = _requireString(payload, 'runId');
+        final String revealPath = _requireString(payload, 'path');
+        final String absolute = bridge.artifactPath(revealRun, revealPath);
+        final Future<void> Function(String path)? reveal = revealArtifact;
+        if (reveal == null) throw StateError('宿主未接线「打开所在文件夹」');
+        await reveal(absolute);
+        return <String, Object?>{'path': absolute};
       case 'workspace.choose':
         final String? path = await chooseWorkspace?.call();
         return <String, Object?>{'path': path};

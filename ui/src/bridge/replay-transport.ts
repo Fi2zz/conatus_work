@@ -227,6 +227,10 @@ export function createReplayTransport(fixture: ReplayFixture, options: ReplayOpt
       return ok(result)
     },
 
+    async revealArtifact() {
+      return notFound<{ path: string }>('回放模式没有真实文件')
+    },
+
     async readArtifact(_runId: string, path: string) {
       const content = fixture.files[path]
       if (content === undefined) return notFound<{ content: string; truncated: boolean }>(`产物正文不可用：${path}`)

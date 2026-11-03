@@ -76,6 +76,9 @@ export function createStubTransport(runs: RunSummary[], activeRunId: string | nu
     async redo() {
       return ok({ ok: true, appliedSteps: 1 })
     },
+    async revealArtifact() {
+      return ok({ path: '/tmp/out/a.md' })
+    },
     async readArtifact() {
       return { ok: false, error: { code: 'NOT_FOUND', message: '合成' } }
     },
