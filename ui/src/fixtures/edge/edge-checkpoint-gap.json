@@ -1,0 +1,271 @@
+{
+  "schemaVersion": 1,
+  "run": {
+    "id": "edge-checkpoint-gap",
+    "taskId": "folder-organize-v01",
+    "title": "整理收件箱（检查点有洞）",
+    "chain": "organize",
+    "status": "succeeded",
+    "model": "synthetic/fixture",
+    "startedAt": "2026-11-03T09:00:00.000+08:00",
+    "endedAt": "2026-11-03T09:02:00.000+08:00",
+    "usage": {
+      "inputTokens": 1200,
+      "outputTokens": 260,
+      "costUsd": 0.00042
+    },
+    "workspaceRoot": "(合成数据，无工作区)",
+    "synthetic": true
+  },
+  "events": [
+    {
+      "seq": 0,
+      "at": 0,
+      "type": "message/user",
+      "data": {
+        "text": "把 inbox 下的文件按“类型/月份”整理到 inbox/organized/"
+      },
+      "task": "folder-organize-v01"
+    },
+    {
+      "seq": 1,
+      "at": 900,
+      "type": "message/assistant/done",
+      "data": {
+        "entryId": "a1",
+        "text": "我先查看 inbox 的目录结构。"
+      },
+      "task": "folder-organize-v01"
+    },
+    {
+      "seq": 2,
+      "at": 1000,
+      "type": "tool/started",
+      "data": {
+        "callId": "c1",
+        "name": "list",
+        "args": "{\"path\":\"inbox\"}"
+      },
+      "task": "folder-organize-v01"
+    },
+    {
+      "seq": 3,
+      "at": 1150,
+      "type": "tool/finished",
+      "data": {
+        "callId": "c1",
+        "name": "list",
+        "ok": true,
+        "summary": "12 项",
+        "content": "12 项",
+        "durationMs": 150
+      },
+      "task": "folder-organize-v01"
+    },
+    {
+      "seq": 4,
+      "at": 2400,
+      "type": "message/assistant/done",
+      "data": {
+        "entryId": "a2",
+        "text": "共 2 项移动，0 删除。"
+      },
+      "task": "folder-organize-v01"
+    },
+    {
+      "seq": 5,
+      "at": 2500,
+      "type": "tool/started",
+      "data": {
+        "callId": "c2",
+        "name": "move",
+        "args": "{\"from\":\"inbox/a.docx\",\"to\":\"inbox/organized/docx/2026-01/a.docx\"}"
+      },
+      "task": "folder-organize-v01"
+    },
+    {
+      "seq": 6,
+      "at": 2600,
+      "type": "tool/finished",
+      "data": {
+        "callId": "c2",
+        "name": "move",
+        "ok": true,
+        "summary": "已移动 inbox/a.docx",
+        "durationMs": 100
+      },
+      "task": "folder-organize-v01"
+    },
+    {
+      "seq": 7,
+      "at": 4000,
+      "type": "artifact/added",
+      "data": {
+        "path": "out/changes.md",
+        "bytes": 1880,
+        "sha256": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+        "check": {
+          "exists": true,
+          "nonEmpty": true,
+          "passed": true,
+          "reason": null
+        }
+      },
+      "task": "folder-organize-v01"
+    },
+    {
+      "seq": 8,
+      "at": 4000,
+      "type": "changes/updated",
+      "data": {
+        "summary": {
+          "added": 0,
+          "modified": 0,
+          "moved": 2,
+          "deleted": 0
+        },
+        "files": [
+          {
+            "from": "inbox/a.docx",
+            "to": "inbox/organized/docx/2026-01/a.docx",
+            "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+            "reason": "类型=docx，月份 2026-01"
+          },
+          {
+            "from": "inbox/b.csv",
+            "to": "inbox/organized/csv/2026-02/b.csv",
+            "sha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+            "reason": "类型=csv，月份 2026-02"
+          }
+        ]
+      },
+      "task": "folder-organize-v01"
+    },
+    {
+      "seq": 9,
+      "at": 4000,
+      "type": "usage/updated",
+      "data": {
+        "inputTokens": 1200,
+        "outputTokens": 260,
+        "costUsd": 0.00042
+      },
+      "task": "folder-organize-v01"
+    },
+    {
+      "seq": 10,
+      "at": 4000,
+      "type": "task/ended",
+      "data": {
+        "status": "succeeded",
+        "endedAt": "2026-11-03T09:02:00.000+08:00",
+        "failure": {
+          "category": null,
+          "message": null
+        }
+      },
+      "task": "folder-organize-v01"
+    },
+    {
+      "seq": 11,
+      "at": 3800,
+      "type": "checkpoint/recorded",
+      "data": {
+        "turn": 1,
+        "at": "2026-11-03T09:00:00.000+08:00",
+        "eventCount": 4
+      }
+    },
+    {
+      "seq": 12,
+      "at": 3900,
+      "type": "checkpoint/recorded",
+      "data": {
+        "turn": 3,
+        "at": "2026-11-03T09:02:00.000+08:00",
+        "eventCount": 9
+      }
+    },
+    {
+      "seq": 13,
+      "at": 4000,
+      "type": "usage/updated",
+      "data": {
+        "inputTokens": 1200,
+        "outputTokens": 260,
+        "costUsd": 0.00042
+      }
+    },
+    {
+      "seq": 14,
+      "at": 4000,
+      "type": "task/ended",
+      "data": {
+        "status": "succeeded",
+        "endedAt": "2026-11-03T09:02:00.000+08:00",
+        "failure": {
+          "category": null,
+          "message": null
+        }
+      }
+    }
+  ],
+  "artifacts": [
+    {
+      "path": "out/changes.md",
+      "bytes": 1880,
+      "sha256": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+      "check": {
+        "exists": true,
+        "nonEmpty": true,
+        "passed": true,
+        "reason": null
+      }
+    }
+  ],
+  "files": {
+    "out/changes.md": "# 变更清单\n\n| 原路径 | 新路径 |\n|---|---|\n| inbox/a.docx | inbox/organized/docx/2026-01/a.docx |\n| inbox/b.csv | inbox/organized/csv/2026-02/b.csv |\n\n- 移动 2\n- 删除 0\n"
+  },
+  "changes": {
+    "summary": {
+      "added": 0,
+      "modified": 0,
+      "moved": 2,
+      "deleted": 0
+    },
+    "files": [
+      {
+        "from": "inbox/a.docx",
+        "to": "inbox/organized/docx/2026-01/a.docx",
+        "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "reason": "类型=docx，月份 2026-01"
+      },
+      {
+        "from": "inbox/b.csv",
+        "to": "inbox/organized/csv/2026-02/b.csv",
+        "sha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+        "reason": "类型=csv，月份 2026-02"
+      }
+    ]
+  },
+  "checkpoints": {
+    "startTurn": 0,
+    "currentTurn": 3,
+    "keep": 5,
+    "turns": [
+      {
+        "turn": 1,
+        "at": "2026-11-03T09:00:00.000+08:00",
+        "eventCount": 4
+      },
+      {
+        "turn": 3,
+        "at": "2026-11-03T09:02:00.000+08:00",
+        "eventCount": 9
+      }
+    ],
+    "gaps": [
+      2
+    ]
+  }
+}
