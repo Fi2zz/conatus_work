@@ -21,14 +21,18 @@ void main() {
 
   tearDown(() => runsRoot.deleteSync(recursive: true));
 
-  test('hello 回 welcome', () async {
+  test('hello 回 welcome 并推 snapshot', () async {
     final int count = await channel.receive(
       jsonEncode(<String, Object?>{'v': 1, 'kind': 'hello'}),
     );
-    expect(count, 1);
+    expect(count, 2);
     expect(
-      jsonDecode(outbound.single) as Map<String, Object?>,
+      jsonDecode(outbound.first) as Map<String, Object?>,
       containsPair('kind', 'welcome'),
+    );
+    expect(
+      jsonDecode(outbound.last) as Map<String, Object?>,
+      containsPair('kind', 'event'),
     );
   });
 
