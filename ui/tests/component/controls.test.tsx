@@ -32,6 +32,36 @@ it('stops a running task', async () => {
   expect(screen.getByTestId('run-header')).toHaveTextContent('aborted')
 })
 
+it('exposes an explicit stop button while running', async () => {
+  seedRun([], { status: 'running' })
+  const cancelled: string[] = []
+  transportWith({
+    async cancelTask(runId: string) {
+      cancelled.push(runId)
+      return { ok: true, value: { status: 'aborted' } }
+    },
+  })
+  render(<Shell />)
+  const button = screen.getByTestId('stop-button')
+  expect(button).toHaveTextContent('停止')
+  await userEvent.click(button)
+  expect(cancelled).toEqual(['run-a'])
+})
+
+it('stops the running task with cmd+period', async () => {
+  seedRun([], { status: 'running' })
+  const cancelled: string[] = []
+  transportWith({
+    async cancelTask(runId: string) {
+      cancelled.push(runId)
+      return { ok: true, value: { status: 'aborted' } }
+    },
+  })
+  render(<Shell />)
+  fireEvent.keyDown(window, { key: '.', metaKey: true })
+  expect(cancelled).toEqual(['run-a'])
+})
+
 it('retries a failed task as a new run', async () => {
   seedRun([], { status: 'failed' })
   transportWith({
@@ -85,4 +115,18 @@ it('resets the right pane width on double click', async () => {
   render(<Shell />)
   await userEvent.dblClick(screen.getByTestId('right-splitter'))
   expect(useUiStore.getState().rightWidth).toBe(380)
+})
+
+it('offers a stop button next to the composer while running', async () => {
+  seedRun([], { status: 'running' })
+  const cancelled: string[] = []
+  transportWith({
+    async cancelTask(runId: string) {
+      cancelled.push(runId)
+      return { ok: true, value: { status: 'aborted' } }
+    },
+  })
+  render(<Shell />)
+  await userEvent.click(screen.getByTestId('composer-stop'))
+  expect(cancelled).toEqual(['run-a'])
 })

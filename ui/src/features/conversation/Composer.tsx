@@ -16,6 +16,7 @@ export function Composer(): JSX.Element {
 
   const pendingApproval = run?.approval !== undefined
   const ended = run ? FINISHED.has(run.status) : false
+  const running = run?.status === 'running' || run?.status === 'pending'
   const disabled = pendingApproval || ended
 
   useEffect(() => {
@@ -58,15 +59,30 @@ export function Composer(): JSX.Element {
             className="max-h-40 w-full resize-none bg-transparent px-2.5 py-2 text-[12.5px] leading-relaxed outline-none disabled:opacity-60"
           />
         </div>
-        <Button
-          variant="primary"
-          data-testid="composer-send"
-          disabled={disabled || draft.trim() === ''}
-          onClick={send}
-          className="mb-0.5"
-        >
-          发送
-        </Button>
+        {running && run ? (
+          <Button
+            variant="danger"
+            data-testid="composer-stop"
+            aria-label="停止运行"
+            onClick={() => void getTransport().cancelTask(run.id)}
+            className="mb-0.5"
+          >
+            <span aria-hidden className="text-[9px] leading-none">
+              ■
+            </span>
+            停止
+          </Button>
+        ) : (
+          <Button
+            variant="primary"
+            data-testid="composer-send"
+            disabled={disabled || draft.trim() === ''}
+            onClick={send}
+            className="mb-0.5"
+          >
+            发送
+          </Button>
+        )}
       </div>
     </div>
   )

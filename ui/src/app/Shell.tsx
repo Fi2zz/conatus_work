@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import type { JSX, PointerEvent as ReactPointerEvent } from 'react'
 
 import { getTransport, hasTransport } from '@/bridge/transport-store'
@@ -100,8 +100,13 @@ export function Shell(): JSX.Element {
   const setNewTaskOpen = useUiStore((state) => state.setNewTaskOpen)
   const setCompareOpen = useUiStore((state) => state.setCompareOpen)
   const leftCollapsed = useUiStore((state) => state.leftCollapsed)
+  const [stopping, setStopping] = useState(false)
   const toggleLeft = useUiStore((state) => state.toggleLeft)
   const rightWidth = useUiStore((state) => state.rightWidth)
+
+  const summaries = order.map((id) => runs[id]).filter(Boolean)
+  const active = activeRunId ? runs[activeRunId] : undefined
+  const running = active?.status === 'running' || active?.status === 'pending'
 
   useEffect(() => {
     function onKeyDown(event: KeyboardEvent): void {
@@ -119,10 +124,14 @@ export function Shell(): JSX.Element {
         event.preventDefault()
         setNewTaskOpen(true)
       }
+      if (event.key === '.') {
+        event.preventDefault()
+        void stopActive()
+      }
     }
     window.addEventListener('keydown', onKeyDown)
     return () => window.removeEventListener('keydown', onKeyDown)
-  }, [setCommandOpen, setUndoDialog, setNewTaskOpen])
+  }, [setCommandOpen, setUndoDialog, setNewTaskOpen, running, stopping, active?.id])
 
   function selectTask(runId: string): void {
     setActive(runId)
@@ -136,15 +145,22 @@ export function Shell(): JSX.Element {
       .catch(() => undefined)
   }
 
-  const summaries = order.map((id) => runs[id]).filter(Boolean)
-  const active = activeRunId ? runs[activeRunId] : undefined
-  const running = active?.status === 'running' || active?.status === 'pending'
   const retryable = active?.status === 'failed' || active?.status === 'aborted'
   const scope = active ? undoScope(active) : { steps: 0, usable: false }
 
   async function stop(): Promise<void> {
-    if (!active) return
-    await getTransport().cancelTask(active.id)
+    if (!active || stopping) return
+    setStopping(true)
+    try {
+      await getTransport().cancelTask(active.id)
+    } finally {
+      setStopping(false)
+    }
+  }
+
+  function stopActive(): void {
+    if (!running) return
+    void stop()
   }
 
   async function retry(): Promise<void> {

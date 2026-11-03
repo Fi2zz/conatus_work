@@ -50,7 +50,8 @@ it('shows a banner when checkpoint gaps exist', () => {
 it('disables the composer while approval is pending', () => {
   seedApproval()
   render(<Shell />)
-  expect(screen.getByTestId('composer-send')).toBeDisabled()
+  expect(screen.getByPlaceholderText('等待审批…')).toBeDisabled()
+  expect(screen.queryByTestId('composer-send')).not.toBeInTheDocument()
 })
 
 it('records the deny decision in the timeline', async () => {
