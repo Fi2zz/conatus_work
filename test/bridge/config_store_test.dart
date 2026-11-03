@@ -33,15 +33,19 @@ void main() {
 
   test('配置文件权限收敛到 600', () async {
     await store.save(const WorkbenchConfig(baseUrl: 'u', model: 'm'));
-    final String mode = (await Process.run('stat', <String>['-f', '%Lp', store.path])).stdout.toString().trim();
+    final String mode = (await Process.run('stat', <String>[
+      '-f',
+      '%Lp',
+      store.path,
+    ])).stdout.toString().trim();
     expect(mode, '600');
   });
 
   test('本地配置覆盖进程环境', () {
-    final Map<String, String> merged = mergeEnv(
-      <String, String>{'WORK_LLM_MODEL': 'from-env', 'KEEP': '1'},
-      const WorkbenchConfig(baseUrl: 'http://file', model: 'from-file'),
-    );
+    final Map<String, String> merged = mergeEnv(<String, String>{
+      'WORK_LLM_MODEL': 'from-env',
+      'KEEP': '1',
+    }, const WorkbenchConfig(baseUrl: 'http://file', model: 'from-file'));
     expect(merged['WORK_LLM_MODEL'], 'from-file');
     expect(merged['WORK_LLM_BASE_URL'], 'http://file');
     expect(merged['KEEP'], '1');
@@ -49,15 +53,20 @@ void main() {
 
   test('缺字段的配置被判为未配置', () {
     expect(validateConfig(null), contains('还没有配置'));
-    expect(validateConfig(const WorkbenchConfig(baseUrl: '', model: '')), isNotNull);
-    expect(validateConfig(const WorkbenchConfig(baseUrl: 'u', model: 'm')), isNull);
+    expect(
+      validateConfig(const WorkbenchConfig(baseUrl: '', model: '')),
+      isNotNull,
+    );
+    expect(
+      validateConfig(const WorkbenchConfig(baseUrl: 'u', model: 'm')),
+      isNull,
+    );
   });
 
   test('坏 JSON 不会抛，只当没配置', () {
     File('${tmp.path}/config.json').writeAsStringSync('{nope');
     expect(store.load(), isNull);
   });
-
 
   test('环境文件只认 WORK_LLM_ 键并去掉引号', () {
     final File envFile = File('${tmp.path}/env');

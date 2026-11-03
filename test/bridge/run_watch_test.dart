@@ -17,15 +17,24 @@ void main() {
   tearDown(() => tmp.deleteSync(recursive: true));
 
   Map<String, Object?> line(String type, Map<String, Object?> data) =>
-      <String, Object?>{'type': type, 'time': '2026-11-03T10:00:01.000', 'data': data};
+      <String, Object?>{
+        'type': type,
+        'time': '2026-11-03T10:00:01.000',
+        'data': data,
+      };
 
   test('增量读取新增行，半行留到下一次', () async {
     final List<Map<String, Object?>> seen = <Map<String, Object?>>[];
     final JsonlTail tail = JsonlTail(log.path);
     addTearDown(tail.stop);
 
-    log.writeAsStringSync('${jsonEncode(line('user/message', <String, Object?>{'text': '第一条'}))}\n');
-    await tail.start(onEvent: seen.add, interval: const Duration(milliseconds: 20));
+    log.writeAsStringSync(
+      '${jsonEncode(line('user/message', <String, Object?>{'text': '第一条'}))}\n',
+    );
+    await tail.start(
+      onEvent: seen.add,
+      interval: const Duration(milliseconds: 20),
+    );
     await Future<void>.delayed(const Duration(milliseconds: 60));
     expect(seen, hasLength(1));
 
@@ -37,10 +46,7 @@ void main() {
     await Future<void>.delayed(const Duration(milliseconds: 60));
     expect(seen, hasLength(1));
 
-    log.writeAsStringSync(
-      '行"}}\n',
-      mode: FileMode.append,
-    );
+    log.writeAsStringSync('行"}}\n', mode: FileMode.append);
     await Future<void>.delayed(const Duration(milliseconds: 80));
     expect(seen, hasLength(2));
     expect((seen.last['data']! as Map<String, Object?>)['text'], '半行');
@@ -64,10 +70,7 @@ void main() {
       })}\n',
     );
 
-    await stream.start(
-      events.add,
-      interval: const Duration(milliseconds: 20),
-    );
+    await stream.start(events.add, interval: const Duration(milliseconds: 20));
     await Future<void>.delayed(const Duration(milliseconds: 80));
 
     expect(events.map((Map<String, Object?> e) => e['type']), <String>[

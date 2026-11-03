@@ -112,10 +112,8 @@ class TaskService {
     final String runId = newRunId(DateTime.now());
     final RunPaths paths = RunPaths(runsDir: runsDir, runId: runId);
 
-    void emit(Map<String, Object?> event) => onEvent(<String, Object?>{
-      ...event,
-      'runId': runId,
-    });
+    void emit(Map<String, Object?> event) =>
+        onEvent(<String, Object?>{...event, 'runId': runId});
 
     emit(<String, Object?>{
       'seq': -1,
@@ -157,28 +155,26 @@ class TaskService {
     );
     _streams[runId] = stream;
     final List<Map<String, Object?>> pending = <Map<String, Object?>>[];
-    await stream.start(
-      (Map<String, Object?> event) {
-        pending.add(event);
-        onEvent(event);
-      },
-      interval: pollInterval,
-    );
+    await stream.start((Map<String, Object?> event) {
+      pending.add(event);
+      onEvent(event);
+    }, interval: pollInterval);
 
     try {
-      final RunRecord record = await Runner(
-        body: body ?? agentTaskBody,
-        runsDir: runsDir,
-        llm: runtime,
-      ).run(
-        RunRequest(
-          task: task,
-          taskPath: cardPath,
-          workspaceRoot: workspaceRoot,
-          confirmed: true,
-        ),
-        runId: runId,
-      );
+      final RunRecord record =
+          await Runner(
+            body: body ?? agentTaskBody,
+            runsDir: runsDir,
+            llm: runtime,
+          ).run(
+            RunRequest(
+              task: task,
+              taskPath: cardPath,
+              workspaceRoot: workspaceRoot,
+              confirmed: true,
+            ),
+            runId: runId,
+          );
       stream.stop();
       for (final Map<String, Object?> event in _tail(
         record,
@@ -207,11 +203,7 @@ class TaskService {
     }
   }
 
-  List<Map<String, Object?>> _tail(
-    RunRecord record,
-    RunPaths paths,
-    int seq,
-  ) {
+  List<Map<String, Object?>> _tail(RunRecord record, RunPaths paths, int seq) {
     final List<Map<String, Object?>> events = <Map<String, Object?>>[];
     int cursor = seq;
     for (final ArtifactCheck artifact in record.artifacts) {
@@ -281,10 +273,7 @@ class TaskService {
 
   LlmRuntime _runtime() {
     try {
-      return LlmRuntime(
-        config: llmConfigFromEnv(_env),
-        provider: _provider,
-      );
+      return LlmRuntime(config: llmConfigFromEnv(_env), provider: _provider);
     } on LlmConfigError catch (error) {
       throw StateError('未配置模型：${error.message}（设置 WORK_LLM_* 后重试）');
     }

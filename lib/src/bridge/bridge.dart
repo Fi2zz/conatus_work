@@ -53,13 +53,21 @@ class WorkbenchBridge {
               ? card!['title']! as String
               : (run['taskId'] is String ? run['taskId']! as String : runId),
           chain: run['chain'] is String ? run['chain']! as String : '',
-          status: run['status'] is String ? run['status']! as String : 'running',
+          status: run['status'] is String
+              ? run['status']! as String
+              : 'running',
           model: run['model'] is String ? run['model']! as String : '',
-          startedAt: run['startedAt'] is String ? run['startedAt']! as String : '',
+          startedAt: run['startedAt'] is String
+              ? run['startedAt']! as String
+              : '',
           endedAt: run['endedAt'] is String ? run['endedAt']! as String : null,
           usage: run['usage'] is Map<String, Object?>
               ? run['usage']! as Map<String, Object?>
-              : <String, Object?>{'inputTokens': 0, 'outputTokens': 0, 'costUsd': 0},
+              : <String, Object?>{
+                  'inputTokens': 0,
+                  'outputTokens': 0,
+                  'costUsd': 0,
+                },
         ),
       );
     }
@@ -119,7 +127,10 @@ class WorkbenchBridge {
   /// 撤销一次运行，复用阶段 0 的 `Runner.undo`（检查点 + 会话分叉 + 撤销点落盘）。
   Future<RunRecord> undo(String runId, {int? steps}) {
     _runDir(runId);
-    return Runner(body: noopTaskBody, runsDir: runsDir).undo(runId, steps: steps);
+    return Runner(
+      body: noopTaskBody,
+      runsDir: runsDir,
+    ).undo(runId, steps: steps);
   }
 
   /// 重做上次撤销；没有撤销点时抛 [StateError]。

@@ -62,11 +62,14 @@ void main() {
   });
 
   test('config.save 后可读回，且不回传 Key 明文', () async {
-    final Map<String, Object?> saved = await call('config.save', <String, Object?>{
-      'baseUrl': 'https://example/v1',
-      'model': 'm1',
-      'apiKey': 'secret',
-    });
+    final Map<String, Object?> saved = await call(
+      'config.save',
+      <String, Object?>{
+        'baseUrl': 'https://example/v1',
+        'model': 'm1',
+        'apiKey': 'secret',
+      },
+    );
     expect(saved['ok'], isTrue);
 
     final Map<String, Object?> read = await call('config.read');
@@ -152,7 +155,10 @@ void main() {
         'kind': 'command',
         'id': 'c7',
         'command': 'artifact.reveal',
-        'payload': <String, Object?>{'runId': 'organize-v01', 'path': 'out/changes.md'},
+        'payload': <String, Object?>{
+          'runId': 'organize-v01',
+          'path': 'out/changes.md',
+        },
       }),
     );
     final Map<String, Object?> frame =
@@ -163,10 +169,10 @@ void main() {
   });
 
   test('未接线时 artifact.reveal 明确报错', () async {
-    final Map<String, Object?> frame = await call('artifact.reveal', <String, Object?>{
-      'runId': 'organize-v01',
-      'path': 'out/changes.md',
-    });
+    final Map<String, Object?> frame = await call(
+      'artifact.reveal',
+      <String, Object?>{'runId': 'organize-v01', 'path': 'out/changes.md'},
+    );
     expect(frame['ok'], isFalse);
   });
 
@@ -184,23 +190,28 @@ void main() {
         'path': 'out/pic.png',
         'bytes': 4,
         'sha256': 'x',
-        'check': <String, Object?>{'exists': true, 'nonEmpty': true, 'passed': true},
+        'check': <String, Object?>{
+          'exists': true,
+          'nonEmpty': true,
+          'passed': true,
+        },
       },
     ];
     runJson.writeAsStringSync(jsonEncode(run));
 
-    final Map<String, Object?> pngFrame = await call('artifact.read', <String, Object?>{
-      'runId': 'organize-v01',
-      'path': 'out/pic.png',
-    });
-    final Map<String, Object?> pngValue = pngFrame['value']! as Map<String, Object?>;
+    final Map<String, Object?> pngFrame = await call(
+      'artifact.read',
+      <String, Object?>{'runId': 'organize-v01', 'path': 'out/pic.png'},
+    );
+    final Map<String, Object?> pngValue =
+        pngFrame['value']! as Map<String, Object?>;
     expect(pngValue['encoding'], 'base64');
     expect(pngValue['content'], base64Encode(<int>[137, 80, 78, 71]));
 
-    final Map<String, Object?> textFrame = await call('artifact.read', <String, Object?>{
-      'runId': 'organize-v01',
-      'path': 'out/changes.md',
-    });
+    final Map<String, Object?> textFrame = await call(
+      'artifact.read',
+      <String, Object?>{'runId': 'organize-v01', 'path': 'out/changes.md'},
+    );
     expect((textFrame['value']! as Map<String, Object?>)['encoding'], 'utf8');
   });
 

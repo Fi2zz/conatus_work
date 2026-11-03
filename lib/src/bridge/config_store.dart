@@ -42,7 +42,8 @@ class WorkbenchConfig {
     'WORK_LLM_BASE_URL': baseUrl,
     'WORK_LLM_MODEL': model,
     if (apiKey != null && apiKey!.isNotEmpty) 'WORK_LLM_API_KEY': apiKey!,
-    if (providerName != null && providerName!.isNotEmpty) 'WORK_LLM_NAME': providerName!,
+    if (providerName != null && providerName!.isNotEmpty)
+      'WORK_LLM_NAME': providerName!,
     if (priceInput != null) 'WORK_LLM_PRICE_IN': '$priceInput',
     if (priceOutput != null) 'WORK_LLM_PRICE_OUT': '$priceOutput',
   };
@@ -65,7 +66,10 @@ class WorkbenchConfig {
   static WorkbenchConfig? fromJson(Map<String, Object?> json) {
     final Object? baseUrl = json['baseUrl'];
     final Object? model = json['model'];
-    if (baseUrl is! String || baseUrl.isEmpty || model is! String || model.isEmpty) {
+    if (baseUrl is! String ||
+        baseUrl.isEmpty ||
+        model is! String ||
+        model.isEmpty) {
       return null;
     }
     final Object? key = json['apiKey'];
@@ -139,7 +143,9 @@ Map<String, String> parseEnvFile(String path) {
     for (final String raw in file.readAsLinesSync()) {
       final String line = raw.trim();
       if (line.isEmpty || line.startsWith('#')) continue;
-      final String body = line.startsWith('export ') ? line.substring(7).trim() : line;
+      final String body = line.startsWith('export ')
+          ? line.substring(7).trim()
+          : line;
       final int index = body.indexOf('=');
       if (index <= 0) continue;
       final String key = body.substring(0, index).trim();
@@ -163,11 +169,7 @@ Map<String, String> mergeEnv(
   Map<String, String> processEnv,
   WorkbenchConfig? config, {
   Map<String, String> envFile = const <String, String>{},
-}) => <String, String>{
-  ...processEnv,
-  ...?config?.toEnv(),
-  ...envFile,
-};
+}) => <String, String>{...processEnv, ...?config?.toEnv(), ...envFile};
 
 /// 校验配置是否足以跑模型。
 String? validateConfig(WorkbenchConfig? config) {

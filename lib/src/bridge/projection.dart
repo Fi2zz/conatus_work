@@ -19,25 +19,38 @@ RunFixture projectRunDir(String runDir) {
   if (run == null) throw StateError('缺少 run.json: $runDir');
   final Map<String, Object?>? card =
       readJsonObject('$runDir/task.json') ??
-      readJsonObject(run['taskPath'] is String ? run['taskPath']! as String : '');
-  final List<Map<String, Object?>> rawEvents = readJsonLines('$runDir/events.jsonl');
+      readJsonObject(
+        run['taskPath'] is String ? run['taskPath']! as String : '',
+      );
+  final List<Map<String, Object?>> rawEvents = readJsonLines(
+    '$runDir/events.jsonl',
+  );
 
   final bool bundled = Directory('$runDir/workspace').existsSync();
   final String workspaceRoot = bundled
       ? '$runDir/workspace'
       : (run['workspaceRoot'] is String ? run['workspaceRoot']! as String : '');
 
-  final String startedAt = run['startedAt'] is String ? run['startedAt']! as String : '';
+  final String startedAt = run['startedAt'] is String
+      ? run['startedAt']! as String
+      : '';
   final Object? endedAt = run['endedAt'];
   final int base = epochMs(startedAt) ?? 0;
   final int endMs = epochMs(endedAt) ?? base;
   final int endAt = endMs - base < 0 ? 0 : endMs - base;
 
-  final List<Map<String, Object?>> events = buildEventStream(rawEvents, startedAt);
-  final ArtifactPayload payload = buildArtifactViews(workspaceRoot, _list(run['artifacts']));
+  final List<Map<String, Object?>> events = buildEventStream(
+    rawEvents,
+    startedAt,
+  );
+  final ArtifactPayload payload = buildArtifactViews(
+    workspaceRoot,
+    _list(run['artifacts']),
+  );
   final Map<String, Object?>? changes = buildChanges(workspaceRoot, rawEvents);
 
-  final Map<String, Object?> cardCheckpoint = card?['checkpoint'] is Map<String, Object?>
+  final Map<String, Object?> cardCheckpoint =
+      card?['checkpoint'] is Map<String, Object?>
       ? card!['checkpoint']! as Map<String, Object?>
       : <String, Object?>{};
   final Map<String, Object?> turns = run['turns'] is Map<String, Object?>
@@ -90,7 +103,8 @@ RunFixture projectRunDir(String runDir) {
     'data': <String, Object?>{
       'status': run['status'],
       'endedAt': endedAt is String ? endedAt : startedAt,
-      'failure': run['failure'] ??
+      'failure':
+          run['failure'] ??
           <String, Object?>{'category': null, 'message': null},
     },
   });
@@ -126,4 +140,5 @@ RunFixture projectRunDir(String runDir) {
 Map<String, Object?> _map(Object? value) =>
     value is Map<String, Object?> ? value : <String, Object?>{};
 
-List<Object?> _list(Object? value) => value is List<Object?> ? value : <Object?>[];
+List<Object?> _list(Object? value) =>
+    value is List<Object?> ? value : <Object?>[];

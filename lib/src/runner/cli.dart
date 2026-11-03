@@ -15,8 +15,9 @@ import 'runner.dart';
 import 'task_spec.dart';
 import 'undo.dart';
 
-/// 运行记录目录（相对当前工作目录）。
-const String kRunsDir = 'var/runs';
+/// 运行记录目录（相对当前工作目录）；可用 `CONATUS_WORK_RUNS_DIR` 覆盖（测试/宿主用）。
+String get kRunsDir =>
+    Platform.environment['CONATUS_WORK_RUNS_DIR'] ?? 'var/runs';
 
 /// 执行一条子命令，返回进程退出码。
 Future<int> runCli(List<String> args) async {

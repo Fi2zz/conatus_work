@@ -104,7 +104,10 @@ class BridgeHost {
         final bool truncated = bridge
             .openTask(runId)
             .artifacts
-            .any((Map<String, Object?> item) => item['path'] == path && item['truncated'] == true);
+            .any(
+              (Map<String, Object?> item) =>
+                  item['path'] == path && item['truncated'] == true,
+            );
         if (_isBinary(path)) {
           final Uint8List bytes = bridge.readArtifactBytes(runId, path);
           return <String, Object?>{
@@ -172,7 +175,8 @@ class BridgeHost {
           workspaceRoot: workspace is String && workspace.isNotEmpty
               ? workspace
               : null,
-          onEvent: (Map<String, Object?> event) => push?.call(_eventFrame(event)),
+          onEvent: (Map<String, Object?> event) =>
+              push?.call(_eventFrame(event)),
         );
         return <String, Object?>{'runId': runId};
       case 'task.cancel':
@@ -213,8 +217,14 @@ class BridgeHost {
 
   bool _isBinary(String path) {
     final String lower = path.toLowerCase();
-    return <String>['.png', '.jpg', '.jpeg', '.gif', '.webp', '.pdf']
-        .any(lower.endsWith);
+    return <String>[
+      '.png',
+      '.jpg',
+      '.jpeg',
+      '.gif',
+      '.webp',
+      '.pdf',
+    ].any(lower.endsWith);
   }
 
   TaskService _tasks() {
@@ -259,10 +269,11 @@ String _result(String id, Object? value) => _frame(<String, Object?>{
   'value': value,
 });
 
-String _error(String? id, String code, String message) => _frame(<String, Object?>{
-  'v': kProtocolVersion,
-  'kind': 'result',
-  if (id != null) 'id': id,
-  'ok': false,
-  'error': <String, Object?>{'code': code, 'message': message},
-});
+String _error(String? id, String code, String message) =>
+    _frame(<String, Object?>{
+      'v': kProtocolVersion,
+      'kind': 'result',
+      if (id != null) 'id': id,
+      'ok': false,
+      'error': <String, Object?>{'code': code, 'message': message},
+    });

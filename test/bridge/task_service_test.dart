@@ -68,21 +68,26 @@ void main() {
     Directory(tasksDir).createSync();
     Directory('$workspace/inbox').createSync(recursive: true);
     File('$workspace/inbox/a.txt').writeAsStringSync('a');
-    File('$tasksDir/move-v01.json').writeAsStringSync(jsonEncode(cardJson(workspace)));
+    File(
+      '$tasksDir/move-v01.json',
+    ).writeAsStringSync(jsonEncode(cardJson(workspace)));
   });
 
   tearDown(() => tmp.deleteSync(recursive: true));
 
-  TaskService service({
-    TaskBody? body,
-    Map<String, String>? env,
-  }) => TaskService(
-    runsDir: '${tmp.path}/runs',
-    tasksDir: tasksDir,
-    body: body,
-    pollInterval: const Duration(milliseconds: 20),
-    env: env ?? <String, String>{'WORK_LLM_BASE_URL': 'http://x', 'WORK_LLM_MODEL': 'm'},
-  );
+  TaskService service({TaskBody? body, Map<String, String>? env}) =>
+      TaskService(
+        runsDir: '${tmp.path}/runs',
+        tasksDir: tasksDir,
+        body: body,
+        pollInterval: const Duration(milliseconds: 20),
+        env:
+            env ??
+            <String, String>{
+              'WORK_LLM_BASE_URL': 'http://x',
+              'WORK_LLM_MODEL': 'm',
+            },
+      );
 
   test('cards 列出任务卡', () {
     final List<TaskCard> cards = service().cards();
@@ -156,11 +161,17 @@ void main() {
       runsDir: '${tmp.path}/runs',
       tasksDir: tasksDir,
       pollInterval: const Duration(milliseconds: 20),
-      env: <String, String>{'WORK_LLM_BASE_URL': 'http://fake', 'WORK_LLM_MODEL': 'fake'},
+      env: <String, String>{
+        'WORK_LLM_BASE_URL': 'http://fake',
+        'WORK_LLM_MODEL': 'fake',
+      },
       provider: OneShotLlm(),
     );
     final List<Map<String, Object?>> events = <Map<String, Object?>>[];
-    final String runId = await runner.start(cardId: 'move-v01', onEvent: events.add);
+    final String runId = await runner.start(
+      cardId: 'move-v01',
+      onEvent: events.add,
+    );
     final bool finished = await _waitFor(
       () => events.any((Map<String, Object?> e) => e['type'] == 'task/ended'),
     );
@@ -179,7 +190,10 @@ void main() {
         return const TaskOutcome.ok();
       },
     );
-    final String runId = await runner.start(cardId: 'move-v01', onEvent: events.add);
+    final String runId = await runner.start(
+      cardId: 'move-v01',
+      onEvent: events.add,
+    );
     await Future<void>.delayed(const Duration(milliseconds: 100));
     await runner.cancel(runId);
     final bool finished = await _waitFor(
@@ -203,10 +217,7 @@ void main() {
       onEvent: (_) {},
     );
     await runner.cancel(runId);
-    expect(
-      File('${tmp.path}/runs/$runId/abort.request').existsSync(),
-      isTrue,
-    );
+    expect(File('${tmp.path}/runs/$runId/abort.request').existsSync(), isTrue);
   });
 
   test('非法任务卡 id 被拒绝', () async {

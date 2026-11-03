@@ -40,6 +40,7 @@ void main() {
       environment: <String, String>{
         'WORK_LLM_BASE_URL': 'http://127.0.0.1:1/v1',
         'WORK_LLM_MODEL': 'fake',
+        'CONATUS_WORK_RUNS_DIR': '${tmp.path}/runs',
       },
     ).timeout(const Duration(seconds: 90));
     expect(result.exitCode, isNot(0));

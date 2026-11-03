@@ -48,7 +48,9 @@ class EventMapper {
         final Map<String, Object?> data = _mapOf(event['data']);
         for (final Object? call in _listOf(data['toolCalls'])) {
           final Map<String, Object?> tool = _mapOf(call);
-          final String callId = tool['id'] is String ? tool['id']! as String : '';
+          final String callId = tool['id'] is String
+              ? tool['id']! as String
+              : '';
           _startedCallAt[callId] = at;
           out.add(<String, Object?>{
             'seq': _seq++,
@@ -120,10 +122,12 @@ List<Map<String, Object?>> buildEventStream(
 
 /// 摘要行：取第一行非空文本，超过 120 字符截断。
 String firstLine(String text) {
-  final String line = text.split('\n').firstWhere(
-    (String candidate) => candidate.trim().isNotEmpty,
-    orElse: () => '',
-  );
+  final String line = text
+      .split('\n')
+      .firstWhere(
+        (String candidate) => candidate.trim().isNotEmpty,
+        orElse: () => '',
+      );
   return line.length > 120 ? '${line.substring(0, 117)}…' : line;
 }
 

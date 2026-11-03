@@ -14,12 +14,19 @@ class ArtifactPayload {
   final Map<String, String> files;
 }
 
-ArtifactPayload buildArtifactViews(String workspaceRoot, List<Object?> artifacts) {
+ArtifactPayload buildArtifactViews(
+  String workspaceRoot,
+  List<Object?> artifacts,
+) {
   final Map<String, String> files = <String, String>{};
   final List<Map<String, Object?>> views = <Map<String, Object?>>[];
   for (final Object? item in artifacts) {
-    final Map<String, Object?> artifact = item is Map<String, Object?> ? item : <String, Object?>{};
-    final String path = artifact['path'] is String ? artifact['path']! as String : '';
+    final Map<String, Object?> artifact = item is Map<String, Object?>
+        ? item
+        : <String, Object?>{};
+    final String path = artifact['path'] is String
+        ? artifact['path']! as String
+        : '';
     final Map<String, Object?> view = <String, Object?>{
       'path': path,
       'bytes': (artifact['bytes'] as num?)?.toInt() ?? 0,
@@ -48,8 +55,13 @@ ArtifactPayload buildArtifactViews(String workspaceRoot, List<Object?> artifacts
 }
 
 /// 变更集：优先 `out/changes.json`，其次从 `move` 工具结果反推，都缺则为 null。
-Map<String, Object?>? buildChanges(String workspaceRoot, List<Map<String, Object?>> rawEvents) {
-  final Map<String, Object?>? recorded = readJsonObject('$workspaceRoot/out/changes.json');
+Map<String, Object?>? buildChanges(
+  String workspaceRoot,
+  List<Map<String, Object?>> rawEvents,
+) {
+  final Map<String, Object?>? recorded = readJsonObject(
+    '$workspaceRoot/out/changes.json',
+  );
   final Map<String, Object?>? fromRecord = _fromRecorded(recorded);
   if (fromRecord != null) return fromRecord;
   return _fromMoveResults(rawEvents);
@@ -58,7 +70,8 @@ Map<String, Object?>? buildChanges(String workspaceRoot, List<Map<String, Object
 Map<String, Object?>? _fromRecorded(Map<String, Object?>? recorded) {
   final Object? operations = recorded?['operations'];
   if (recorded == null || operations is! List<Object?>) return null;
-  final Map<String, Object?> summary = recorded['summary'] is Map<String, Object?>
+  final Map<String, Object?> summary =
+      recorded['summary'] is Map<String, Object?>
       ? recorded['summary']! as Map<String, Object?>
       : <String, Object?>{};
   final Object? quarantined = summary['quarantined'];
@@ -68,11 +81,13 @@ Map<String, Object?>? _fromRecorded(Map<String, Object?>? recorded) {
       'modified': (summary['modified'] as num?)?.toInt() ?? 0,
       'moved': (summary['moved'] as num?)?.toInt() ?? operations.length,
       'deleted': (summary['deleted'] as num?)?.toInt() ?? 0,
-      if (quarantined is num && quarantined != 0) 'quarantined': quarantined.toInt(),
+      if (quarantined is num && quarantined != 0)
+        'quarantined': quarantined.toInt(),
     },
     'files': <Object?>[
       for (final Object? operation in operations)
-        if (_validOperation(operation)) _changeFile(operation! as Map<String, Object?>),
+        if (_validOperation(operation))
+          _changeFile(operation! as Map<String, Object?>),
     ],
   };
 }
@@ -85,7 +100,8 @@ Map<String, Object?>? _fromMoveResults(List<Map<String, Object?>> rawEvents) {
         ? event['data']! as Map<String, Object?>
         : <String, Object?>{};
     if (data['name'] != 'move' || data['isError'] == true) continue;
-    final Map<String, Object?>? parsed = _parseJson(data['content']) ?? _parseMoveText(data['content']);
+    final Map<String, Object?>? parsed =
+        _parseJson(data['content']) ?? _parseMoveText(data['content']);
     if (parsed == null) continue;
     final Object? operations = parsed['operations'];
     if (operations is List<Object?>) {
@@ -104,7 +120,9 @@ Map<String, Object?>? _fromMoveResults(List<Map<String, Object?>> rawEvents) {
       'moved': derived.length,
       'deleted': 0,
     },
-    'files': <Object?>[for (final Map<String, Object?> item in derived) _changeFile(item)],
+    'files': <Object?>[
+      for (final Map<String, Object?> item in derived) _changeFile(item),
+    ],
   };
 }
 
@@ -135,7 +153,9 @@ Map<String, Object?>? _parseJson(Object? text) {
   }
 }
 
-final RegExp _movePattern = RegExp(r'已移动：(.+?)\s*→\s*(.+?)（[^）]*?sha256=([0-9a-f]{64})');
+final RegExp _movePattern = RegExp(
+  r'已移动：(.+?)\s*→\s*(.+?)（[^）]*?sha256=([0-9a-f]{64})',
+);
 
 Map<String, Object?>? _parseMoveText(Object? text) {
   if (text is! String) return null;
@@ -147,5 +167,3 @@ Map<String, Object?>? _parseMoveText(Object? text) {
     'sha256': match.group(3),
   };
 }
-
-
