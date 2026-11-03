@@ -1,4 +1,5 @@
 import type { JSX } from 'react'
+import { Timeline } from '@/features/conversation/Timeline'
 import { TaskList } from '@/features/tasks/TaskList'
 import { useWorkbench, useWorkbenchStore } from '@/state/workbench-store'
 
@@ -52,8 +53,8 @@ export function Shell(): JSX.Element {
             {active ? `${active.status} · ${active.model} · $${active.usage.costUsd.toFixed(4)}` : ''}
           </span>
         </header>
-        <section data-testid="timeline" className="min-h-0 flex-1 overflow-y-auto p-4">
-          <p className="text-[12px] text-ink-muted">选择左侧任务查看执行过程。</p>
+        <section data-testid="timeline" className="min-h-0 flex-1">
+          <Timeline />
         </section>
       </main>
 

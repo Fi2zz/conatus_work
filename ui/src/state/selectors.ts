@@ -2,23 +2,30 @@ import type { RunSummary, RunView, TimelineEntry } from '@/bridge/types'
 
 const NOISE_TOOLS = ['list', 'read', 'glob', 'grep']
 
-export function groupConsecutiveTools(entries: TimelineEntry[]): TimelineEntry[] {
+export function groupConsecutiveTools(entries: TimelineEntry[], expanded: Set<string> = new Set()): TimelineEntry[] {
   const grouped: TimelineEntry[] = []
-  for (const entry of entries) {
-    const previous = grouped.at(-1)
-    const mergeable =
-      previous !== undefined &&
-      previous.kind === 'tool' &&
-      entry.kind === 'tool' &&
-      previous.name === entry.name &&
-      previous.ok !== false &&
-      entry.ok !== false
-    if (!mergeable) {
-      grouped.push(entry.kind === 'tool' ? { ...entry, count: entry.count ?? 1 } : entry)
+  let index = 0
+  while (index < entries.length) {
+    const head = entries[index]
+    if (head.kind !== 'tool' || head.ok === false) {
+      grouped.push(head)
+      index += 1
       continue
     }
-    const count = (previous.count ?? 1) + 1
-    grouped[grouped.length - 1] = { ...entry, count }
+    let end = index + 1
+    while (end < entries.length) {
+      const next = entries[end]
+      if (next.kind !== 'tool' || next.name !== head.name || next.ok === false) break
+      end += 1
+    }
+    const count = end - index
+    if (count > 1 && !expanded.has(head.id)) {
+      const tail = entries[end - 1]
+      grouped.push(tail.kind === 'tool' ? { ...tail, id: head.id, count } : tail)
+    } else {
+      for (let cursor = index; cursor < end; cursor += 1) grouped.push(entries[cursor])
+    }
+    index = end
   }
   return grouped
 }
