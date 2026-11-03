@@ -63,6 +63,11 @@ info（`--fatal-infos` 必红），去掉 overrides 则因「git ref 与解析�
 - `undo` 复用 `Runner.undo`（检查点 + 会话分叉），并把撤销点写到 `<runDir>/revert-stage.json`；
   `redo` 读这份撤销点走 `RevertService.redo`，成功后删除。撤销点存在即表示「可重做」。
 
+**WebView 协议**（`lib/src/bridge/host.dart`）：`BridgeHost.dispatch(raw)` 收一条 JSON 帧、返回要发回的帧列表。
+信封为 `{v:1, kind:'hello'|'command'|'result'|'event', id, command, payload}`，
+结果帧 `{ok:true,value}` 或 `{ok:false,error:{code,message}}`。异常收敛成错误帧，不向上抛。
+Flutter 只需把平台消息通道接到 `dispatch` 与返回值上。
+
 对拍：`test/fixtures/projection/organize-v01/` 是自包含的投影输入（`run.json` + `events.jsonl` + `task.json` + `workspace/`），
 Dart 投影结果必须与已提交的 `ui/src/fixtures/runs/organize-v01.json` 深度相等：
 

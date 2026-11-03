@@ -51,6 +51,21 @@ node tools/generate-fixtures.mjs
 生成器幂等，同输入两次运行输出逐字节相同；优先选「产物仍留在工作区」的运行，
 否则正文不可预览。边界 fixture 是手写的（`src/fixtures/edge/`），不由脚本生成。
 
+## 接真实宿主（WebView）
+
+`src/bridge/webview-transport.ts` 是 `BridgeTransport` 的 postMessage 实现：
+
+```ts
+import { createWebViewTransport } from '@/bridge/webview-transport'
+
+const transport = createWebViewTransport()   // 走 window.parent / WebView2 通道
+```
+
+- 信封：`{v:1, kind:'hello'|'command'|'result'|'event', id, command, payload}`
+- 只接收来自 parent 的消息；坏帧丢弃；请求按 `id` 配对，10s 超时回错误
+- `openTask` 拿到 fixture 后用 `applyEvent` 折叠成 `RunView`，不重写投影
+- `task.start` / `task.cancel` / `message.send` / `approval.respond` 未接线，明确回 `INTERNAL`
+
 ## 结构
 
 - `src/bridge/`：命令 / 事件契约（`types.ts`、`events.ts`）、transport 与回放实现

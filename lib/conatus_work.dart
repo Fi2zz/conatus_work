@@ -9,6 +9,7 @@ library;
 
 export 'src/bridge/bridge.dart' show WorkbenchBridge;
 export 'src/bridge/contract.dart' show RunFixture, RunSummary;
+export 'src/bridge/host.dart' show BridgeHost, kProtocolVersion;
 export 'src/bridge/projection.dart' show projectRunDir;
 export 'src/runner/assembly.dart' show RunScope;
 export 'src/runner/cli.dart' show kRunsDir, runCli;
