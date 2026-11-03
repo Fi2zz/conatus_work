@@ -138,6 +138,7 @@ type WorkbenchState = {
   order: string[]                 // startedAt 降序
   activeRunId: string | null
   unknownEvents: number
+  seenSeqs: Record<string, true>  // 幂等去重：`${runId}:${seq}`
 }
 
 type RunView = {
@@ -145,7 +146,7 @@ type RunView = {
   status: 'pending' | 'running' | 'succeeded' | 'failed' | 'aborted'
   model: string; startedAt: string; endedAt?: string
   usage: { inputTokens: number; outputTokens: number; costUsd: number }
-  timeline: TimelineEntry[]       // 已归组：user / assistant / tool / approval / undo / status
+  timeline: TimelineEntry[]       // 原始条目，未归组；归组与过滤由 selector 完成
   plan?: PlanItem[]
   approval?: ApprovalRequest
   artifacts: ArtifactView[]       // 只有引用，没有正文
