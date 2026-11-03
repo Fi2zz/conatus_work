@@ -8,6 +8,7 @@ interface UiState {
   expandedKeys: Set<string>
   rightTab: RightTab
   rightWidth: number
+  selectedArtifact: string | null
   undoDialog: boolean
   composerDraft: string
   commandOpen: boolean
@@ -15,6 +16,7 @@ interface UiState {
   toggleExpanded: (key: string) => void
   setRightTab: (tab: RightTab) => void
   setRightWidth: (width: number) => void
+  setSelectedArtifact: (path: string | null) => void
   setUndoDialog: (open: boolean) => void
   setComposerDraft: (text: string) => void
   setCommandOpen: (open: boolean) => void
@@ -25,6 +27,7 @@ export const useUiStore = create<UiState>((set) => ({
   expandedKeys: new Set<string>(),
   rightTab: 'artifacts',
   rightWidth: 380,
+  selectedArtifact: null,
   undoDialog: false,
   composerDraft: '',
   commandOpen: false,
@@ -38,6 +41,7 @@ export const useUiStore = create<UiState>((set) => ({
     }),
   setRightTab: (rightTab) => set({ rightTab }),
   setRightWidth: (rightWidth) => set({ rightWidth }),
+  setSelectedArtifact: (selectedArtifact) => set({ selectedArtifact }),
   setUndoDialog: (undoDialog) => set({ undoDialog }),
   setComposerDraft: (composerDraft) => set({ composerDraft }),
   setCommandOpen: (commandOpen) => set({ commandOpen }),

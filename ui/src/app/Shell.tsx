@@ -1,7 +1,46 @@
 import type { JSX } from 'react'
+
+import { ArtifactPanel } from '@/features/artifacts/ArtifactPanel'
 import { Timeline } from '@/features/conversation/Timeline'
 import { TaskList } from '@/features/tasks/TaskList'
+import { cn } from '@/lib/utils'
+import { useUiStore, type RightTab } from '@/state/ui-state'
 import { useWorkbench, useWorkbenchStore } from '@/state/workbench-store'
+
+const TABS: Array<{ value: RightTab; label: string }> = [
+  { value: 'artifacts', label: '产物' },
+  { value: 'changes', label: '变更' },
+  { value: 'checkpoints', label: '检查点' },
+]
+
+function RightPane(): JSX.Element {
+  const tab = useUiStore((state) => state.rightTab)
+  const setTab = useUiStore((state) => state.setRightTab)
+  return (
+    <aside data-testid="right-pane" className="flex min-h-0 flex-col border-l border-line bg-panel">
+      <div className="flex gap-3 border-b border-line px-3 pt-2 text-[12px]">
+        {TABS.map((item) => (
+          <button
+            key={item.value}
+            type="button"
+            onClick={() => setTab(item.value)}
+            className={cn(
+              'pb-1.5',
+              tab === item.value ? 'border-b-2 border-accent text-ink' : 'text-ink-muted',
+            )}
+          >
+            {item.label}
+          </button>
+        ))}
+      </div>
+      <div className="flex min-h-0 flex-1 flex-col">
+        {tab === 'artifacts' ? <ArtifactPanel /> : null}
+        {tab === 'changes' ? <p className="p-3 text-[12px] text-ink-muted">变更面板接线中。</p> : null}
+        {tab === 'checkpoints' ? <p className="p-3 text-[12px] text-ink-muted">检查点面板接线中。</p> : null}
+      </div>
+    </aside>
+  )
+}
 
 export function Shell(): JSX.Element {
   const order = useWorkbench((state) => state.order)
@@ -58,10 +97,7 @@ export function Shell(): JSX.Element {
         </section>
       </main>
 
-      <aside data-testid="right-pane" className="min-h-0 border-l border-line bg-panel">
-        <div className="border-b border-line px-3 py-2 text-[12px] font-semibold">产物 / 变更 / 检查点</div>
-        <div className="p-3 text-[12px] text-ink-muted">右侧面板接线中。</div>
-      </aside>
+      <RightPane />
     </div>
   )
 }
