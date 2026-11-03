@@ -58,6 +58,18 @@ it('renders image artifacts from base64', async () => {
   expect(image.src).toContain('data:image/png;base64,iVBORw0KGgo=')
 })
 
+it('prepares pdf artifacts through a blob url', async () => {
+  const create = vi.fn(() => 'blob:mock-pdf')
+  const revoke = vi.fn()
+  Object.assign(URL, { createObjectURL: create, revokeObjectURL: revoke })
+
+  seedArtifacts([artifact('out/report.pdf')], {}, { 'out/report.pdf': 'JVBERi0=' })
+  render(<ArtifactPanel />)
+  const frame = (await screen.findByTestId('artifact-pdf')) as HTMLIFrameElement
+  expect(frame.getAttribute('src')).toBe('blob:mock-pdf')
+  expect(create).toHaveBeenCalled()
+})
+
 it('explains binary artifacts it cannot preview', async () => {
   seedArtifacts([artifact('out/archive.zip')], {}, { 'out/archive.zip': 'UEsDBA==' })
   render(<ArtifactPanel />)

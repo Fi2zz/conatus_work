@@ -17,6 +17,28 @@ type PreviewState =
 
 const IMAGE_EXT = ['.png', '.jpg', '.jpeg', '.gif', '.webp']
 
+/** PDF 走 blob URL：data: 在 WKWebView 里可能被拦。 */
+function PdfFrame({ base64, title }: { base64: string; title: string }): JSX.Element {
+  const [url, setUrl] = useState<string | null>(null)
+
+  useEffect(() => {
+    const bytes = Uint8Array.from(atob(base64), (char) => char.charCodeAt(0))
+    const next = URL.createObjectURL(new Blob([bytes], { type: 'application/pdf' }))
+    setUrl(next)
+    return () => URL.revokeObjectURL(next)
+  }, [base64])
+
+  if (!url) return <p className="p-4 text-[11.5px] text-ink-muted">正在准备预览…</p>
+  return (
+    <iframe
+      data-testid="artifact-pdf"
+      title={title}
+      src={url}
+      className="h-full w-full border-0 bg-white"
+    />
+  )
+}
+
 function prettyJson(text: string): string {
   try {
     return JSON.stringify(JSON.parse(text), null, 2)
@@ -62,14 +84,7 @@ function bodyOf(artifact: ArtifactView, state: PreviewState): JSX.Element {
       )
     }
     if (lower.endsWith('.pdf')) {
-      return (
-        <iframe
-          data-testid="artifact-pdf"
-          title={artifact.path}
-          src={`data:application/pdf;base64,${state.content}`}
-          className="h-full w-full border-0 bg-white"
-        />
-      )
+      return <PdfFrame base64={state.content} title={artifact.path} />
     }
     return (
       <p className="p-4 text-[11.5px] text-ink-muted">
