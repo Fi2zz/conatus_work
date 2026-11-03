@@ -23,3 +23,7 @@ var/
 
 # 头脑风暴可视化伴侣的临时页面
 .superpowers/
+
+# React 界面（ui/.gitignore 已覆盖，这里显式挡住误提交）
+ui/node_modules/
+ui/dist/

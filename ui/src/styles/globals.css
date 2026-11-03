@@ -1,0 +1,61 @@
+@import "tailwindcss";
+
+/* 视觉令牌：Porcelain 密度。暗色跟随系统，值在 :root 上切换，
+   @theme inline 把运行期变量映射成 Tailwind 颜色工具类。 */
+:root {
+  --canvas: #f7f8fa;
+  --panel: #ffffff;
+  --panel-muted: #eef0f4;
+  --line: #dcdfe5;
+  --ink: #1b1d21;
+  --ink-muted: #7b828e;
+  --accent: #0b62d6;
+  --success: #128a4a;
+  --warning: #b26a00;
+  --danger: #c0392b;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --canvas: #16181c;
+    --panel: #1d2025;
+    --panel-muted: #22262c;
+    --line: #2f343c;
+    --ink: #e7e9ee;
+    --ink-muted: #8b919c;
+    --accent: #4d94ff;
+    --success: #3ecf75;
+    --warning: #e0a030;
+    --danger: #ff6b5e;
+  }
+}
+
+@theme inline {
+  --color-canvas: var(--canvas);
+  --color-panel: var(--panel);
+  --color-panel-muted: var(--panel-muted);
+  --color-line: var(--line);
+  --color-ink: var(--ink);
+  --color-ink-muted: var(--ink-muted);
+  --color-accent: var(--accent);
+  --color-success: var(--success);
+  --color-warning: var(--warning);
+  --color-danger: var(--danger);
+  --font-mono: ui-monospace, SFMono-Regular, Menlo, monospace;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  background: var(--canvas);
+  color: var(--ink);
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+  font-size: 13px;
+  line-height: 1.55;
+  -webkit-font-smoothing: antialiased;
+}
