@@ -28,13 +28,17 @@ export function writeFixtureFile(fixture, targetPath) {
 export function buildFixture(runDir) {
   const run = readJson(join(runDir, 'run.json'))
   if (!run) throw new Error(`缺少 run.json: ${runDir}`)
-  const card = readJson(run.taskPath)
+  // 投影输入自带 workspace/ 时以它为准：fixture 输入自包含，不依赖本机 var/。
+  // 输出里记逻辑路径 `workspace`，避免把本机绝对路径写进产物。
+  const bundled = existsSync(join(runDir, 'workspace'))
+  const workspaceRoot = bundled ? join(runDir, 'workspace') : run.workspaceRoot
+  const card = readJson(join(runDir, 'task.json')) ?? readJson(run.taskPath)
   const rawEvents = readEvents(join(runDir, 'events.jsonl'))
   const base = toTimestamp(run.startedAt) ?? 0
   const endAt = Math.max(0, (toTimestamp(run.endedAt) ?? base) - base)
   const events = buildEventStream(rawEvents, run.startedAt)
-  const { files, views } = buildArtifacts(run.workspaceRoot, run.artifacts)
-  const changes = buildChanges(run.workspaceRoot, rawEvents)
+  const { files, views } = buildArtifacts(workspaceRoot, run.artifacts)
+  const changes = buildChanges(workspaceRoot, rawEvents)
   const keep = card?.checkpoint?.keep ?? 5
   const startTurn = run.turns?.start ?? 0
   const currentTurn = run.turns?.end ?? startTurn
@@ -75,7 +79,7 @@ export function buildFixture(runDir) {
       startedAt: run.startedAt,
       ...(run.endedAt ? { endedAt: run.endedAt } : {}),
       usage: run.usage,
-      workspaceRoot: run.workspaceRoot,
+      workspaceRoot: bundled ? 'workspace' : run.workspaceRoot,
       synthetic: false,
     },
     events,

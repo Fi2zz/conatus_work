@@ -1,0 +1,68 @@
+{
+  "runId": "run_20261102-181425-5452",
+  "taskId": "folder-organize-v01",
+  "chain": "organize",
+  "taskPath": "/Users/fitz/REPO/conatus/products/conatus_work/tasks/folder-organize-v01.json",
+  "workspaceRoot": "/Users/fitz/REPO/conatus/products/conatus_work/var/workspaces/folder-organize-v01",
+  "pid": 25311,
+  "sessionId": "events",
+  "startedAt": "2026-11-02T18:14:25.727+08:00",
+  "endedAt": "2026-11-02T18:17:33.589+08:00",
+  "status": "succeeded",
+  "model": "opencode-go/deepseek-v4.1-flash",
+  "resumeCount": 0,
+  "rerunOf": "run_20261102-181145-cd8d",
+  "turns": {
+    "start": 0,
+    "end": 1
+  },
+  "checkpoint": {
+    "status": "ok",
+    "error": null
+  },
+  "usage": {
+    "inputTokens": 58998,
+    "outputTokens": 8799,
+    "costUsd": 0.0
+  },
+  "artifacts": [
+    {
+      "path": "out/changes.json",
+      "bytes": 3373,
+      "sha256": "9ed9542c3a6d28f6e5a94f7be12c18fe191a199257484e4c4ef3a0039a11469e",
+      "check": {
+        "exists": true,
+        "nonEmpty": true,
+        "passed": true,
+        "reason": null
+      }
+    },
+    {
+      "path": "out/changes.md",
+      "bytes": 4813,
+      "sha256": "e49272d2712a88d8bd475ef58fbdb2644a7109d3b6e5053010da2dce4af9836e",
+      "check": {
+        "exists": true,
+        "nonEmpty": true,
+        "passed": true,
+        "reason": null
+      }
+    }
+  ],
+  "tools": [
+    "read",
+    "write",
+    "edit",
+    "list",
+    "apply_patch",
+    "glob",
+    "mkdir",
+    "move"
+  ],
+  "forkSessionId": null,
+  "humanEdits": [],
+  "failure": {
+    "category": null,
+    "message": null
+  }
+}

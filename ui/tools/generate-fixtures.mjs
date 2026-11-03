@@ -52,7 +52,7 @@ const explicit = process.argv.slice(2)
 if (explicit.length > 0) {
   for (const dir of explicit) {
     const fixture = buildFixture(resolve(dir))
-    const target = join(outputDir, `${fixture.run.taskId}.json`)
+    const target = join(outputDir, `${basename(resolve(dir))}.json`)
     writeFixtureFile(fixture, target)
     process.stdout.write(`wrote ${basename(target)} (${fixture.events.length} events)\n`)
   }

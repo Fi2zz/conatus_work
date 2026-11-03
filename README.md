@@ -54,6 +54,24 @@ dart pub get
 info（`--fatal-infos` 必红），去掉 overrides 则因「git ref 与解析后 SHA 是两种
 身份」求解失败。
 
+## 桥接层（`lib/src/bridge/`）
+
+把运行记录翻译成 React 侧消费的契约，不启动进程：
+
+- `projection.dart`：`projectRunDir(dir)` → `RunFixture`（与 `ui/src/bridge/types.ts` 同形）
+- `bridge.dart`：`WorkbenchBridge` 提供 `listTasks` / `openTask` / `changes` / `readArtifact` / `undo`
+- `undo` 直接复用阶段 0 的 `Runner.undo`（检查点 + 会话分叉）；`redo` 未接线（需要 undo 时的 `RevertStage`，当前未持久化）
+
+对拍：`test/fixtures/projection/organize-v01/` 是自包含的投影输入（`run.json` + `events.jsonl` + `task.json` + `workspace/`），
+Dart 投影结果必须与已提交的 `ui/src/fixtures/runs/organize-v01.json` 深度相等：
+
+```bash
+dart test test/bridge/
+cd ui && node tools/generate-fixtures.mjs ../test/fixtures/projection/organize-v01
+```
+
+两侧同源：改投影规则要同时改 `ui/tools/lib/`，否则这条测试会红。
+
 ## 钉版
 
 conatus 仓库更新并推送后，同步 gitlink 之前：

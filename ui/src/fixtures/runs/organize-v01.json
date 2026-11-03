@@ -1228,7 +1228,7 @@
       "inputTokens": 58998,
       "outputTokens": 8799
     },
-    "workspaceRoot": "/Users/fitz/REPO/conatus/products/conatus_work/var/workspaces/folder-organize-v01"
+    "workspaceRoot": "workspace"
   },
   "schemaVersion": 1
 }

@@ -7,6 +7,9 @@
 /// 落地，装配入口放 `lib/src/`，单文件单职责（沿用 conatus 仓库的约束）。
 library;
 
+export 'src/bridge/bridge.dart' show WorkbenchBridge;
+export 'src/bridge/contract.dart' show RunFixture, RunSummary;
+export 'src/bridge/projection.dart' show projectRunDir;
 export 'src/runner/assembly.dart' show RunScope;
 export 'src/runner/cli.dart' show kRunsDir, runCli;
 export 'src/runner/run_store.dart'

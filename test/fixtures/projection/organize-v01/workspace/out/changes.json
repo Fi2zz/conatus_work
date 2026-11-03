@@ -1,0 +1,75 @@
+{
+  "operations": [
+    {
+      "from": "inbox/contract-east-2026-01.docx",
+      "to": "inbox/organized/documents/2026-01/contract-east-2026-01.docx",
+      "sha256": "37b680e00cba1cdd0e8b70f336ce984e0a73426964b4323e48bb36bb4724f20a",
+      "reason": "类型=docx(documents)，月份取文件名 2026-01"
+    },
+    {
+      "from": "inbox/contract-east-2026-02.docx",
+      "to": "inbox/organized/documents/2026-02/contract-east-2026-02.docx",
+      "sha256": "2230811ba32b11a9e6331a5e0170df1dbf7b552a5967f10f35731d165f85439d",
+      "reason": "类型=docx(documents)，月份取文件名 2026-02"
+    },
+    {
+      "from": "inbox/invoice-2026-01.pdf",
+      "to": "inbox/organized/pdf/2026-01/invoice-2026-01.pdf",
+      "sha256": "07fcb564c882df5110100f77cffcb4bc25713b80d3fc17e6639aa7737a1f794b",
+      "reason": "类型=pdf，月份取文件名 2026-01"
+    },
+    {
+      "from": "inbox/invoice-2026-02.pdf",
+      "to": "inbox/organized/pdf/2026-02/invoice-2026-02.pdf",
+      "sha256": "792af92bb5b4a3e1c680d639f6f8c6e4ce0551eaddc8ca1f0f7d1f8702132318",
+      "reason": "类型=pdf，月份取文件名 2026-02"
+    },
+    {
+      "from": "inbox/data.csv",
+      "to": "inbox/organized/data/unknown-month/data.csv",
+      "sha256": "492d5ea496056f1a6a6592241032fab764c321596317930b4fa0e1e8bc3b7470",
+      "reason": "类型=csv(data)；文件名与内容均无月份线索，归入 unknown-month（推断）"
+    },
+    {
+      "from": "inbox/screenshot.png",
+      "to": "inbox/organized/images/unknown-month/screenshot.png",
+      "sha256": "cef717c75dd997748d1758820d0a886c81ba017375bdd2e14e8221d1f8b768d9",
+      "reason": "类型=png(images)；文件名与内容均无月份线索，归入 unknown-month（推断）"
+    },
+    {
+      "from": "inbox/README.md",
+      "to": "inbox/organized/text/unknown-month/README.md",
+      "sha256": "8052a8239d2cea574c5c19a33f0bc13c0217ba9f4f4abea65ab7b77171dcd04a",
+      "reason": "类型=md(text)；无月份线索，归入 unknown-month（推断）"
+    },
+    {
+      "from": "inbox/notes.txt",
+      "to": "inbox/organized/text/unknown-month/notes.txt",
+      "sha256": "540473f19ab5978a5ddb7165cc50991ad585077b2683c10fa7b8c20b42d53c12",
+      "reason": "类型=txt(text)；无月份线索，归入 unknown-month（推断）"
+    },
+    {
+      "from": "inbox/archive/old-report.md",
+      "to": "inbox/organized/text/unknown-month/old-report.md",
+      "sha256": "9a1ede119d42099d49ccc2ce97f488ebb47a95fe833191f739c2b044cca5271a",
+      "reason": "类型=md(text)；archive 下递归整理，无月份线索，归入 unknown-month（推断）"
+    },
+    {
+      "from": "inbox/deep/a/b/deep.txt",
+      "to": "inbox/organized/text/unknown-month/deep.txt",
+      "sha256": "62b292df3fecdfd7cae30e6c28f61e1b1ce257b65ee45f972ede2fd7aeb3940b",
+      "reason": "类型=txt(text)；深层目录递归整理，无月份线索，归入 unknown-month（推断）"
+    },
+    {
+      "from": "inbox/archive/notes.txt",
+      "to": "inbox/quarantine/archive/notes.txt",
+      "sha256": "e643658485349a2972b809c7e5ae85e2d2e8a72a6c6cafe6917dfe19f34db0f8",
+      "reason": "冲突隔离：文件名 notes.txt 与 inbox/notes.txt 同名但内容不同（'归档里的同名纪要' vs '会议纪要'），为避免覆盖移入 quarantine"
+    }
+  ],
+  "summary": {
+    "moved": 10,
+    "quarantined": 1,
+    "deleted": 0
+  }
+}
