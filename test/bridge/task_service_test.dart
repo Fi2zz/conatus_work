@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:conatus/conatus.dart';
 import 'package:conatus_work/src/bridge/task_service.dart';
 import 'package:conatus_work/src/runner/assembly.dart';
 import 'package:conatus_work/src/runner/runner.dart';
@@ -26,6 +27,34 @@ Map<String, Object?> cardJson(String workspaceRoot) => <String, Object?>{
   'limits': <String, Object?>{'maxMinutes': 1, 'maxCostUsd': 0.1},
   'checkpoint': <String, Object?>{'enabled': true, 'keep': 30},
 };
+
+/// 只回一条最终消息的模型：验证执行体拿到了运行时。
+class OneShotLlm implements LlmProvider {
+  @override
+  String get name => 'scripted';
+
+  @override
+  Future<LlmResult> chat(
+    List<LlmMessage> messages, {
+    Map<String, dynamic>? options,
+    List<Map<String, dynamic>>? tools,
+  }) async => const LlmResult(
+    content: '完成',
+    provider: 'scripted',
+    model: 'scripted',
+    usage: <String, dynamic>{'prompt_tokens': 10, 'completion_tokens': 5},
+  );
+
+  @override
+  Stream<LlmStreamEvent> chatStream(
+    List<LlmMessage> messages, {
+    Map<String, dynamic>? options,
+    List<Map<String, dynamic>>? tools,
+  }) => const Stream<LlmStreamEvent>.empty();
+
+  @override
+  void close() {}
+}
 
 void main() {
   late Directory tmp;
@@ -120,6 +149,26 @@ void main() {
         jsonDecode(File('${tmp.path}/runs/$runId/run.json').readAsStringSync())
             as Map<String, Object?>;
     expect(run['workspaceRoot'], other.path);
+  });
+
+  test('真实执行体拿到模型运行时，不再报「未装配模型」', () async {
+    final TaskService runner = TaskService(
+      runsDir: '${tmp.path}/runs',
+      tasksDir: tasksDir,
+      pollInterval: const Duration(milliseconds: 20),
+      env: <String, String>{'WORK_LLM_BASE_URL': 'http://fake', 'WORK_LLM_MODEL': 'fake'},
+      provider: OneShotLlm(),
+    );
+    final List<Map<String, Object?>> events = <Map<String, Object?>>[];
+    final String runId = await runner.start(cardId: 'move-v01', onEvent: events.add);
+    final bool finished = await _waitFor(
+      () => events.any((Map<String, Object?> e) => e['type'] == 'task/ended'),
+    );
+    expect(finished, isTrue);
+    final Map<String, Object?> ended = events.last;
+    final Map<String, Object?> data = ended['data']! as Map<String, Object?>;
+    expect(data['status'], 'succeeded', reason: '不应因缺少运行时失败');
+    expect(File('${tmp.path}/runs/$runId/run.json').existsSync(), isTrue);
   });
 
   test('cancel 写入中断标记', () async {

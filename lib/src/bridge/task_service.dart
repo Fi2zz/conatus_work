@@ -4,7 +4,11 @@ library;
 import 'dart:async';
 import 'dart:io';
 
+import 'package:conatus/conatus.dart';
+
 import '../runner/agent_task_body.dart';
+import '../runner/llm_config.dart';
+import '../runner/llm_runtime.dart';
 import '../runner/run_paths.dart';
 import '../runner/run_store.dart';
 import '../runner/run_types.dart';
@@ -51,7 +55,9 @@ class TaskService {
     this.body,
     this.pollInterval = const Duration(milliseconds: 250),
     Map<String, String>? env,
-  }) : _env = env ?? Platform.environment;
+    LlmProvider? provider,
+  }) : _env = env ?? Platform.environment,
+       _provider = provider;
 
   /// `var/runs` 位置。
   final String runsDir;
@@ -66,6 +72,7 @@ class TaskService {
   final Duration pollInterval;
 
   final Map<String, String> _env;
+  final LlmProvider? _provider;
   final Map<String, RunEventStream> _streams = <String, RunEventStream>{};
 
   /// 列出任务卡（读不到的文件跳过）。
@@ -101,7 +108,7 @@ class TaskService {
   }) async {
     final String path = _cardPath(cardId);
     final TaskSpec task = await TaskSpec.load(path);
-    _requireModel();
+    final LlmRuntime runtime = _runtime();
     final String runId = newRunId(DateTime.now());
     final RunPaths paths = RunPaths(runsDir: runsDir, runId: runId);
 
@@ -123,7 +130,7 @@ class TaskService {
       },
     });
 
-    unawaited(_execute(task, path, runId, paths, emit, workspaceRoot));
+    unawaited(_execute(task, path, runId, paths, emit, workspaceRoot, runtime));
     return runId;
   }
 
@@ -142,6 +149,7 @@ class TaskService {
     RunPaths paths,
     void Function(Map<String, Object?>) onEvent,
     String? workspaceRoot,
+    LlmRuntime runtime,
   ) async {
     final RunEventStream stream = RunEventStream(
       path: paths.eventsPath,
@@ -161,6 +169,7 @@ class TaskService {
       final RunRecord record = await Runner(
         body: body ?? agentTaskBody,
         runsDir: runsDir,
+        llm: runtime,
       ).run(
         RunRequest(
           task: task,
@@ -270,14 +279,14 @@ class TaskService {
     return path;
   }
 
-  void _requireModel() {
-    final String? base = _env['WORK_LLM_BASE_URL'];
-    final String? model = _env['WORK_LLM_MODEL'];
-    if (base == null ||
-        base.isEmpty ||
-        model == null ||
-        model.isEmpty) {
-      throw StateError('未配置模型：设置 WORK_LLM_BASE_URL / WORK_LLM_MODEL（及 KEY）后重试');
+  LlmRuntime _runtime() {
+    try {
+      return LlmRuntime(
+        config: llmConfigFromEnv(_env),
+        provider: _provider,
+      );
+    } on LlmConfigError catch (error) {
+      throw StateError('未配置模型：${error.message}（设置 WORK_LLM_* 后重试）');
     }
   }
 }

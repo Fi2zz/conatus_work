@@ -66,8 +66,12 @@ cd ../shell && flutter run -d macos
 
 - 壳用 loopback HTTP + 一次性 token 提供 `ui/dist`，不用 `file://`（ES module 与 CORS 更稳）
 - 消息通道：WKWebView `JavaScriptChannel('conatus')` 上行、`window.__conatusReceive` 下行
-- 路径不依赖 cwd：先从当前目录、再从可执行文件位置向上找含 `ui/dist` 的仓库根；
-  `CONATUS_WORK_UI` / `CONATUS_WORK_RUNS` 可覆盖
+- 路径不依赖 cwd：优先 `.app/Contents/Resources/ui`（打包后），其次从当前目录与可执行文件
+  位置向上找含 `ui/dist` 的仓库根（开发期）；`CONATUS_WORK_UI` / `CONATUS_WORK_RUNS` /
+  `CONATUS_WORK_TASKS` 可覆盖
+- 打包：`bash tool/bundle_ui.sh [App.app]` 把 `ui/dist` 与 `tasks/` 拷进包内；包里运行时
+  运行记录落 `~/Library/Application Support/Conatus Work/runs`
+- 「新任务」里可选工作区（系统目录选择器），选定后作为 `task.start` 的 `workspaceRoot`
 - `ui/dist` 缺失时窗口显示明确错误，不是白屏
 
 ## 桥接层（`lib/src/bridge/`）
@@ -78,6 +82,16 @@ cd ../shell && flutter run -d macos
 - `bridge.dart`：`WorkbenchBridge` 提供 `listTasks` / `openTask` / `changes` / `readArtifact` / `undo` / `redo`
 - `undo` 复用 `Runner.undo`（检查点 + 会话分叉），并把撤销点写到 `<runDir>/revert-stage.json`；
   `redo` 读这份撤销点走 `RevertService.redo`，成功后删除。撤销点存在即表示「可重做」。
+
+**壳内真实执行**（`lib/src/bridge/task_service.dart`）需要模型配置：
+
+```bash
+export WORK_LLM_BASE_URL=https://opencode.ai/zen/go/v1
+export WORK_LLM_MODEL=deepseek-v4.1-flash
+export WORK_LLM_API_KEY=oc_sk_...
+```
+
+缺配置时 `task.start` 直接回「未配置模型」，不会跑出一个空壳运行。
 
 **WebView 协议**（`lib/src/bridge/host.dart`）：`BridgeHost.dispatch(raw)` 收一条 JSON 帧、返回要发回的帧列表。
 信封为 `{v:1, kind:'hello'|'command'|'result'|'event', id, command, payload}`，
