@@ -32,7 +32,7 @@ export function seedChanges(changeSet: ChangeSet | null, options: SeedOptions = 
   }))
   seedRun([], {
     changes: changeSet,
-    checkpoints: { currentTurn, keep: options.keep ?? 5, turns, gaps: [] },
+    checkpoints: { currentTurn, startTurn: 0, keep: options.keep ?? 5, turns, gaps: [] },
   })
   useUiStore.setState({ rightTab: 'changes', undoDialog: false })
 

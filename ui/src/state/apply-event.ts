@@ -241,6 +241,7 @@ export function applyEvent(state: WorkbenchState, event: BridgeEvent): Workbench
             ...run.checkpoints,
             turns,
             gaps,
+            startTurn: event.data.startTurn ?? run.checkpoints.startTurn,
             currentTurn: Math.max(run.checkpoints.currentTurn, event.data.turn),
           },
         }

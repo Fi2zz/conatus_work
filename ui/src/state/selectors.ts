@@ -47,24 +47,23 @@ export interface UndoScope {
 }
 
 export function undoScope(run: RunView): UndoScope {
-  const current = run.checkpoints.currentTurn
-  const turns = [...run.checkpoints.turns].map((turn) => turn.turn).sort((left, right) => left - right)
-  const target = turns.filter((turn) => turn < current).at(-1)
+  const { currentTurn, startTurn, keep } = run.checkpoints
+  const steps = currentTurn - startTurn
 
-  if (current <= 0 || target === undefined) {
+  if (steps < 1) {
     return { steps: 0, targetTurn: null, usable: false, reason: '没有可撤销的轮次' }
   }
 
-  if (current - run.checkpoints.keep > target) {
+  if (startTurn < currentTurn - keep) {
     return {
       steps: 0,
       targetTurn: null,
       usable: false,
-      reason: `轮次 ${target} 已不在保留范围（仅保留最近 ${run.checkpoints.keep} 轮）`,
+      reason: `轮次 ${startTurn} 已不在保留范围（仅保留最近 ${keep} 轮）`,
     }
   }
 
-  return { steps: current - target, targetTurn: target, usable: true }
+  return { steps, targetTurn: startTurn, usable: true }
 }
 
 export interface DiffLine {

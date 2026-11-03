@@ -2,6 +2,7 @@ import type { CheckpointView, RunSummary, RunView, WorkbenchState } from '@/brid
 
 export const emptyCheckpoints: CheckpointView = {
   currentTurn: 0,
+  startTurn: 0,
   keep: 5,
   turns: [],
   gaps: [],

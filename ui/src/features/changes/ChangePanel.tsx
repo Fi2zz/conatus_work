@@ -3,7 +3,7 @@ import type { JSX } from 'react'
 
 import { getTransport } from '@/bridge/transport-store'
 import type { RedoResult, UndoResult } from '@/bridge/types'
-import { undoScope } from '@/state/selectors'
+import { undoScope, type UndoScope } from '@/state/selectors'
 import { useUiStore } from '@/state/ui-state'
 import { useWorkbench } from '@/state/workbench-store'
 import { cn } from '@/lib/utils'
@@ -17,6 +17,7 @@ export function ChangePanel(): JSX.Element {
   const [undoResult, setUndoResult] = useState<UndoResult | null>(null)
   const [redoResult, setRedoResult] = useState<RedoResult | null>(null)
   const [selected, setSelected] = useState<string | null>(null)
+  const [pending, setPending] = useState<UndoScope | null>(null)
 
   if (!run) return <p className="p-3 text-[12px] text-ink-muted">未选择任务。</p>
 
@@ -33,8 +34,8 @@ export function ChangePanel(): JSX.Element {
   const activeFile = files.find((file) => file.to === selected) ?? files[0]
 
   async function confirmUndo(): Promise<void> {
-    if (!scope.usable) return
-    const result = await getTransport().undo(run!.id, scope.steps)
+    if (!pending?.usable) return
+    const result = await getTransport().undo(run!.id, pending.steps)
     if (!result.ok) return
     setUndoResult(result.value)
     if (result.value.ok) setDialogOpen(false)
@@ -49,8 +50,9 @@ export function ChangePanel(): JSX.Element {
     <div className="flex min-h-0 flex-1 flex-col">
       <div data-testid="change-summary" className="flex items-center justify-between border-b border-line px-3 py-1.5 text-[11.5px]">
         <span>
-          移动 {run.changes.summary.moved} · 新增 {run.changes.summary.added} · 修改{' '}
-          {run.changes.summary.modified} · 删除 {run.changes.summary.deleted}
+          移动 {run.changes.summary.moved} · 冲突 {run.changes.summary.quarantined ?? 0} · 新增{' '}
+          {run.changes.summary.added} · 修改 {run.changes.summary.modified} · 删除{' '}
+          {run.changes.summary.deleted}
         </span>
         <span className="text-ink-muted">
           {scope.usable ? `可撤销至轮次 ${scope.targetTurn}` : scope.reason}
@@ -102,6 +104,7 @@ export function ChangePanel(): JSX.Element {
           disabled={!scope.usable}
           onClick={() => {
             setUndoResult(null)
+            setPending(scope)
             setDialogOpen(true)
           }}
           className={cn(
@@ -113,13 +116,16 @@ export function ChangePanel(): JSX.Element {
         </button>
       </div>
 
-      {dialogOpen && scope.usable ? (
+      {dialogOpen && pending ? (
         <UndoDialog
           run={run}
-          scope={scope}
+          scope={pending}
           result={undoResult}
           onConfirm={() => void confirmUndo()}
-          onClose={() => setDialogOpen(false)}
+          onClose={() => {
+            setDialogOpen(false)
+            setPending(null)
+          }}
         />
       ) : null}
     </div>

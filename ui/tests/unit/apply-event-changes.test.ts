@@ -44,7 +44,7 @@ it('appends a checkpoint turn and updates currentTurn', () => {
     at: 10,
     type: 'checkpoint/recorded',
     runId: 'run-a',
-    data: { turn: 1, at: '2026-11-03T10:01:00+08:00', eventCount: 12 },
+    data: { turn: 1, startTurn: 0, at: '2026-11-03T10:01:00+08:00', eventCount: 12 },
   })
   expect(next.runs['run-a'].checkpoints.currentTurn).toBe(1)
   expect(next.runs['run-a'].checkpoints.turns.map((turn) => turn.turn)).toEqual([1])
@@ -56,14 +56,14 @@ it('records a gap when turn jumps', () => {
     at: 10,
     type: 'checkpoint/recorded',
     runId: 'run-a',
-    data: { turn: 1, at: '2026-11-03T10:01:00+08:00', eventCount: 12 },
+    data: { turn: 1, startTurn: 0, at: '2026-11-03T10:01:00+08:00', eventCount: 12 },
   })
   const next = applyEvent(first, {
     seq: 2,
     at: 20,
     type: 'checkpoint/recorded',
     runId: 'run-a',
-    data: { turn: 3, at: '2026-11-03T10:03:00+08:00', eventCount: 20 },
+    data: { turn: 3, startTurn: 0, at: '2026-11-03T10:03:00+08:00', eventCount: 20 },
   })
   expect(next.runs['run-a'].checkpoints.gaps).toEqual([2])
   expect(next.runs['run-a'].checkpoints.currentTurn).toBe(3)
@@ -96,7 +96,7 @@ it('failed undo still records appliedSteps', () => {
     at: 5,
     type: 'checkpoint/recorded',
     runId: 'run-a',
-    data: { turn: 2, at: '2026-11-03T10:02:00+08:00', eventCount: 8 },
+    data: { turn: 2, startTurn: 0, at: '2026-11-03T10:02:00+08:00', eventCount: 8 },
   })
   const next = applyEvent(checkpointed, {
     seq: 2,

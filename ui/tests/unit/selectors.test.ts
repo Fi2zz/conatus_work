@@ -45,20 +45,21 @@ it('key mode hides successful reads but keeps writes and failures', () => {
   expect(kept.map((entry) => entry.kind === 'tool' && entry.name)).toEqual(['write', 'read'])
 })
 
-it('undoScope returns the last recorded turn as target', () => {
+it('undoScope goes back to the task start turn', () => {
   const run = runWith([], {
     currentTurn: 2,
+    startTurn: 0,
     keep: 5,
     turns: [
       { turn: 1, at: '2026-11-03T10:01:00+08:00', eventCount: 3 },
       { turn: 2, at: '2026-11-03T10:02:00+08:00', eventCount: 6 },
     ],
   })
-  expect(undoScope(run)).toMatchObject({ steps: 1, targetTurn: 1, usable: true })
+  expect(undoScope(run)).toMatchObject({ steps: 2, targetTurn: 0, usable: true })
 })
 
 it('undoScope is unusable when there is nothing to undo', () => {
-  const scope = undoScope(runWith([], { currentTurn: 0, turns: [] }))
+  const scope = undoScope(runWith([], { currentTurn: 0, startTurn: 0, turns: [] }))
   expect(scope.usable).toBe(false)
   expect(scope.reason).toBe('没有可撤销的轮次')
 })
@@ -66,6 +67,7 @@ it('undoScope is unusable when there is nothing to undo', () => {
 it('undoScope is unusable and explains pruning', () => {
   const run = runWith([], {
     currentTurn: 5,
+    startTurn: 0,
     keep: 2,
     turns: [
       { turn: 1, at: '2026-11-03T10:01:00+08:00', eventCount: 3 },

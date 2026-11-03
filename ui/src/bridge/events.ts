@@ -72,7 +72,7 @@ export type BridgeEvent =
       at: number
       type: 'checkpoint/recorded'
       runId: string
-      data: { turn: number; at: string; eventCount: number }
+      data: { turn: number; startTurn: number; at: string; eventCount: number }
     }
   | { seq: number; at: number; type: 'usage/updated'; runId: string; data: Usage }
   | { seq: number; at: number; type: 'undo/started'; runId: string; data: { steps: number } }

@@ -96,7 +96,8 @@
       "added": 0,
       "deleted": 0,
       "modified": 0,
-      "moved": 10
+      "moved": 10,
+      "quarantined": 1
     }
   },
   "checkpoints": {
@@ -1166,7 +1167,8 @@
           "added": 0,
           "deleted": 0,
           "modified": 0,
-          "moved": 10
+          "moved": 10,
+          "quarantined": 1
         }
       },
       "seq": 87,
@@ -1177,6 +1179,7 @@
       "data": {
         "at": "2026-11-02T18:17:33.589+08:00",
         "eventCount": 88,
+        "startTurn": 0,
         "turn": 1
       },
       "seq": 88,

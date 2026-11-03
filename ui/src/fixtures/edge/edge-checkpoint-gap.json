@@ -172,6 +172,7 @@
       "type": "checkpoint/recorded",
       "data": {
         "turn": 1,
+        "startTurn": 0,
         "at": "2026-11-03T09:00:00.000+08:00",
         "eventCount": 4
       }
@@ -182,6 +183,7 @@
       "type": "checkpoint/recorded",
       "data": {
         "turn": 3,
+        "startTurn": 0,
         "at": "2026-11-03T09:02:00.000+08:00",
         "eventCount": 9
       }
@@ -255,11 +257,13 @@
     "turns": [
       {
         "turn": 1,
+        "startTurn": 0,
         "at": "2026-11-03T09:00:00.000+08:00",
         "eventCount": 4
       },
       {
         "turn": 3,
+        "startTurn": 0,
         "at": "2026-11-03T09:02:00.000+08:00",
         "eventCount": 9
       }

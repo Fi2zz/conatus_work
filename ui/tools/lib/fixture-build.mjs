@@ -149,6 +149,7 @@ function buildChanges(workspaceRoot, rawEvents) {
         modified: 0,
         moved: recorded.summary?.moved ?? recorded.operations.length,
         deleted: recorded.summary?.deleted ?? 0,
+        ...(recorded.summary?.quarantined ? { quarantined: recorded.summary.quarantined } : {}),
       },
       files: recorded.operations.map((operation) => ({
         from: operation.from,
@@ -233,7 +234,7 @@ export function buildFixture(runDir) {
       seq: events.length,
       at: endAt,
       type: 'checkpoint/recorded',
-      data: { turn: currentTurn, at: run.endedAt ?? run.startedAt, eventCount: events.length },
+      data: { turn: currentTurn, startTurn, at: run.endedAt ?? run.startedAt, eventCount: events.length },
     })
   }
   events.push({ seq: events.length, at: endAt, type: 'usage/updated', data: run.usage })

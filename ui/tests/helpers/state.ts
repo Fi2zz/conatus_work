@@ -15,7 +15,7 @@ export function seedRun(timeline: TimelineEntry[], over: Partial<RunView> = {}):
     timeline,
     artifacts: [],
     changes: null,
-    checkpoints: { currentTurn: 0, keep: 5, turns: [], gaps: [] },
+    checkpoints: { currentTurn: 0, startTurn: 0, keep: 5, turns: [], gaps: [] },
     ...over,
   }
   useWorkbenchStore.setState({

@@ -47,6 +47,7 @@ export interface ChangeSummary {
   modified: number
   moved: number
   deleted: number
+  quarantined?: number
 }
 
 export interface ChangeSet {
@@ -62,6 +63,7 @@ export interface TurnView {
 
 export interface CheckpointView {
   currentTurn: number
+  startTurn: number
   keep: number
   turns: TurnView[]
   gaps: number[]

@@ -16,6 +16,7 @@ it('lists turns and greys out pruned ones', () => {
   seedRun([], {
     checkpoints: {
       currentTurn: 5,
+      startTurn: 0,
       keep: 2,
       turns: [
         { turn: 1, at: '2026-11-03T10:01:00+08:00', eventCount: 2 },
@@ -33,6 +34,7 @@ it('shows a banner when checkpoint gaps exist', () => {
   seedRun([], {
     checkpoints: {
       currentTurn: 3,
+      startTurn: 0,
       keep: 5,
       turns: [
         { turn: 1, at: '2026-11-03T10:01:00+08:00', eventCount: 2 },

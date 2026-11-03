@@ -147,6 +147,7 @@
       "type": "checkpoint/recorded",
       "data": {
         "turn": 1,
+        "startTurn": 0,
         "at": "2026-11-03T09:02:00.000+08:00",
         "eventCount": 10
       },
