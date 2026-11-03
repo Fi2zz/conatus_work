@@ -29,7 +29,7 @@
     "run.json.tools 不含 websearch / webfetch"
   ],
   "limits": {
-    "maxMinutes": 12,
+    "maxMinutes": 20,
     "maxCostUsd": 0.8
   },
   "checkpoint": {

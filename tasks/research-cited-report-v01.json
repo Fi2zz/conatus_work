@@ -14,7 +14,7 @@
   "inputs": [
     "inbox/brief.md"
   ],
-  "prompt": "阅读 inbox/brief.md，围绕其中的 3 个问题做调研；至少 6 个来源，其中 3 个一手来源；输出 1500-2500 字中文报告，每个事实性结论必须有脚注；不确定的内容标记为推断。不得编造 URL 或引文。",
+  "prompt": "阅读 inbox/brief.md，围绕其中的 3 个问题做调研；至少 6 个来源，其中 3 个一手来源；输出 1500-2500 字中文报告，每个事实性结论必须有脚注；不确定的内容标记为推断。不得编造 URL 或引文。\\n\\nout/sources.json 必须是 JSON 对象，含 sources 数组；每条必须严格包含：url（字符串）、title（字符串）、fetch_status（字符串，抓取成功写 \"ok\"）、is_primary（布尔值）。不要用 fetched / type 等其它字段替代 fetch_status 与 is_primary。\\n\\nout/sources.json 只收录抓取成功的条目（fetch_status 必须为 \"ok\"）；抓取失败的 URL 不要写进 sources.json，可在 report.md 里说明失败原因。",
   "network": "allow",
   "expectedArtifacts": [
     "out/report.md",

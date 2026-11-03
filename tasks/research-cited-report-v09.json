@@ -14,7 +14,7 @@
   "inputs": [
     "inbox/brief.md"
   ],
-  "prompt": "阅读 inbox/brief.md 并完成调研；最多 10 次网页抓取；至少 6 个来源，其中 3 个一手来源；输出 out/report.md 与 out/sources.json；每个事实性结论带脚注；不确定内容标注推断；不得编造 URL。sources.json 必须含 sources 数组，每条有 url/title/fetch_status/is_primary，fetch_status 为 ok，is_primary 为布尔值。图表与产物写完后立即结束。",
+  "prompt": "阅读 inbox/brief.md 并完成调研；最多 10 次网页抓取；至少 6 个来源，其中 3 个一手来源；输出 out/report.md 与 out/sources.json；每个事实性结论带脚注；不确定内容标注推断；不得编造 URL。sources.json 必须含 sources 数组，每条有 url/title/fetch_status/is_primary，fetch_status 为 ok，is_primary 为布尔值。图表与产物写完后立即结束。\\n\\nout/sources.json 只收录抓取成功的条目（fetch_status 必须为 \"ok\"）；抓取失败的 URL 不要写进 sources.json，可在 report.md 里说明失败原因。",
   "network": "allow",
   "expectedArtifacts": [
     "out/report.md",
