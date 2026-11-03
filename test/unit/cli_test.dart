@@ -13,4 +13,11 @@ void main() {
   test('未知子命令返回 64', () async {
     expect(await runCli(<String>['nope']), 64);
   });
+
+  test('未知 --flag 不吞掉位置参数', () async {
+    expect(
+      await runCli(<String>['run', '/nonexistent/a.json', '--fixture']),
+      1,
+    );
+  });
 }
