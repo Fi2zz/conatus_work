@@ -189,17 +189,19 @@ body {
 }
 
 @keyframes pulse-dot {
-  0%,
-  100% {
-    opacity: 1;
+  0% {
+    box-shadow: 0 0 0 0 color-mix(in srgb, var(--accent) 60%, transparent);
   }
-  50% {
-    opacity: 0.35;
+  70% {
+    box-shadow: 0 0 0 5px transparent;
+  }
+  100% {
+    box-shadow: 0 0 0 0 transparent;
   }
 }
 
 .dot-live {
-  animation: pulse-dot 1.6s var(--ease) infinite;
+  animation: pulse-dot 1.8s var(--ease) infinite;
 }
 
 @media (prefers-reduced-motion: reduce) {

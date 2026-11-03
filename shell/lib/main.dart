@@ -118,7 +118,13 @@ class _ShellAppState extends State<ShellApp> {
       final ShellChannel channel = ShellChannel(
         host: BridgeHost(
           bridge: WorkbenchBridge(runsDir: runsDir),
-          tasks: TaskService(runsDir: runsDir, tasksDir: tasksDir, env: env),
+          tasks: TaskService(
+            runsDir: runsDir,
+            tasksDir: tasksDir,
+            env: env,
+            workspacesDir:
+                '${dataDir ?? '${Directory(uiDir).parent.parent.path}/var'}/workspaces',
+          ),
           configStore: configStore,
           push: push,
           chooseWorkspace: () => getDirectoryPath(confirmButtonText: '选择工作区'),

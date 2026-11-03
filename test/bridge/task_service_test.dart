@@ -182,6 +182,33 @@ void main() {
     expect(File('${tmp.path}/runs/$runId/run.json').existsSync(), isTrue);
   });
 
+  test('未选工作区时新建干净目录并复制示例数据', () async {
+    Directory('$tasksDir/fixtures/organize/v01/inbox').createSync(recursive: true);
+    File('$tasksDir/fixtures/organize/v01/inbox/a.txt').writeAsStringSync('a');
+
+    final List<Map<String, Object?>> events = <Map<String, Object?>>[];
+    final TaskService runner = TaskService(
+      runsDir: '${tmp.path}/runs',
+      tasksDir: tasksDir,
+      workspacesDir: '${tmp.path}/ws',
+      pollInterval: const Duration(milliseconds: 20),
+      env: <String, String>{'WORK_LLM_BASE_URL': 'http://x', 'WORK_LLM_MODEL': 'm'},
+      body: (RunScope scope, TaskSpec task) async => const TaskOutcome.ok(),
+    );
+    final String runId = await runner.start(cardId: 'move-v01', onEvent: events.add);
+    final bool finished = await _waitFor(
+      () => events.any((Map<String, Object?> e) => e['type'] == 'task/ended'),
+    );
+    expect(finished, isTrue);
+    final File record = File('${tmp.path}/runs/$runId/run.json');
+    expect(record.existsSync(), isTrue, reason: '最后一条事件：${events.isEmpty ? '无' : events.last}');
+    final Map<String, Object?> run =
+        jsonDecode(record.readAsStringSync()) as Map<String, Object?>;
+    expect(run['status'], 'succeeded');
+    expect(run['workspaceRoot'], startsWith('${tmp.path}/ws/move-v01-'));
+    expect(File('${run['workspaceRoot']}/inbox/a.txt').existsSync(), isTrue);
+  });
+
   test('cancel 让运行以 aborted 收尾', () async {
     final List<Map<String, Object?>> events = <Map<String, Object?>>[];
     final TaskService runner = service(

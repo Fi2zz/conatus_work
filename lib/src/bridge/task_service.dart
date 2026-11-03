@@ -56,6 +56,7 @@ class TaskService {
     this.pollInterval = const Duration(milliseconds: 250),
     Map<String, String>? env,
     LlmProvider? provider,
+    this.workspacesDir,
   }) : _env = env ?? Platform.environment,
        _provider = provider;
 
@@ -70,6 +71,9 @@ class TaskService {
 
   /// 尾随日志的轮询间隔。
   final Duration pollInterval;
+
+  /// 未指定工作区时，在这里为每次运行新建一个干净目录。
+  final String? workspacesDir;
 
   final Map<String, String> _env;
   final LlmProvider? _provider;
@@ -111,6 +115,8 @@ class TaskService {
     final LlmRuntime runtime = _runtime();
     final String runId = newRunId(DateTime.now());
     final RunPaths paths = RunPaths(runsDir: runsDir, runId: runId);
+    final String? root = workspaceRoot ?? _freshWorkspace(task.id, runId);
+    final String? fixture = root == null ? null : _fixtureFor(task);
 
     void emit(Map<String, Object?> event) =>
         onEvent(<String, Object?>{...event, 'runId': runId});
@@ -128,7 +134,9 @@ class TaskService {
       },
     });
 
-    unawaited(_execute(task, path, runId, paths, emit, workspaceRoot, runtime));
+    unawaited(
+      _execute(task, path, runId, paths, emit, root, runtime, fixture),
+    );
     return runId;
   }
 
@@ -148,6 +156,7 @@ class TaskService {
     void Function(Map<String, Object?>) onEvent,
     String? workspaceRoot,
     LlmRuntime runtime,
+    String? fixtureDir,
   ) async {
     final RunEventStream stream = RunEventStream(
       path: paths.eventsPath,
@@ -171,6 +180,7 @@ class TaskService {
               task: task,
               taskPath: cardPath,
               workspaceRoot: workspaceRoot,
+              fixtureDir: fixtureDir,
               confirmed: true,
             ),
             runId: runId,
@@ -260,6 +270,24 @@ class TaskService {
       },
     });
     return events;
+  }
+
+  /// 没选工作区时给一个干净目录，避免任务卡输入缺失导致预检失败。
+  String? _freshWorkspace(String taskId, String runId) {
+    final String? base = workspacesDir;
+    if (base == null) return null;
+    final String dir = '$base/$taskId-$runId';
+    Directory(dir).createSync(recursive: true);
+    return dir;
+  }
+
+  /// 任务卡对应的示例数据目录：`<tasksDir>/fixtures/<chain>/<vNN>`。
+  String? _fixtureFor(TaskSpec task) {
+    final int dash = task.id.lastIndexOf('-');
+    final String suffix = dash >= 0 ? task.id.substring(dash + 1) : '';
+    if (suffix.isEmpty) return null;
+    final String candidate = '$tasksDir/fixtures/${task.chain}/$suffix';
+    return Directory(candidate).existsSync() ? candidate : null;
   }
 
   String _cardPath(String cardId) {

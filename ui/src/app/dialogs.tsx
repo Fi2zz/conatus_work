@@ -58,7 +58,10 @@ export function NewTaskDialog(): JSX.Element {
 
           <div className="mb-3 flex items-center justify-between gap-2 rounded-md border border-line bg-panel-raised px-2.5 py-1.5">
             <span className="min-w-0 truncate text-[11.5px] text-ink-muted" data-testid="workspace-path">
-              工作区：<span className="font-mono text-ink">{workspace ?? '任务卡默认'}</span>
+              工作区：
+              <span className="font-mono text-ink">
+                {workspace ?? '自动（每次新建干净目录并复制示例数据）'}
+              </span>
             </span>
             <Button
               size="sm"
