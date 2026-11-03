@@ -209,6 +209,63 @@ export function applyEvent(state: WorkbenchState, event: BridgeEvent): Workbench
     case 'undo/started':
       return marked
 
+    case 'artifact/added':
+    case 'artifact/updated':
+      return withRun(marked, event.runId, (run) => {
+        const index = run.artifacts.findIndex((item) => item.path === event.data.path)
+        if (index < 0) return { ...run, artifacts: [...run.artifacts, event.data] }
+        const artifacts = [...run.artifacts]
+        artifacts[index] = event.data
+        return { ...run, artifacts }
+      })
+
+    case 'changes/updated':
+      return withRun(marked, event.runId, (run) => ({ ...run, changes: event.data }))
+
+    case 'checkpoint/recorded':
+      return withRun(marked, event.runId, (run) => {
+        const known = run.checkpoints.turns.map((turn) => turn.turn)
+        const previous = known.length > 0 ? Math.max(...known) : null
+        const gaps = [...run.checkpoints.gaps]
+        if (previous !== null) {
+          for (let turn = previous + 1; turn < event.data.turn; turn += 1) {
+            if (!gaps.includes(turn)) gaps.push(turn)
+          }
+        }
+        const turns = known.includes(event.data.turn)
+          ? run.checkpoints.turns
+          : [...run.checkpoints.turns, { turn: event.data.turn, at: event.data.at, eventCount: event.data.eventCount }]
+        return {
+          ...run,
+          checkpoints: {
+            ...run.checkpoints,
+            turns,
+            gaps,
+            currentTurn: Math.max(run.checkpoints.currentTurn, event.data.turn),
+          },
+        }
+      })
+
+    case 'undo/finished':
+      return withRun(marked, event.runId, (run) => ({
+        ...run,
+        timeline: [
+          ...run.timeline,
+          {
+            kind: 'undo',
+            id: `undo-${run.id}-${event.seq}`,
+            at: event.at,
+            steps: event.data.steps,
+            ok: event.data.ok,
+            failures: event.data.failures,
+          },
+        ],
+        checkpoints: {
+          ...run.checkpoints,
+          currentTurn: Math.max(0, run.checkpoints.currentTurn - event.data.appliedSteps),
+        },
+      }))
+
     default:
       return { ...marked, unknownEvents: marked.unknownEvents + 1 }
   }
