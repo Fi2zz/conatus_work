@@ -14,7 +14,7 @@ import { cn } from '@/lib/utils'
 import { undoScope } from '@/state/selectors'
 import { useUiStore } from '@/state/ui-state'
 import { useWorkbench, useWorkbenchStore } from '@/state/workbench-store'
-import { NewTaskDialog, SettingsDialog } from './dialogs'
+import { CompareDialog, NewTaskDialog, SettingsDialog } from './dialogs'
 import { RightPane } from './RightPane'
 
 const RAIL_WIDTH = 56
@@ -98,6 +98,7 @@ export function Shell(): JSX.Element {
   const setUndoDialog = useUiStore((state) => state.setUndoDialog)
   const setSettingsOpen = useUiStore((state) => state.setSettingsOpen)
   const setNewTaskOpen = useUiStore((state) => state.setNewTaskOpen)
+  const setCompareOpen = useUiStore((state) => state.setCompareOpen)
   const leftCollapsed = useUiStore((state) => state.leftCollapsed)
   const toggleLeft = useUiStore((state) => state.toggleLeft)
   const rightWidth = useUiStore((state) => state.rightWidth)
@@ -233,6 +234,14 @@ export function Shell(): JSX.Element {
             <span className="hidden text-[10.5px] text-ink-faint tnum sm:inline">
               {active ? `${active.model} · $${active.usage.costUsd.toFixed(4)}` : ''}
             </span>
+            <Button
+              size="sm"
+              variant="ghost"
+              data-testid="compare-button"
+              onClick={() => setCompareOpen(true)}
+            >
+              对比
+            </Button>
             {running ? (
               <Button size="sm" data-testid="stop-button" onClick={() => void stop()}>
                 停止
@@ -256,6 +265,7 @@ export function Shell(): JSX.Element {
       <RightPane />
       <CommandPalette />
       <NewTaskDialog />
+      <CompareDialog />
       <SettingsDialog />
       <UndoDialogHost />
     </div>

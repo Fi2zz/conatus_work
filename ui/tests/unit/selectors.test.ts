@@ -92,3 +92,15 @@ it('runMetrics sums usage', () => {
   const runs: RunSummary[] = [runA, runB]
   expect(runMetrics(runs)).toEqual({ tasks: 2, inputTokens: 200, outputTokens: 100, costUsd: usage().costUsd * 2 })
 })
+
+it('failed mode keeps only failures and denials', () => {
+  const timeline: TimelineEntry[] = [
+    tool('1', 'read', true),
+    tool('2', 'move', false),
+    { kind: 'status', id: 's1', at: 3, status: 'running' },
+    { kind: 'status', id: 's2', at: 4, status: 'failed', text: '模型超时' },
+    { kind: 'approval', id: 'a1', at: 5, requestId: 'r1', name: 'move', decision: 'deny' },
+  ]
+  const kept = filterTimeline(timeline, 'failed')
+  expect(kept.map((entry) => entry.id)).toEqual(['2', 's2', 'a1'])
+})

@@ -30,8 +30,20 @@ export function groupConsecutiveTools(entries: TimelineEntry[], expanded: Set<st
   return grouped
 }
 
-export function filterTimeline(entries: TimelineEntry[], mode: 'key' | 'all'): TimelineEntry[] {
+export function filterTimeline(
+  entries: TimelineEntry[],
+  mode: 'key' | 'all' | 'failed',
+): TimelineEntry[] {
   if (mode === 'all') return entries
+  if (mode === 'failed') {
+    return entries.filter((entry) => {
+      if (entry.kind === 'tool') return entry.ok === false
+      if (entry.kind === 'status') return entry.status === 'failed' || entry.status === 'aborted'
+      if (entry.kind === 'undo' || entry.kind === 'redo') return !entry.ok
+      if (entry.kind === 'approval') return entry.decision === 'deny'
+      return false
+    })
+  }
   return entries.filter((entry) => {
     if (entry.kind !== 'tool') return true
     if (entry.ok !== true) return true

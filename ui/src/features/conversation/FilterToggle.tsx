@@ -6,6 +6,7 @@ import { useUiStore, type TimelineFilter } from '@/state/ui-state'
 const OPTIONS: Array<{ value: TimelineFilter; label: string }> = [
   { value: 'key', label: '关键' },
   { value: 'all', label: '全部' },
+  { value: 'failed', label: '失败' },
 ]
 
 export function FilterToggle(): JSX.Element {
