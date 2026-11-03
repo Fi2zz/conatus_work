@@ -1,6 +1,7 @@
 import type { JSX } from 'react'
 
 import { ArtifactPanel } from '@/features/artifacts/ArtifactPanel'
+import { ChangePanel } from '@/features/changes/ChangePanel'
 import { Timeline } from '@/features/conversation/Timeline'
 import { TaskList } from '@/features/tasks/TaskList'
 import { cn } from '@/lib/utils'
@@ -35,7 +36,7 @@ function RightPane(): JSX.Element {
       </div>
       <div className="flex min-h-0 flex-1 flex-col">
         {tab === 'artifacts' ? <ArtifactPanel /> : null}
-        {tab === 'changes' ? <p className="p-3 text-[12px] text-ink-muted">变更面板接线中。</p> : null}
+        {tab === 'changes' ? <ChangePanel /> : null}
         {tab === 'checkpoints' ? <p className="p-3 text-[12px] text-ink-muted">检查点面板接线中。</p> : null}
       </div>
     </aside>
