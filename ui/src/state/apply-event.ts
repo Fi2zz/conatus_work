@@ -1,5 +1,5 @@
 import type { BridgeEvent } from '@/bridge/events'
-import type { RunSummary, RunView, WorkbenchState } from '@/bridge/types'
+import type { RunSummary, RunView, TimelineEntry, WorkbenchState } from '@/bridge/types'
 
 import { runFromSummary } from './workbench-state'
 
@@ -42,6 +42,19 @@ function scopeOf(event: BridgeEvent): string {
   return event.type === 'snapshot' ? 'snapshot' : event.runId
 }
 
+function replaceEntry(
+  run: RunView,
+  match: (entry: TimelineEntry) => boolean,
+  update: (entry: TimelineEntry) => TimelineEntry,
+  fallback: () => TimelineEntry,
+): RunView {
+  const index = run.timeline.findIndex(match)
+  if (index < 0) return { ...run, timeline: [...run.timeline, fallback()] }
+  const timeline = [...run.timeline]
+  timeline[index] = update(timeline[index])
+  return { ...run, timeline }
+}
+
 export function applyEvent(state: WorkbenchState, event: BridgeEvent): WorkbenchState {
   const seenKey = `${scopeOf(event)}:${event.seq}`
   if (state.seenSeqs[seenKey]) return state
@@ -77,6 +90,121 @@ export function applyEvent(state: WorkbenchState, event: BridgeEvent): Workbench
 
     case 'usage/updated':
       return withRun(marked, event.runId, (run) => ({ ...run, usage: event.data }))
+
+    case 'message/user':
+      return withRun(marked, event.runId, (run) => ({
+        ...run,
+        timeline: [
+          ...run.timeline,
+          { kind: 'user', id: `${event.runId}-${event.seq}`, at: event.at, text: event.data.text },
+        ],
+      }))
+
+    case 'message/assistant/delta':
+      return withRun(marked, event.runId, (run) =>
+        replaceEntry(
+          run,
+          (entry) => entry.kind === 'assistant' && entry.id === event.data.entryId,
+          (entry) =>
+            entry.kind === 'assistant' ? { ...entry, text: entry.text + event.data.text } : entry,
+          () => ({
+            kind: 'assistant',
+            id: event.data.entryId,
+            at: event.at,
+            text: event.data.text,
+            streaming: true,
+          }),
+        ),
+      )
+
+    case 'message/assistant/done':
+      return withRun(marked, event.runId, (run) =>
+        replaceEntry(
+          run,
+          (entry) => entry.kind === 'assistant' && entry.id === event.data.entryId,
+          (entry) =>
+            entry.kind === 'assistant'
+              ? { ...entry, text: event.data.text, reasoning: event.data.reasoning, streaming: false }
+              : entry,
+          () => ({
+            kind: 'assistant',
+            id: event.data.entryId,
+            at: event.at,
+            text: event.data.text,
+            reasoning: event.data.reasoning,
+            streaming: false,
+          }),
+        ),
+      )
+
+    case 'tool/started':
+      return withRun(marked, event.runId, (run) => ({
+        ...run,
+        timeline: [
+          ...run.timeline,
+          {
+            kind: 'tool',
+            id: event.data.callId,
+            callId: event.data.callId,
+            at: event.at,
+            name: event.data.name,
+            args: event.data.args,
+          },
+        ],
+      }))
+
+    case 'tool/finished':
+      return withRun(marked, event.runId, (run) =>
+        replaceEntry(
+          run,
+          (entry) => entry.kind === 'tool' && entry.callId === event.data.callId,
+          (entry) =>
+            entry.kind === 'tool'
+              ? {
+                  ...entry,
+                  ok: event.data.ok,
+                  summary: event.data.summary,
+                  content: event.data.content,
+                  durationMs: event.data.durationMs,
+                }
+              : entry,
+          () => ({
+            kind: 'tool',
+            id: event.data.callId,
+            callId: event.data.callId,
+            at: event.at,
+            name: event.data.name,
+            args: '',
+            ok: event.data.ok,
+            summary: event.data.summary,
+            content: event.data.content,
+            durationMs: event.data.durationMs,
+          }),
+        ),
+      )
+
+    case 'plan/updated':
+      return withRun(marked, event.runId, (run) => ({ ...run, plan: event.data.items }))
+
+    case 'approval/requested':
+      return withRun(marked, event.runId, (run) => ({ ...run, approval: event.data }))
+
+    case 'approval/resolved':
+      return withRun(marked, event.runId, (run) => ({
+        ...run,
+        approval: undefined,
+        timeline: [
+          ...run.timeline,
+          {
+            kind: 'approval',
+            id: `approval-${event.data.requestId}`,
+            at: event.at,
+            requestId: event.data.requestId,
+            name: event.data.name,
+            decision: event.data.decision,
+          },
+        ],
+      }))
 
     case 'undo/started':
       return marked
