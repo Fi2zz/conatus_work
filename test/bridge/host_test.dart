@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:conatus_work/src/bridge/bridge.dart';
+import 'package:conatus_work/src/bridge/config_store.dart';
 import 'package:conatus_work/src/bridge/host.dart';
 import 'package:test/test.dart';
 
@@ -9,14 +10,22 @@ import 'harness.dart';
 
 void main() {
   late Directory runsRoot;
+  late Directory configDir;
   late BridgeHost host;
 
   setUp(() {
     runsRoot = prepareRunsRoot('organize-v01');
-    host = BridgeHost(bridge: WorkbenchBridge(runsDir: runsRoot.path));
+    configDir = Directory.systemTemp.createTempSync('cfg_');
+    host = BridgeHost(
+      bridge: WorkbenchBridge(runsDir: runsRoot.path),
+      configStore: ConfigStore(path: '${configDir.path}/config.json'),
+    );
   });
 
-  tearDown(() => runsRoot.deleteSync(recursive: true));
+  tearDown(() {
+    runsRoot.deleteSync(recursive: true);
+    configDir.deleteSync(recursive: true);
+  });
 
   Future<Map<String, Object?>> call(
     String command, [
@@ -50,6 +59,38 @@ void main() {
     expect(snapshot['type'], 'snapshot');
     final Map<String, Object?> data = snapshot['data']! as Map<String, Object?>;
     expect(data['runs'], hasLength(1));
+  });
+
+  test('config.save 后可读回，且不回传 Key 明文', () async {
+    final Map<String, Object?> saved = await call('config.save', <String, Object?>{
+      'baseUrl': 'https://example/v1',
+      'model': 'm1',
+      'apiKey': 'secret',
+    });
+    expect(saved['ok'], isTrue);
+
+    final Map<String, Object?> read = await call('config.read');
+    final Map<String, Object?> value = read['value']! as Map<String, Object?>;
+    expect(value['configured'], isTrue);
+    expect(value['baseUrl'], 'https://example/v1');
+    expect(value['hasKey'], isTrue);
+    expect(value.containsKey('apiKey'), isFalse);
+  });
+
+  test('再次保存不传 Key 时保留旧 Key', () async {
+    await call('config.save', <String, Object?>{
+      'baseUrl': 'https://example/v1',
+      'model': 'm1',
+      'apiKey': 'secret',
+    });
+    await call('config.save', <String, Object?>{
+      'baseUrl': 'https://example/v2',
+      'model': 'm2',
+    });
+    final Map<String, Object?> read = await call('config.read');
+    final Map<String, Object?> value = read['value']! as Map<String, Object?>;
+    expect(value['baseUrl'], 'https://example/v2');
+    expect(value['hasKey'], isTrue);
   });
 
   test('workspace.choose 返回注入的目录', () async {

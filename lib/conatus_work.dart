@@ -8,6 +8,8 @@
 library;
 
 export 'src/bridge/bridge.dart' show WorkbenchBridge;
+export 'src/bridge/config_store.dart'
+    show ConfigStore, WorkbenchConfig, mergeEnv, parseEnvFile, validateConfig;
 export 'src/bridge/contract.dart' show RunFixture, RunSummary;
 export 'src/bridge/host.dart' show BridgeHost, kProtocolVersion;
 export 'src/bridge/projection.dart' show projectRunDir;

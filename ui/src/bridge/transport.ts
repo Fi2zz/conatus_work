@@ -5,6 +5,7 @@ import type {
   RedoResult,
   RunStatus,
   RunSummary,
+  ModelConfig,
   RunView,
   TaskCard,
   UndoResult,
@@ -17,6 +18,15 @@ export interface BridgeTransport {
   listTasks(): Promise<CommandResult<RunSummary[]>>
   listCards(): Promise<CommandResult<TaskCard[]>>
   chooseWorkspace(): Promise<CommandResult<{ path: string | null }>>
+  readConfig(): Promise<CommandResult<ModelConfig>>
+  saveConfig(payload: {
+    baseUrl: string
+    model: string
+    apiKey?: string
+    providerName?: string
+    priceInput?: number
+    priceOutput?: number
+  }): Promise<CommandResult<ModelConfig>>
   openTask(runId: string): Promise<CommandResult<RunView>>
   startTask(cardId: string, workspaceRoot?: string): Promise<CommandResult<{ runId: string }>>
   cancelTask(runId: string): Promise<CommandResult<{ status: RunStatus }>>

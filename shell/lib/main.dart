@@ -43,6 +43,15 @@ class _ShellAppState extends State<ShellApp> {
   }
 
   Future<void> _boot() async {
+    final String home = Platform.environment['HOME'] ?? '.';
+    final ConfigStore configStore = ConfigStore(
+      path: '$home/.conatus-work/config.json',
+    );
+    final Map<String, String> env = mergeEnv(
+      Platform.environment,
+      configStore.load(),
+      envFile: parseEnvFile('$home/.conatus_work_env'),
+    );
     final List<String> roots = candidateRoots(
       cwd: Directory.current.path,
       executable: Platform.resolvedExecutable,
@@ -74,7 +83,10 @@ class _ShellAppState extends State<ShellApp> {
         findBundledResource(Platform.resolvedExecutable, 'tasks') ??
         findTasksDir(roots) ??
         '${dataDir ?? Directory(uiDir).parent.parent.path}/tasks';
-    debugPrint('conatus shell: ui=$uiDir runs=$runsDir tasks=$tasksDir');
+    final String modelLabel = env['WORK_LLM_MODEL'] ?? '(未配置)';
+    debugPrint(
+      'conatus shell: ui=$uiDir runs=$runsDir tasks=$tasksDir model=$modelLabel',
+    );
     try {
       final AssetServer server = AssetServer(root: Directory(uiDir));
       await server.start();
@@ -106,7 +118,8 @@ class _ShellAppState extends State<ShellApp> {
       final ShellChannel channel = ShellChannel(
         host: BridgeHost(
           bridge: WorkbenchBridge(runsDir: runsDir),
-          tasks: TaskService(runsDir: runsDir, tasksDir: tasksDir),
+          tasks: TaskService(runsDir: runsDir, tasksDir: tasksDir, env: env),
+          configStore: configStore,
           push: push,
           chooseWorkspace: () => getDirectoryPath(confirmButtonText: '选择工作区'),
           revealArtifact: (String path) async {

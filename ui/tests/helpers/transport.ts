@@ -43,6 +43,12 @@ export function createStubTransport(runs: RunSummary[], activeRunId: string | nu
     async chooseWorkspace() {
       return ok({ path: null })
     },
+    async readConfig() {
+      return ok({ configured: false })
+    },
+    async saveConfig() {
+      return ok({ configured: true })
+    },
     async openTask(runId) {
       const summary = runs.find((run) => run.id === runId)
       if (!summary) return { ok: false, error: { code: 'NOT_FOUND', message: runId } }

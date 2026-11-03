@@ -8,6 +8,7 @@ import type {
   RedoResult,
   RunStatus,
   RunSummary,
+  ModelConfig,
   RunView,
   TaskCard,
   UndoResult,
@@ -222,6 +223,10 @@ export function createWebViewTransport(options: Options = {}): BridgeTransport {
     listCards: () => request<TaskCard[]>('task.cards'),
 
     chooseWorkspace: () => request<{ path: string | null }>('workspace.choose'),
+
+    readConfig: () => request<ModelConfig>('config.read'),
+
+    saveConfig: (payload) => request<ModelConfig>('config.save', { ...payload }),
 
     async openTask(runId: string) {
       const result = await request<ReplayFixture>('task.open', { runId })

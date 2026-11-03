@@ -137,6 +137,16 @@ export interface WorkbenchState {
   seenSeqs: Record<string, true>
 }
 
+export interface ModelConfig {
+  configured: boolean
+  baseUrl?: string
+  model?: string
+  providerName?: string
+  hasKey?: boolean
+  priceInput?: number | null
+  priceOutput?: number | null
+}
+
 export interface TaskCard {
   id: string
   title: string

@@ -163,6 +163,14 @@ export function createReplayTransport(fixture: ReplayFixture, options: ReplayOpt
       return ok({ path: null })
     },
 
+    async readConfig() {
+      return ok({ configured: false })
+    },
+
+    async saveConfig() {
+      return { ok: false, error: { code: 'DENIED', message: '回放模式不能保存配置' } }
+    },
+
     async openTask(runId: string) {
       if (!sessions.has(runId) && runId !== fixture.run.id) return notFound<RunView>(`没有这个运行：${runId}`)
       return ok(foldToNow(runId).runs[runId])

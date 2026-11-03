@@ -82,12 +82,27 @@ it('opens the undo dialog with cmd+z instead of undoing directly', async () => {
   expect(undoCalls).toBe(0)
 })
 
-it('renders the three settings fields read-only', () => {
+it('saves model config through the host', async () => {
+  const saved: Array<Record<string, unknown>> = []
   seedRun([], { model: 'opencode-go/deepseek-v4.1-flash' })
+  setTransport({
+    async readConfig() {
+      return { ok: true, value: { configured: true, baseUrl: '', model: '', hasKey: false } }
+    },
+    async saveConfig(payload: Record<string, unknown>) {
+      saved.push(payload)
+      return { ok: true, value: { configured: true, ...payload } }
+    },
+  } as unknown as BridgeTransport)
+
   render(<SettingsPage />)
-  expect(screen.getByTestId('settings-model')).toHaveTextContent('opencode-go/deepseek-v4.1-flash')
-  expect(screen.getByTestId('settings-workspace')).toBeInTheDocument()
-  expect(screen.getByTestId('settings-keep')).toHaveTextContent('5')
+  await screen.findByText('已配置')
+  await userEvent.type(screen.getByTestId('settings-base-url'), 'https://x/v1')
+  await userEvent.type(screen.getByTestId('settings-model'), 'm1')
+  await userEvent.click(screen.getByTestId('settings-save'))
+
+  await screen.findByText('已保存')
+  expect(saved[0]).toMatchObject({ baseUrl: 'https://x/v1', model: 'm1' })
 })
 
 it('explains that a finished replay will not execute new messages', () => {

@@ -8,6 +8,7 @@ import 'dart:typed_data';
 
 import '../runner/run_types.dart';
 import 'bridge.dart';
+import 'config_store.dart';
 import 'task_service.dart';
 
 /// 协议版本。信封里不带版本或版本不符的一律拒绝。
@@ -21,6 +22,7 @@ class BridgeHost {
     this.push,
     this.chooseWorkspace,
     this.revealArtifact,
+    this.configStore,
   });
 
   /// 底层命令实现。
@@ -37,6 +39,9 @@ class BridgeHost {
 
   /// 在系统文件管理器里定位产物；未接线时回错误。
   final Future<void> Function(String path)? revealArtifact;
+
+  /// 本地模型配置；未接线时设置页只读。
+  final ConfigStore? configStore;
 
   /// 处理一条入站帧，返回要发回前端的帧。
   Future<List<String>> dispatch(String raw) async {
@@ -118,6 +123,36 @@ class BridgeHost {
         return <Object?>[
           for (final TaskCard card in service.cards()) card.toJson(),
         ];
+      case 'config.read':
+        final WorkbenchConfig? saved = configStore?.load();
+        return <String, Object?>{
+          'configured': saved != null,
+          ...?saved?.toView(),
+        };
+      case 'config.save':
+        final ConfigStore? store = configStore;
+        if (store == null) throw StateError('宿主未接线配置存储');
+        final WorkbenchConfig? previous = store.load();
+        final Object? key = payload['apiKey'];
+        final WorkbenchConfig next = WorkbenchConfig(
+          baseUrl: _requireString(payload, 'baseUrl'),
+          model: _requireString(payload, 'model'),
+          apiKey: key is String && key.isNotEmpty ? key : previous?.apiKey,
+          providerName: payload['providerName'] is String
+              ? payload['providerName']! as String
+              : null,
+          priceInput: payload['priceInput'] is num
+              ? (payload['priceInput']! as num).toDouble()
+              : null,
+          priceOutput: payload['priceOutput'] is num
+              ? (payload['priceOutput']! as num).toDouble()
+              : null,
+        );
+        await store.save(next);
+        return <String, Object?>{'configured': true, ...next.toView()};
+      case 'config.clear':
+        await configStore?.clear();
+        return <String, Object?>{'configured': false};
       case 'artifact.reveal':
         final String revealRun = _requireString(payload, 'runId');
         final String revealPath = _requireString(payload, 'path');
