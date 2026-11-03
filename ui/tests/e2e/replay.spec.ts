@@ -16,7 +16,7 @@ test('csv replay renders its artifacts', async ({ page }) => {
 
 test('research replay shows a long timeline', async ({ page }) => {
   await page.goto('/?fixture=research-cited-report-v01&speed=0')
-  await page.getByRole('button', { name: '全部' }).click()
+  await page.getByTestId('filter-toggle').getByRole('button', { name: '全部' }).click()
   const rows = page.locator('[data-testid^="timeline-entry-"], [data-testid="tool-group"]')
   expect(await rows.count()).toBeGreaterThan(20)
 })

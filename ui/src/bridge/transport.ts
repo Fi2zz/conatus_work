@@ -25,5 +25,8 @@ export interface BridgeTransport {
   openDiff(runId: string, filePath?: string): Promise<CommandResult<ChangeSet>>
   undo(runId: string, steps: number): Promise<CommandResult<UndoResult>>
   redo(runId: string, steps: number): Promise<CommandResult<RedoResult>>
-  readArtifact(runId: string, path: string): Promise<CommandResult<{ content: string; truncated: boolean }>>
+  readArtifact(
+    runId: string,
+    path: string,
+  ): Promise<CommandResult<{ content: string; truncated: boolean; encoding?: 'utf8' | 'base64' }>>
 }

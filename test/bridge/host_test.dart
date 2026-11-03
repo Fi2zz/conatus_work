@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:typed_data';
 import 'dart:io';
 
 import 'package:conatus_work/src/bridge/bridge.dart';
@@ -97,6 +98,40 @@ void main() {
     final Map<String, Object?> value = frame['value']! as Map<String, Object?>;
     expect(value['truncated'], isFalse);
     expect((value['content']! as String).startsWith('#'), isTrue);
+  });
+
+  test('二进制产物回 base64，文本产物回 utf8', () async {
+    final Directory runDir = Directory('${runsRoot.path}/organize-v01');
+    final File png = File('${runDir.path}/workspace/out/pic.png')
+      ..parent.createSync(recursive: true);
+    png.writeAsBytesSync(<int>[137, 80, 78, 71]);
+    final File runJson = File('${runDir.path}/run.json');
+    final Map<String, Object?> run =
+        jsonDecode(runJson.readAsStringSync()) as Map<String, Object?>;
+    run['artifacts'] = <Object?>[
+      ...(run['artifacts']! as List<Object?>),
+      <String, Object?>{
+        'path': 'out/pic.png',
+        'bytes': 4,
+        'sha256': 'x',
+        'check': <String, Object?>{'exists': true, 'nonEmpty': true, 'passed': true},
+      },
+    ];
+    runJson.writeAsStringSync(jsonEncode(run));
+
+    final Map<String, Object?> pngFrame = await call('artifact.read', <String, Object?>{
+      'runId': 'organize-v01',
+      'path': 'out/pic.png',
+    });
+    final Map<String, Object?> pngValue = pngFrame['value']! as Map<String, Object?>;
+    expect(pngValue['encoding'], 'base64');
+    expect(pngValue['content'], base64Encode(<int>[137, 80, 78, 71]));
+
+    final Map<String, Object?> textFrame = await call('artifact.read', <String, Object?>{
+      'runId': 'organize-v01',
+      'path': 'out/changes.md',
+    });
+    expect((textFrame['value']! as Map<String, Object?>)['encoding'], 'utf8');
   });
 
   test('diff.open 返回变更集', () async {

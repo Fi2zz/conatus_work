@@ -50,3 +50,16 @@ it('flags truncated content', async () => {
   render(<ArtifactPanel />)
   expect(await screen.findByTestId('artifact-truncated')).toBeInTheDocument()
 })
+
+it('renders image artifacts from base64', async () => {
+  seedArtifacts([artifact('out/chart.png')], {}, { 'out/chart.png': 'iVBORw0KGgo=' })
+  render(<ArtifactPanel />)
+  const image = (await screen.findByTestId('artifact-image')) as HTMLImageElement
+  expect(image.src).toContain('data:image/png;base64,iVBORw0KGgo=')
+})
+
+it('explains binary artifacts it cannot preview', async () => {
+  seedArtifacts([artifact('out/archive.zip')], {}, { 'out/archive.zip': 'UEsDBA==' })
+  render(<ArtifactPanel />)
+  expect(await screen.findByText(/暂不支持内嵌预览/)).toBeInTheDocument()
+})

@@ -4,6 +4,7 @@
 library;
 
 import 'dart:convert';
+import 'dart:typed_data';
 
 import '../runner/run_types.dart';
 import 'bridge.dart';
@@ -91,12 +92,23 @@ class BridgeHost {
       case 'artifact.read':
         final String runId = _requireString(payload, 'runId');
         final String path = _requireString(payload, 'path');
-        final String content = bridge.readArtifact(runId, path);
         final bool truncated = bridge
             .openTask(runId)
             .artifacts
             .any((Map<String, Object?> item) => item['path'] == path && item['truncated'] == true);
-        return <String, Object?>{'content': content, 'truncated': truncated};
+        if (_isBinary(path)) {
+          final Uint8List bytes = bridge.readArtifactBytes(runId, path);
+          return <String, Object?>{
+            'content': base64Encode(bytes),
+            'encoding': 'base64',
+            'truncated': false,
+          };
+        }
+        return <String, Object?>{
+          'content': bridge.readArtifact(runId, path),
+          'encoding': 'utf8',
+          'truncated': truncated,
+        };
       case 'task.cards':
         final TaskService service = _tasks();
         return <Object?>[
@@ -150,6 +162,12 @@ class BridgeHost {
       default:
         throw ArgumentError('未知命令：$command');
     }
+  }
+
+  bool _isBinary(String path) {
+    final String lower = path.toLowerCase();
+    return <String>['.png', '.jpg', '.jpeg', '.gif', '.webp', '.pdf']
+        .any(lower.endsWith);
   }
 
   TaskService _tasks() {

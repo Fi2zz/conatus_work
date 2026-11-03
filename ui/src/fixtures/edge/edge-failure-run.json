@@ -1,0 +1,112 @@
+{
+  "schemaVersion": 1,
+  "run": {
+    "id": "edge-failure-run",
+    "taskId": "csv-sales-analysis-v01",
+    "title": "销售 CSV 分析（失败示例）",
+    "chain": "csv",
+    "status": "failed",
+    "model": "synthetic/fixture",
+    "startedAt": "2026-11-03T09:00:00.000+08:00",
+    "endedAt": "2026-11-03T09:04:00.000+08:00",
+    "usage": { "inputTokens": 2100, "outputTokens": 480, "costUsd": 0.00061 },
+    "workspaceRoot": "(合成数据，无工作区)",
+    "synthetic": true
+  },
+  "events": [
+    {
+      "seq": 0,
+      "at": 0,
+      "type": "message/user",
+      "data": { "text": "分析 data/sales.csv，输出 out/conclusion.md 与配图" }
+    },
+    {
+      "seq": 1,
+      "at": 1200,
+      "type": "message/assistant/done",
+      "data": { "entryId": "a1", "text": "先看一下数据结构。" }
+    },
+    {
+      "seq": 2,
+      "at": 1300,
+      "type": "tool/started",
+      "data": { "callId": "c1", "name": "read", "args": "{\"path\":\"data/sales.csv\"}" }
+    },
+    {
+      "seq": 3,
+      "at": 1500,
+      "type": "tool/finished",
+      "data": {
+        "callId": "c1",
+        "name": "read",
+        "ok": false,
+        "summary": "文件不存在：data/sales.csv",
+        "content": "FS_SANDBOX_DENIED: data/sales.csv",
+        "durationMs": 200
+      }
+    },
+    {
+      "seq": 4,
+      "at": 60000,
+      "type": "tool/started",
+      "data": { "callId": "c2", "name": "write", "args": "{\"path\":\"out/conclusion.md\"}" }
+    },
+    {
+      "seq": 5,
+      "at": 60200,
+      "type": "tool/finished",
+      "data": {
+        "callId": "c2",
+        "name": "write",
+        "ok": true,
+        "summary": "写入 0 字节",
+        "content": "ok",
+        "durationMs": 200
+      }
+    },
+    {
+      "seq": 6,
+      "at": 240000,
+      "type": "checkpoint/recorded",
+      "data": {
+        "turn": 1,
+        "startTurn": 0,
+        "at": "2026-11-03T09:04:00.000+08:00",
+        "eventCount": 7
+      }
+    },
+    {
+      "seq": 7,
+      "at": 240000,
+      "type": "usage/updated",
+      "data": { "inputTokens": 2100, "outputTokens": 480, "costUsd": 0.00061 }
+    },
+    {
+      "seq": 8,
+      "at": 240000,
+      "type": "task/ended",
+      "data": {
+        "status": "failed",
+        "endedAt": "2026-11-03T09:04:00.000+08:00",
+        "failure": { "category": "artifact", "message": "产物规则未通过：out/conclusion.md 为空" }
+      }
+    }
+  ],
+  "artifacts": [
+    {
+      "path": "out/conclusion.md",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "check": { "exists": true, "nonEmpty": false, "passed": false, "reason": "内容为空" }
+    }
+  ],
+  "files": { "out/conclusion.md": "" },
+  "changes": null,
+  "checkpoints": {
+    "startTurn": 0,
+    "currentTurn": 1,
+    "keep": 5,
+    "turns": [{ "turn": 1, "at": "2026-11-03T09:04:00.000+08:00", "eventCount": 7 }],
+    "gaps": []
+  }
+}

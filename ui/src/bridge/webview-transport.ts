@@ -245,6 +245,9 @@ export function createWebViewTransport(options: Options = {}): BridgeTransport {
     redo: (runId: string, steps: number) => request<RedoResult>('redo', { runId, steps }),
 
     readArtifact: (runId: string, path: string) =>
-      request<{ content: string; truncated: boolean }>('artifact.read', { runId, path }),
+      request<{ content: string; truncated: boolean; encoding?: 'utf8' | 'base64' }>('artifact.read', {
+        runId,
+        path,
+      }),
   }
 }

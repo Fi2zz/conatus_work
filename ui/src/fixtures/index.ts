@@ -48,6 +48,12 @@ export const FIXTURES: FixtureEntry[] = [
     load: () => import('./edge/edge-checkpoint-gap.json').then((module) => parseFixture(module.default)),
   },
   {
+    id: 'edge-failure-run',
+    label: '运行失败（合成）',
+    synthetic: true,
+    load: () => import('./edge/edge-failure-run.json').then((module) => parseFixture(module.default)),
+  },
+  {
     id: 'edge-approval-denied',
     label: '审批被拒绝（合成）',
     synthetic: true,

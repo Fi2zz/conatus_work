@@ -19,7 +19,7 @@ it('rejects an unknown schema version', () => {
 
 it('marks edge fixtures synthetic', async () => {
   const edge = FIXTURES.filter((entry) => entry.id.startsWith('edge-'))
-  expect(edge).toHaveLength(4)
+  expect(edge).toHaveLength(5)
   for (const entry of edge) {
     const fixture = await entry.load()
     expect(entry.synthetic).toBe(true)

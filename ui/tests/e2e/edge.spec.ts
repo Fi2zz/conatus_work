@@ -28,3 +28,10 @@ test('clicking 拒绝 records the decision in the timeline', async ({ page }) =>
   await expect(page.getByTestId('timeline-entry-approval')).toContainText('已拒绝')
   await expect(page.getByTestId('approval-bar')).toHaveCount(0)
 })
+
+test('failed filter keeps only failures', async ({ page }) => {
+  await page.goto('/?fixture=edge-failure-run&speed=0')
+  await page.getByTestId('filter-toggle').getByRole('button', { name: '失败' }).click()
+  await expect(page.getByTestId('timeline-entry-tool')).toHaveCount(1)
+  await expect(page.getByTestId('timeline-entry-status')).toContainText('产物规则未通过')
+})

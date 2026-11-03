@@ -4,6 +4,7 @@
 library;
 
 import 'dart:io';
+import 'dart:typed_data';
 
 import '../runner/run_types.dart';
 import '../runner/runner.dart' show Runner, noopTaskBody;
@@ -73,6 +74,14 @@ class WorkbenchBridge {
 
   /// 读产物正文。只放行 `run.artifacts` 里登记过的路径。
   String readArtifact(String runId, String path) {
+    final String? content = readTextFile(_artifactFile(runId, path).path);
+    if (content == null) {
+      throw StateError('产物正文不可用：$path');
+    }
+    return content;
+  }
+
+  File _artifactFile(String runId, String path) {
     final String dir = _runDir(runId);
     final RunFixture fixture = projectRunDir(dir);
     final bool registered = fixture.artifacts.any(
@@ -86,11 +95,21 @@ class WorkbenchBridge {
         : (fixture.run['workspaceRoot'] is String
               ? fixture.run['workspaceRoot']! as String
               : '');
-    final String? content = readTextFile('$root/$path');
-    if (content == null) {
+    final File file = File('$root/$path');
+    if (!file.existsSync()) {
       throw StateError('产物正文不可用：$path');
     }
-    return content;
+    return file;
+  }
+
+  /// 读产物原始字节（图片、PDF 等二进制产物用）。
+  Uint8List readArtifactBytes(String runId, String path) {
+    final File file = _artifactFile(runId, path);
+    try {
+      return file.readAsBytesSync();
+    } on FileSystemException {
+      throw StateError('产物正文不可用：$path');
+    }
   }
 
   /// 撤销一次运行，复用阶段 0 的 `Runner.undo`（检查点 + 会话分叉 + 撤销点落盘）。

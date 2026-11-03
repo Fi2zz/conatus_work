@@ -13,7 +13,9 @@ interface ArtifactPreviewProps {
 type PreviewState =
   | { status: 'loading' }
   | { status: 'missing' }
-  | { status: 'ok'; content: string; truncated: boolean }
+  | { status: 'ok'; content: string; truncated: boolean; encoding: 'utf8' | 'base64' }
+
+const IMAGE_EXT = ['.png', '.jpg', '.jpeg', '.gif', '.webp']
 
 function prettyJson(text: string): string {
   try {
@@ -44,6 +46,38 @@ function bodyOf(artifact: ArtifactView, state: PreviewState): JSX.Element {
       </p>
     )
   }
+  if (state.encoding === 'base64') {
+    const lower = artifact.path.toLowerCase()
+    if (IMAGE_EXT.some((ext) => lower.endsWith(ext))) {
+      const mime = lower.endsWith('.png') ? 'image/png' : lower.endsWith('.webp') ? 'image/webp' : 'image/jpeg'
+      return (
+        <div className="flex min-h-0 items-start justify-center overflow-auto p-3">
+          <img
+            data-testid="artifact-image"
+            alt={artifact.path}
+            src={`data:${mime};base64,${state.content}`}
+            className="max-w-full rounded-md border border-line"
+          />
+        </div>
+      )
+    }
+    if (lower.endsWith('.pdf')) {
+      return (
+        <iframe
+          data-testid="artifact-pdf"
+          title={artifact.path}
+          src={`data:application/pdf;base64,${state.content}`}
+          className="h-full w-full border-0 bg-white"
+        />
+      )
+    }
+    return (
+      <p className="p-4 text-[11.5px] text-ink-muted">
+        该产物是二进制文件，暂不支持内嵌预览：<span className="font-mono">{artifact.path}</span>
+      </p>
+    )
+  }
+
   if (artifact.path.endsWith('.html')) {
     return (
       <iframe
@@ -96,7 +130,12 @@ export function ArtifactPreview({ runId, artifact }: ArtifactPreviewProps): JSX.
         if (cancelled) return
         setState(
           result.ok
-            ? { status: 'ok', content: result.value.content, truncated: result.value.truncated }
+            ? {
+                status: 'ok',
+                content: result.value.content,
+                truncated: result.value.truncated,
+                encoding: result.value.encoding ?? 'utf8',
+              }
             : { status: 'missing' },
         )
       })
@@ -110,7 +149,7 @@ export function ArtifactPreview({ runId, artifact }: ArtifactPreviewProps): JSX.
 
   return (
     <div data-testid="artifact-preview" className="flex min-h-0 flex-1 flex-col">
-      {state.status === 'ok' && state.truncated ? (
+      {state.status === 'ok' && state.encoding === 'utf8' && state.truncated ? (
         <p
           data-testid="artifact-truncated"
           className="border-b border-warning/30 bg-warning/10 px-3 py-1 text-[10.5px] text-warning"
