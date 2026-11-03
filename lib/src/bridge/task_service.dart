@@ -5,6 +5,7 @@ import 'dart:async';
 import 'dart:io';
 
 import 'package:conatus/conatus.dart';
+import 'package:http/http.dart' as http;
 
 import '../runner/agent_task_body.dart';
 import '../runner/llm_config.dart';
@@ -57,6 +58,7 @@ class TaskService {
     Map<String, String>? env,
     LlmProvider? provider,
     this.workspacesDir,
+    this.clientFactory,
   }) : _env = env ?? Platform.environment,
        _provider = provider;
 
@@ -77,6 +79,10 @@ class TaskService {
 
   final Map<String, String> _env;
   final LlmProvider? _provider;
+
+  /// 每次运行一个 HTTP 客户端，取消时直接关闭，放弃在途请求。
+  final http.Client Function()? clientFactory;
+  final Map<String, LlmRuntime> _runtimes = <String, LlmRuntime>{};
   final Map<String, RunEventStream> _streams = <String, RunEventStream>{};
 
   /// 列出任务卡（读不到的文件跳过）。
@@ -114,6 +120,7 @@ class TaskService {
     final TaskSpec task = await TaskSpec.load(path);
     final LlmRuntime runtime = _runtime();
     final String runId = newRunId(DateTime.now());
+    _runtimes[runId] = runtime;
     final RunPaths paths = RunPaths(runsDir: runsDir, runId: runId);
     final String? root = workspaceRoot ?? _freshWorkspace(task.id, runId);
     final String? fixture = root == null ? null : _fixtureFor(task);
@@ -142,6 +149,7 @@ class TaskService {
 
   /// 请求中断；运行器会轮询 `abort.request`。
   Future<void> cancel(String runId) async {
+    _runtimes[runId]?.abortInFlight();
     final RunPaths paths = RunPaths(runsDir: runsDir, runId: runId);
     final File flag = File(paths.abortFlagPath);
     await flag.parent.create(recursive: true);
@@ -210,6 +218,7 @@ class TaskService {
       });
     } finally {
       _streams.remove(runId);
+      _runtimes.remove(runId)?.abortInFlight();
     }
   }
 
@@ -301,7 +310,11 @@ class TaskService {
 
   LlmRuntime _runtime() {
     try {
-      return LlmRuntime(config: llmConfigFromEnv(_env), provider: _provider);
+      return LlmRuntime(
+        config: llmConfigFromEnv(_env),
+        provider: _provider,
+        client: (clientFactory ?? http.Client.new)(),
+      );
     } on LlmConfigError catch (error) {
       throw StateError('未配置模型：${error.message}（设置 WORK_LLM_* 后重试）');
     }

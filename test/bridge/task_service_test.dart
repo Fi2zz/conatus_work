@@ -8,6 +8,7 @@ import 'package:conatus_work/src/runner/assembly.dart';
 import 'package:conatus_work/src/runner/runner.dart';
 import 'package:conatus_work/src/runner/task_spec.dart';
 import 'package:conatus_work/src/tools/rooted_fs.dart';
+import 'package:http/http.dart' as http;
 import 'package:test/test.dart';
 
 Map<String, Object?> cardJson(String workspaceRoot) => <String, Object?>{
@@ -27,6 +28,22 @@ Map<String, Object?> cardJson(String workspaceRoot) => <String, Object?>{
   'limits': <String, Object?>{'maxMinutes': 1, 'maxCostUsd': 0.1},
   'checkpoint': <String, Object?>{'enabled': true, 'keep': 30},
 };
+
+/// 记录 close 的假客户端：验证取消会放弃在途请求。
+class _FakeClient extends http.BaseClient {
+  bool closed = false;
+
+  @override
+  Future<http.StreamedResponse> send(http.BaseRequest request) async {
+    throw UnimplementedError('测试不发真实请求');
+  }
+
+  @override
+  void close() {
+    closed = true;
+    super.close();
+  }
+}
 
 /// 只回一条最终消息的模型：验证执行体拿到了运行时。
 class OneShotLlm implements LlmProvider {
@@ -230,6 +247,25 @@ void main() {
     final Map<String, Object?> data =
         events.last['data']! as Map<String, Object?>;
     expect(data['status'], 'aborted');
+  });
+
+  test('cancel 会关掉在途 HTTP 客户端', () async {
+    final _FakeClient client = _FakeClient();
+    final TaskService runner = TaskService(
+      runsDir: '${tmp.path}/runs',
+      tasksDir: tasksDir,
+      pollInterval: const Duration(milliseconds: 20),
+      env: <String, String>{'WORK_LLM_BASE_URL': 'http://x', 'WORK_LLM_MODEL': 'm'},
+      clientFactory: () => client,
+      body: (RunScope scope, TaskSpec task) async {
+        await Future<void>.delayed(const Duration(milliseconds: 500));
+        return const TaskOutcome.ok();
+      },
+    );
+    final String runId = await runner.start(cardId: 'move-v01', onEvent: (_) {});
+    await Future<void>.delayed(const Duration(milliseconds: 60));
+    await runner.cancel(runId);
+    expect(client.closed, isTrue);
   });
 
   test('cancel 写入中断标记', () async {

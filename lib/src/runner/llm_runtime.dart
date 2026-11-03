@@ -4,6 +4,7 @@ library;
 import 'dart:math';
 
 import 'package:conatus/conatus.dart';
+import 'package:http/http.dart' as http;
 
 import 'llm_config.dart';
 
@@ -13,12 +14,18 @@ class LlmRuntime {
     required LlmConfig config,
     LlmProvider? provider,
     String? sessionId,
+    http.Client? client,
   }) {
     final String id = sessionId ?? newSessionId();
-    return LlmRuntime._(config, provider ?? _build(config, id), id);
+    return LlmRuntime._(
+      config,
+      provider ?? _build(config, id, client),
+      id,
+      client,
+    );
   }
 
-  LlmRuntime._(this.config, this.provider, this.sessionId);
+  LlmRuntime._(this.config, this.provider, this.sessionId, this.client);
 
   /// 环境变量解析出的配置。
   final LlmConfig config;
@@ -28,6 +35,14 @@ class LlmRuntime {
 
   /// 随请求发送的会话 id（OpenCode Go 强制要求 `x-opencode-session`）。
   final String sessionId;
+
+  /// 底层 HTTP 客户端：取消时直接关掉，放弃在途请求。
+  final http.Client? client;
+
+  /// 中止在途请求；之后的调用会失败，但运行已经要结束了。
+  void abortInFlight() {
+    client?.close();
+  }
 
   /// 写进 `run.json.model` 的标签。
   String get modelLabel => config.label;
@@ -44,12 +59,17 @@ class LlmRuntime {
     );
   }
 
-  static LlmProvider _build(LlmConfig config, String sessionId) =>
+  static LlmProvider _build(
+    LlmConfig config,
+    String sessionId, [
+    http.Client? client,
+  ]) =>
       FallbackLlm(<LlmProvider>[
         OpenAiCompatibleProvider(
           name: config.providerName,
           baseUrl: config.baseUrl,
           model: config.model,
+          client: client,
           // 本地兼容端点通常不校验 Key；provider 要求非空，缺省用 `local` 占位。
           apiKey: config.apiKey ?? 'local',
           // OpenCode Go 要求稳定的会话 id；其它兼容端点会忽略未知头。

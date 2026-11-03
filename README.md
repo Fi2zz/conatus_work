@@ -93,6 +93,9 @@ export WORK_LLM_API_KEY=oc_sk_...
 
 缺配置时 `task.start` 直接回「未配置模型」，不会跑出一个空壳运行。
 
+取消：`task.cancel` 写 `abort.request`，同时关掉该次运行独占的 HTTP 客户端——
+在途模型请求会被放弃，而不是等它返回。
+
 **WebView 协议**（`lib/src/bridge/host.dart`）：`BridgeHost.dispatch(raw)` 收一条 JSON 帧、返回要发回的帧列表。
 信封为 `{v:1, kind:'hello'|'command'|'result'|'event', id, command, payload}`，
 结果帧 `{ok:true,value}` 或 `{ok:false,error:{code,message}}`。异常收敛成错误帧，不向上抛。
