@@ -25,6 +25,12 @@ it('strips scripts from markdown', () => {
   expect(html).not.toContain('<script>')
 })
 
+it('opens markdown links in a new context', () => {
+  const html = renderMarkdown('[示例](https://example.com)')
+  expect(html).toContain('rel="noopener noreferrer"')
+  expect(html).toContain('target="_blank"')
+})
+
 it('renders html artifacts inside a locked-down iframe', async () => {
   seedArtifacts([artifact('out/chart.html')], { 'out/chart.html': '<h1>图</h1>' })
   render(<ArtifactPanel />)

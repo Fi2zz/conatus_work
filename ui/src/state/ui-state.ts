@@ -13,6 +13,7 @@ interface UiState {
   composerDraft: string
   commandOpen: boolean
   settingsOpen: boolean
+  undoNotice: { runId: string; targetTurn: number; steps: number } | null
   setFilter: (filter: TimelineFilter) => void
   toggleExpanded: (key: string) => void
   setRightTab: (tab: RightTab) => void
@@ -22,6 +23,7 @@ interface UiState {
   setComposerDraft: (text: string) => void
   setCommandOpen: (open: boolean) => void
   setSettingsOpen: (open: boolean) => void
+  setUndoNotice: (notice: { runId: string; targetTurn: number; steps: number } | null) => void
 }
 
 export const useUiStore = create<UiState>((set) => ({
@@ -34,6 +36,7 @@ export const useUiStore = create<UiState>((set) => ({
   composerDraft: '',
   commandOpen: false,
   settingsOpen: false,
+  undoNotice: null,
   setFilter: (filter) => set({ filter }),
   toggleExpanded: (key) =>
     set((state) => {
@@ -49,4 +52,5 @@ export const useUiStore = create<UiState>((set) => ({
   setComposerDraft: (composerDraft) => set({ composerDraft }),
   setCommandOpen: (commandOpen) => set({ commandOpen }),
   setSettingsOpen: (settingsOpen) => set({ settingsOpen }),
+  setUndoNotice: (undoNotice) => set({ undoNotice }),
 }))

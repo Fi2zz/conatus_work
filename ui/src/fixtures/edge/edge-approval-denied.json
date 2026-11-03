@@ -3,9 +3,9 @@
   "run": {
     "id": "edge-approval-denied",
     "taskId": "folder-organize-v01",
-    "title": "整理收件箱（审批被拒）",
+    "title": "整理收件箱（等待审批）",
     "chain": "organize",
-    "status": "failed",
+    "status": "running",
     "model": "synthetic/fixture",
     "startedAt": "2026-11-03T09:00:00.000+08:00",
     "endedAt": "2026-11-03T09:02:00.000+08:00",
@@ -46,49 +46,6 @@
         "args": "{\"from\":\"inbox/a.docx\",\"to\":\"inbox/organized/docx/a.docx\"}",
         "riskLevel": "high"
       }
-    },
-    {
-      "seq": 3,
-      "at": 5200,
-      "type": "approval/resolved",
-      "data": {
-        "requestId": "req-1",
-        "name": "move",
-        "decision": "deny"
-      }
-    },
-    {
-      "seq": 4,
-      "at": 5300,
-      "type": "message/assistant/done",
-      "data": {
-        "entryId": "a2",
-        "text": "已按你的决定停止，未写入任何文件。"
-      }
-    },
-    {
-      "seq": 5,
-      "at": 5400,
-      "type": "checkpoint/recorded",
-      "data": {
-        "turn": 1,
-        "startTurn": 0,
-        "at": "2026-11-03T09:02:00.000+08:00",
-        "eventCount": 5
-      }
-    },
-    {
-      "seq": 6,
-      "at": 5400,
-      "type": "task/ended",
-      "data": {
-        "status": "failed",
-        "endedAt": "2026-11-03T09:02:00.000+08:00",
-        "failure": {
-          "category": "approval",
-          "message": "用户拒绝了 move"
-        }
-      }
     }
   ],
   "artifacts": [],
@@ -96,16 +53,9 @@
   "changes": null,
   "checkpoints": {
     "startTurn": 0,
-    "currentTurn": 1,
+    "currentTurn": 0,
     "keep": 5,
-    "turns": [
-      {
-        "turn": 1,
-        "startTurn": 0,
-        "at": "2026-11-03T09:02:00.000+08:00",
-        "eventCount": 5
-      }
-    ],
+    "turns": [],
     "gaps": []
   }
 }

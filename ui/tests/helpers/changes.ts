@@ -2,6 +2,7 @@ import type { BridgeTransport } from '@/bridge/transport'
 import { setTransport } from '@/bridge/transport-store'
 import type { ChangeSet, CommandResult, RedoResult, UndoResult } from '@/bridge/types'
 import { useUiStore } from '@/state/ui-state'
+import { useWorkbenchStore } from '@/state/workbench-store'
 
 import { seedRun } from './state'
 
@@ -34,11 +35,19 @@ export function seedChanges(changeSet: ChangeSet | null, options: SeedOptions = 
     changes: changeSet,
     checkpoints: { currentTurn, startTurn: 0, keep: options.keep ?? 5, turns, gaps: [] },
   })
-  useUiStore.setState({ rightTab: 'changes', undoDialog: false })
+  useUiStore.setState({ rightTab: 'changes', undoDialog: false, undoNotice: null })
 
   const transport = {
     async undo(_runId: string, steps: number): Promise<CommandResult<UndoResult>> {
-      return { ok: true, value: options.undo ?? { ok: true, appliedSteps: steps, failures: [] } }
+      const value = options.undo ?? { ok: true, appliedSteps: steps, failures: [] }
+      useWorkbenchStore.getState().apply({
+        seq: 1000 + steps,
+        at: 1000,
+        type: 'undo/finished',
+        runId: 'run-a',
+        data: { ...value, steps },
+      })
+      return { ok: true, value }
     },
     async redo(_runId: string, steps: number): Promise<CommandResult<RedoResult>> {
       return { ok: true, value: options.redo ?? { ok: true, appliedSteps: steps } }

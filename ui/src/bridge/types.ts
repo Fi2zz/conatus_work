@@ -18,6 +18,7 @@ export interface RunSummary {
   startedAt: string
   endedAt?: string
   usage: Usage
+  synthetic?: boolean
 }
 
 export interface ArtifactCheck {
@@ -106,6 +107,7 @@ export type TimelineEntry =
     }
   | { kind: 'approval'; id: string; at: number; requestId: string; name: string; decision?: 'allow' | 'deny' }
   | { kind: 'undo'; id: string; at: number; steps: number; ok: boolean; failures: Failure[] }
+  | { kind: 'redo'; id: string; at: number; steps: number; ok: boolean; code?: BridgeErrorCode }
   | { kind: 'status'; id: string; at: number; status: RunStatus; text?: string }
 
 export interface RunView {
@@ -118,6 +120,7 @@ export interface RunView {
   startedAt: string
   endedAt?: string
   usage: Usage
+  synthetic?: boolean
   timeline: TimelineEntry[]
   plan?: PlanItem[]
   approval?: ApprovalRequest

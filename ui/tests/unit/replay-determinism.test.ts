@@ -104,3 +104,40 @@ it('serves artifact content from the fixture', async () => {
   expect(await transport.readArtifact('run-x', 'out/a.md')).toMatchObject({ ok: true, value: { content: '# 标题' } })
   expect(await transport.readArtifact('run-x', 'out/missing.md')).toMatchObject({ ok: false, error: { code: 'NOT_FOUND' } })
 })
+
+it('respondApproval emits an approval/resolved event', async () => {
+  const fixture = parseFixture({
+    ...(fixtureWith([]) as unknown as Record<string, unknown>),
+    events: [
+      {
+        seq: 0,
+        at: 0,
+        type: 'approval/requested',
+        data: { requestId: 'req-1', callId: 'c1', name: 'move', args: '{}', riskLevel: 'high' },
+      },
+    ],
+  })
+  const transport = createReplayTransport(fixture, { speed: 0 })
+  const events: BridgeEvent[] = []
+  transport.subscribe((event) => events.push(event))
+  await transport.connect()
+  await transport.respondApproval('req-1', 'deny')
+  const resolved = events.find((event) => event.type === 'approval/resolved')
+  expect(resolved).toMatchObject({ runId: 'run-x', data: { requestId: 'req-1', decision: 'deny' } })
+})
+
+it('openTask folds only up to now and leaves emission seqs untouched', async () => {
+  const scheduler = new ManualScheduler()
+  const transport = createReplayTransport(fixtureWith([100, 5000]), { scheduler })
+  const seen: number[] = []
+  transport.subscribe((event) => seen.push(event.seq))
+  await transport.connect()
+
+  const opened = await transport.openTask('run-x')
+  if (!opened.ok) throw new Error('expected ok')
+  expect(opened.value.timeline).toHaveLength(0)
+
+  scheduler.advance(200)
+  scheduler.advance(6000)
+  expect(seen.filter((seq) => seq >= 0)).toEqual([0, 1])
+})

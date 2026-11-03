@@ -1,6 +1,6 @@
 import { expect, test } from '@playwright/test'
 
-test('organize replay shows artifacts, 11 changes and undo', async ({ page }) => {
+test('organize replay shows artifacts, 10 moves and undo', async ({ page }) => {
   await page.goto('/?fixture=organize-v01&speed=0')
   await expect(page.getByTestId('artifact-list').locator('li')).toHaveCount(2)
   await page.getByTestId('right-pane').getByRole('button', { name: '变更' }).click()

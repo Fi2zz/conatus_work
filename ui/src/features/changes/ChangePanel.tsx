@@ -2,22 +2,27 @@ import { useState } from 'react'
 import type { JSX } from 'react'
 
 import { getTransport } from '@/bridge/transport-store'
-import type { RedoResult, UndoResult } from '@/bridge/types'
-import { undoScope, type UndoScope } from '@/state/selectors'
+import type { BridgeErrorCode, RedoResult } from '@/bridge/types'
+import { undoScope } from '@/state/selectors'
 import { useUiStore } from '@/state/ui-state'
 import { useWorkbench } from '@/state/workbench-store'
 import { cn } from '@/lib/utils'
 import { DiffView } from './DiffView'
-import { UndoDialog } from './UndoDialog'
+
+const ERROR_TEXT: Record<BridgeErrorCode, string> = {
+  PRUNED: '无法重做：目标轮次已不在保留范围。',
+  STALE_TURN: '任务状态已变化，请重试。',
+  DENIED: '操作被拒绝。',
+  NOT_FOUND: '找不到目标运行或轮次。',
+  INTERNAL: '宿主内部错误。',
+}
 
 export function ChangePanel(): JSX.Element {
   const run = useWorkbench((state) => (state.activeRunId ? state.runs[state.activeRunId] : undefined))
-  const dialogOpen = useUiStore((state) => state.undoDialog)
   const setDialogOpen = useUiStore((state) => state.setUndoDialog)
-  const [undoResult, setUndoResult] = useState<UndoResult | null>(null)
-  const [redoResult, setRedoResult] = useState<RedoResult | null>(null)
+  const notice = useUiStore((state) => state.undoNotice)
   const [selected, setSelected] = useState<string | null>(null)
-  const [pending, setPending] = useState<UndoScope | null>(null)
+  const [redoMessage, setRedoMessage] = useState<string | null>(null)
 
   if (!run) return <p className="p-3 text-[12px] text-ink-muted">未选择任务。</p>
 
@@ -32,60 +37,71 @@ export function ChangePanel(): JSX.Element {
   const scope = undoScope(run)
   const files = run.changes.files
   const activeFile = files.find((file) => file.to === selected) ?? files[0]
-
-  async function confirmUndo(): Promise<void> {
-    if (!pending?.usable) return
-    const result = await getTransport().undo(run!.id, pending.steps)
-    if (!result.ok) return
-    setUndoResult(result.value)
-    if (result.value.ok) setDialogOpen(false)
-  }
+  const activeNotice = notice && notice.runId === run.id ? notice : null
 
   async function requestRedo(): Promise<void> {
+    setRedoMessage(null)
     const result = await getTransport().redo(run!.id, 1)
-    if (result.ok) setRedoResult(result.value)
+    if (!result.ok) {
+      setRedoMessage(ERROR_TEXT[result.error.code])
+      return
+    }
+    const value: RedoResult = result.value
+    if (!value.ok) setRedoMessage(ERROR_TEXT[value.code ?? 'INTERNAL'])
   }
 
   return (
     <div className="flex min-h-0 flex-1 flex-col">
-      <div data-testid="change-summary" className="flex items-center justify-between border-b border-line px-3 py-1.5 text-[11.5px]">
+      <div
+        data-testid="change-summary"
+        className="flex items-center justify-between border-b border-line px-3 py-1.5 text-[11.5px]"
+      >
         <span>
           移动 {run.changes.summary.moved} · 冲突 {run.changes.summary.quarantined ?? 0} · 新增{' '}
           {run.changes.summary.added} · 修改 {run.changes.summary.modified} · 删除{' '}
           {run.changes.summary.deleted}
         </span>
-        <span className="text-ink-muted">
-          {scope.usable ? `可撤销至轮次 ${scope.targetTurn}` : scope.reason}
-        </span>
+        <span className="text-ink-muted">{scope.usable ? `可撤销至轮次 ${scope.targetTurn}` : scope.reason}</span>
       </div>
 
-      <ul className="max-h-40 overflow-auto border-b border-line">
-        {files.map((file) => (
-          <li key={file.to}>
-            <button
-              type="button"
-              onClick={() => setSelected(file.to)}
-              className={cn(
-                'w-full px-3 py-1 text-left font-mono text-[11px] hover:bg-panel-muted',
-                activeFile?.to === file.to && 'bg-panel-muted',
-              )}
-            >
-              <span className="block truncate">{file.to}</span>
-              <span className="block truncate text-ink-muted">← {file.from}</span>
-            </button>
-          </li>
-        ))}
-      </ul>
+      {activeNotice ? (
+        <p data-testid="undo-notice" className="border-b border-line bg-success/10 px-3 py-1.5 text-[11px] text-success">
+          已撤销到轮次 {activeNotice.targetTurn}（回退 {activeNotice.steps} 轮），可以重做。
+        </p>
+      ) : null}
 
-      <div className="min-h-0 flex-1 overflow-auto p-2">
-        {activeFile ? <DiffView from={activeFile.from} to={activeFile.to} /> : null}
-      </div>
+      {files.length === 0 ? (
+        <p data-testid="changes-empty-files" className="p-3 text-[12px] text-ink-muted">
+          该运行没有文件级变更记录。
+        </p>
+      ) : (
+        <>
+          <ul className="max-h-40 overflow-auto border-b border-line">
+            {files.map((file) => (
+              <li key={file.to}>
+                <button
+                  type="button"
+                  onClick={() => setSelected(file.to)}
+                  className={cn(
+                    'w-full px-3 py-1 text-left font-mono text-[11px] hover:bg-panel-muted',
+                    activeFile?.to === file.to && 'bg-panel-muted',
+                  )}
+                >
+                  <span className="block truncate">{file.to}</span>
+                  <span className="block truncate text-ink-muted">← {file.from}</span>
+                </button>
+              </li>
+            ))}
+          </ul>
+          <div className="min-h-0 flex-1 overflow-auto p-2">
+            {activeFile ? <DiffView from={activeFile.from} to={activeFile.to} /> : null}
+          </div>
+        </>
+      )}
 
-      {redoResult && !redoResult.ok ? (
+      {redoMessage ? (
         <p data-testid="undo-pruned" className="border-t border-line bg-warning/10 px-3 py-1 text-[11px] text-warning">
-          {redoResult.code === 'PRUNED'
-            ? '无法重做：目标轮次已不在保留范围。'
-            : `无法重做：${redoResult.code ?? '未知原因'}`}
+          {redoMessage}
         </p>
       ) : null}
 
@@ -102,32 +118,12 @@ export function ChangePanel(): JSX.Element {
           type="button"
           data-testid="undo-button"
           disabled={!scope.usable}
-          onClick={() => {
-            setUndoResult(null)
-            setPending(scope)
-            setDialogOpen(true)
-          }}
-          className={cn(
-            'rounded px-2 py-1 text-[11.5px] text-white',
-            scope.usable ? 'bg-accent' : 'bg-ink-muted/40',
-          )}
+          onClick={() => setDialogOpen(true)}
+          className={cn('rounded px-2 py-1 text-[11.5px] text-white', scope.usable ? 'bg-accent' : 'bg-ink-muted/40')}
         >
           撤销这批变更
         </button>
       </div>
-
-      {dialogOpen && pending ? (
-        <UndoDialog
-          run={run}
-          scope={pending}
-          result={undoResult}
-          onConfirm={() => void confirmUndo()}
-          onClose={() => {
-            setDialogOpen(false)
-            setPending(null)
-          }}
-        />
-      ) : null}
     </div>
   )
 }

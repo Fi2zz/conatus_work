@@ -21,7 +21,10 @@ test('checkpoint gap raises a banner', async ({ page }) => {
   await expect(page.getByTestId('checkpoint-gap-banner')).toContainText('空洞')
 })
 
-test('a denied approval stays in the timeline', async ({ page }) => {
+test('clicking 拒绝 records the decision in the timeline', async ({ page }) => {
   await page.goto('/?fixture=edge-approval-denied&speed=0')
+  await expect(page.getByTestId('approval-bar')).toBeVisible()
+  await page.getByRole('button', { name: '拒绝' }).click()
   await expect(page.getByTestId('timeline-entry-approval')).toContainText('已拒绝')
+  await expect(page.getByTestId('approval-bar')).toHaveCount(0)
 })

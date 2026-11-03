@@ -26,7 +26,7 @@ function groupRuns(runs: RunSummary[]): Array<[string, RunSummary[]]> {
   const recent = runs.filter((run) => dayOf(run.startedAt) === newest)
   const older = runs.filter((run) => dayOf(run.startedAt) !== newest)
   return [
-    ['最近', recent],
+    ['今天', recent],
     ['更早', older],
   ].filter(([, list]) => (list as RunSummary[]).length > 0) as Array<[string, RunSummary[]]>
 }

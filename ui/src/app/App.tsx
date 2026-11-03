@@ -6,6 +6,7 @@ import type { BridgeTransport } from '@/bridge/transport'
 import { findFixture } from '@/fixtures'
 
 import { readFixtureParam } from './fixture-param'
+import { ErrorBoundary } from './error-boundary'
 import { AppProvider } from './provider'
 import { Shell } from './Shell'
 
@@ -53,8 +54,10 @@ export default function App({ transport }: AppProps = {}): JSX.Element {
   }
 
   return (
-    <AppProvider transport={resolved}>
-      <Shell />
-    </AppProvider>
+    <ErrorBoundary>
+      <AppProvider transport={resolved}>
+        <Shell />
+      </AppProvider>
+    </ErrorBoundary>
   )
 }

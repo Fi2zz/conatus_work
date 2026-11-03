@@ -5,6 +5,7 @@ import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog'
 import { ApprovalBar } from '@/features/approval/ApprovalBar'
 import { ArtifactPanel } from '@/features/artifacts/ArtifactPanel'
 import { ChangePanel } from '@/features/changes/ChangePanel'
+import { UndoDialogHost } from '@/features/changes/UndoDialogHost'
 import { CheckpointPanel } from '@/features/checkpoints/CheckpointPanel'
 import { Composer } from '@/features/conversation/Composer'
 import { Timeline } from '@/features/conversation/Timeline'
@@ -12,6 +13,7 @@ import { SettingsPage } from '@/features/settings/SettingsPage'
 import { CommandPalette } from '@/features/tasks/CommandPalette'
 import { TaskList } from '@/features/tasks/TaskList'
 import { cn } from '@/lib/utils'
+import { undoScope } from '@/state/selectors'
 import { useUiStore, type RightTab } from '@/state/ui-state'
 import { useWorkbench, useWorkbenchStore } from '@/state/workbench-store'
 
@@ -118,18 +120,22 @@ export function Shell(): JSX.Element {
           <button type="button" onClick={() => setSettingsOpen(true)} className="hover:text-ink">
             设置
           </button>
-          <span data-testid="undo-scope-label">
-            可撤销 {Math.max(0, active?.checkpoints.turns.length ?? 0)} 轮
-          </span>
+          <span data-testid="undo-scope-label">可撤销 {active ? undoScope(active).steps : 0} 轮</span>
         </div>
       </aside>
 
       <main className="flex min-h-0 flex-col">
-        <header className="flex items-baseline justify-between border-b border-line bg-panel px-4 py-2">
+        <header
+          data-testid="run-header"
+          className="flex items-baseline justify-between border-b border-line bg-panel px-4 py-2"
+        >
           <h1 data-testid="run-title" className="truncate text-[13px] font-semibold">
             {active?.title ?? '未选择任务'}
           </h1>
-          <span className="text-[11px] text-ink-muted">
+          <span className="flex items-center gap-2 text-[11px] text-ink-muted">
+            {active?.synthetic ? (
+              <span className="rounded border border-warning/50 px-1 text-[10px] text-warning">合成数据</span>
+            ) : null}
             {active ? `${active.status} · ${active.model} · $${active.usage.costUsd.toFixed(4)}` : ''}
           </span>
         </header>
@@ -143,6 +149,7 @@ export function Shell(): JSX.Element {
       <RightPane />
       <CommandPalette />
       <SettingsDialog />
+      <UndoDialogHost />
     </div>
   )
 }

@@ -62,10 +62,17 @@ export function createReplayTransport(fixture: ReplayFixture, options: ReplayOpt
       seq: -1,
       at: 0,
       type: 'snapshot',
-      data: { runs: [summaryOf(fixture)], activeRunId: fixture.run.id },
+      data: {
+        runs: [summaryOf(fixture)],
+        activeRunId: fixture.run.id,
+        checkpoints: { [fixture.run.id]: fixture.checkpoints },
+      },
     })
+    let localSeq = 0
     for (const event of orderedEvents()) {
-      state = applyEvent(state, { ...event, seq: nextSeq++, runId: fixture.run.id } as BridgeEvent)
+      const delay = speed === 0 ? 0 : event.at / speed
+      if (delay > scheduler.now()) break
+      state = applyEvent(state, { ...event, seq: localSeq++, runId: fixture.run.id } as BridgeEvent)
     }
     return state
   }
@@ -76,7 +83,11 @@ export function createReplayTransport(fixture: ReplayFixture, options: ReplayOpt
         seq: -1,
         at: 0,
         type: 'snapshot',
-        data: { runs: [summaryOf(fixture)], activeRunId: fixture.run.id },
+        data: {
+          runs: [summaryOf(fixture)],
+          activeRunId: fixture.run.id,
+          checkpoints: { [fixture.run.id]: fixture.checkpoints },
+        },
       })
       for (const event of orderedEvents()) {
         if (speed === 0) {
@@ -123,7 +134,14 @@ export function createReplayTransport(fixture: ReplayFixture, options: ReplayOpt
       return ok(undefined)
     },
 
-    async respondApproval() {
+    async respondApproval(requestId: string, decision: 'allow' | 'deny') {
+      const requested = fixture.events.find(
+        (event) =>
+          event.type === 'approval/requested' &&
+          (event.data as { requestId?: string }).requestId === requestId,
+      )
+      const name = (requested?.data as { name?: string } | undefined)?.name ?? 'unknown'
+      emitReplayEvent({ seq: nextSeq, at: 0, type: 'approval/resolved', data: { requestId, name, decision } })
       return ok(undefined)
     },
 

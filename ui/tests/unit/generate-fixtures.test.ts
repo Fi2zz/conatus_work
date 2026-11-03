@@ -148,3 +148,33 @@ it('marks artifacts truncated above 64 KB', () => {
   expect(fixture.artifacts[0].truncated).toBe(true)
   expect(fixture.files['out/big.md'].length).toBeLessThan(big.length)
 })
+
+it('keeps added and modified counts from changes.json', () => {
+  const dir = makeRunDir({ files: { 'out/changes.json': '' } })
+  writeFileSync(
+    join(dir, 'workspace', 'out', 'changes.json'),
+    JSON.stringify({
+      operations: [{ from: 'a', to: 'b', sha256: 'x' }],
+      summary: { added: 2, modified: 3, moved: 1, quarantined: 0, deleted: 0 },
+    }),
+  )
+  const fixture = buildFixture(dir) as { changes: { summary: { added: number; modified: number } } }
+  expect(fixture.changes.summary.added).toBe(2)
+  expect(fixture.changes.summary.modified).toBe(3)
+})
+
+it('returns null when derived move entries are malformed', () => {
+  const dir = makeRunDir({
+    events: [
+      { seq: 0, type: 'user/message', time: STARTED_AT, data: { text: '整理' } },
+      {
+        seq: 1,
+        type: 'tool/result',
+        time: STARTED_AT,
+        data: { callId: 'c1', name: 'move', isError: false, content: JSON.stringify({ operations: [{ source: 'a' }] }) },
+      },
+    ],
+  })
+  const fixture = buildFixture(dir) as { changes: unknown }
+  expect(fixture.changes).toBeNull()
+})

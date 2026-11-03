@@ -84,6 +84,14 @@ export function EntryRow({ entry, expanded, onToggle }: EntryRowProps): JSX.Elem
     )
   }
 
+  if (entry.kind === 'redo') {
+    return (
+      <div data-testid="timeline-entry-redo" className="px-2 py-1 text-[11.5px] text-ink-muted">
+        重做 {entry.steps} 轮 · {entry.ok ? '成功' : `失败（${entry.code ?? '未知原因'}）`}
+      </div>
+    )
+  }
+
   return (
     <div data-testid="timeline-entry-status" className="px-2 py-1 text-[11.5px] text-ink-muted">
       状态 · {entry.status}

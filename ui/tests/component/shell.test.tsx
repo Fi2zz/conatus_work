@@ -2,6 +2,7 @@ import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 
 import App from '@/app/App'
+import { ErrorBoundary } from '@/app/error-boundary'
 import { readFixtureParam } from '@/app/fixture-param'
 import { TaskList } from '@/features/tasks/TaskList'
 
@@ -43,4 +44,16 @@ it('switches the active task', async () => {
   await screen.findByTestId('task-list')
   await userEvent.click(screen.getByText('任务 B'))
   expect(screen.getByTestId('run-title')).toHaveTextContent('任务 B')
+})
+
+it('shows a failure card instead of a blank page', () => {
+  function Boom(): never {
+    throw new Error('炸了')
+  }
+  render(
+    <ErrorBoundary>
+      <Boom />
+    </ErrorBoundary>,
+  )
+  expect(screen.getByTestId('render-error')).toHaveTextContent('炸了')
 })

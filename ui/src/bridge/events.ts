@@ -2,6 +2,7 @@ import type {
   ApprovalRequest,
   ArtifactView,
   ChangeSet,
+  CheckpointView,
   PlanItem,
   RedoResult,
   RunStatus,
@@ -11,7 +12,16 @@ import type {
 } from './types'
 
 export type BridgeEvent =
-  | { seq: number; at: number; type: 'snapshot'; data: { runs: RunSummary[]; activeRunId: string | null } }
+  | {
+      seq: number
+      at: number
+      type: 'snapshot'
+      data: {
+        runs: RunSummary[]
+        activeRunId: string | null
+        checkpoints?: Record<string, CheckpointView>
+      }
+    }
   | {
       seq: number
       at: number

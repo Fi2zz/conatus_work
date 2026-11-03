@@ -19,6 +19,7 @@ export function runFromSummary(summary: RunSummary): RunView {
     startedAt: summary.startedAt,
     endedAt: summary.endedAt,
     usage: summary.usage,
+    synthetic: summary.synthetic,
     timeline: [],
     artifacts: [],
     changes: null,

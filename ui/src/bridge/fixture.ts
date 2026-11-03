@@ -53,15 +53,40 @@ export function parseFixture(input: unknown): ReplayFixture {
   objectAt(run.usage, 'run.usage')
 
   arrayAt(root.events, 'events')
+  ;(root.events as unknown[]).forEach((event, index) => {
+    const item = objectAt(event, `events[${index}]`)
+    numberAt(item.seq, `events[${index}].seq`)
+    numberAt(item.at, `events[${index}].at`)
+    stringAt(item.type, `events[${index}].type`)
+  })
+
   arrayAt(root.artifacts, 'artifacts')
+  ;(root.artifacts as unknown[]).forEach((artifact, index) => {
+    const item = objectAt(artifact, `artifacts[${index}]`)
+    stringAt(item.path, `artifacts[${index}].path`)
+    objectAt(item.check, `artifacts[${index}].check`)
+  })
+
   objectAt(root.files, 'files')
   if (!('changes' in root)) fail('changes')
+  if (root.changes !== null) {
+    const changes = objectAt(root.changes, 'changes')
+    arrayAt(changes.files, 'changes.files')
+    ;(changes.files as unknown[]).forEach((file, index) => {
+      const item = objectAt(file, `changes.files[${index}]`)
+      stringAt(item.from, `changes.files[${index}].from`)
+      stringAt(item.to, `changes.files[${index}].to`)
+    })
+  }
 
   const checkpoints = objectAt(root.checkpoints, 'checkpoints')
   numberAt(checkpoints.currentTurn, 'checkpoints.currentTurn')
   numberAt(checkpoints.keep, 'checkpoints.keep')
   numberAt(checkpoints.startTurn, 'checkpoints.startTurn')
   arrayAt(checkpoints.turns, 'checkpoints.turns')
+  ;(checkpoints.turns as unknown[]).forEach((turn, index) => {
+    numberAt(objectAt(turn, `checkpoints.turns[${index}]`).turn, `checkpoints.turns[${index}].turn`)
+  })
   arrayAt(checkpoints.gaps, 'checkpoints.gaps')
 
   return root as unknown as ReplayFixture

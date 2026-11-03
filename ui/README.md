@@ -20,7 +20,7 @@ npm run dev
 | id | 来源 | 用途 |
 |---|---|---|
 | `organize-v01` | 真实运行 | 主回放：10 移动 + 1 冲突，2 个产物，可撤销 |
-| `csv-sales-analysis-v01` | 真实运行 | 3 个产物（含图表 HTML） |
+| `csv-sales-analysis-v01` | 真实运行 | 3 个产物（含 SVG 图表） |
 | `research-cited-report-v01` | 真实运行 | 长文本、多工具、长耗时 |
 | `edge-undo-failed` | 合成 | 撤销逐文件失败 |
 | `edge-redo-pruned` | 合成 | 重做目标已被裁剪（`PRUNED`） |

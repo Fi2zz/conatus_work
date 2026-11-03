@@ -1,32 +1,32 @@
 import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 
-import { ChangePanel } from '@/features/changes/ChangePanel'
+import { Shell } from '@/app/Shell'
 
 import { changes, seedChanges } from '../helpers/changes'
 
 it('shows the change summary and file count', () => {
   seedChanges(changes())
-  render(<ChangePanel />)
+  render(<Shell />)
   expect(screen.getByTestId('change-summary')).toHaveTextContent('11')
 })
 
 it('renders unified diff with +/- coloring', () => {
   seedChanges(changes())
-  render(<ChangePanel />)
+  render(<Shell />)
   expect(screen.getAllByTestId('diff-line-del').length).toBeGreaterThan(0)
   expect(screen.getAllByTestId('diff-line-add').length).toBeGreaterThan(0)
 })
 
 it('disables undo when there is nothing to undo', () => {
   seedChanges(changes(), { currentTurn: 0, turns: [] })
-  render(<ChangePanel />)
+  render(<Shell />)
   expect(screen.getByTestId('undo-button')).toBeDisabled()
 })
 
 it('confirms with round, target turn and file count before undo', async () => {
   seedChanges(changes())
-  render(<ChangePanel />)
+  render(<Shell />)
   await userEvent.click(screen.getByTestId('undo-button'))
   const dialog = await screen.findByTestId('undo-dialog')
   expect(dialog).toHaveTextContent('回退到轮次')
@@ -45,7 +45,7 @@ it('lists per-file failures after a failed undo', async () => {
       ],
     },
   })
-  render(<ChangePanel />)
+  render(<Shell />)
   await userEvent.click(screen.getByTestId('undo-button'))
   await userEvent.click(await screen.findByRole('button', { name: '确认撤销' }))
   const failures = await screen.findByTestId('undo-failure-list')
@@ -54,13 +54,13 @@ it('lists per-file failures after a failed undo', async () => {
 
 it('explains a pruned redo instead of silently failing', async () => {
   seedChanges(changes(), { redo: { ok: false, appliedSteps: 0, code: 'PRUNED' } })
-  render(<ChangePanel />)
+  render(<Shell />)
   await userEvent.click(screen.getByTestId('redo-button'))
   expect(await screen.findByTestId('undo-pruned')).toHaveTextContent('无法重做')
 })
 
 it('shows an explicit message when changes are null', () => {
   seedChanges(null)
-  render(<ChangePanel />)
+  render(<Shell />)
   expect(screen.getByTestId('changes-empty')).toHaveTextContent('该运行未记录变更')
 })
