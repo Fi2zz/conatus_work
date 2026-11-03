@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:conatus_work/conatus_work.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:webview_flutter/webview_flutter.dart';
 
@@ -45,13 +46,12 @@ class _ShellAppState extends State<ShellApp> {
       cwd: Directory.current.path,
       executable: Platform.resolvedExecutable,
     );
-    final String? uiDir =
-        _env('CONATUS_WORK_UI') ?? findUiDir(roots);
+    final String? uiDir = _env('CONATUS_WORK_UI') ?? findUiDir(roots);
     if (uiDir == null) {
       if (!mounted) return;
       setState(
-        () => _error =
-            '找不到前端构建产物（ui/dist/index.html）。已尝试：\n${roots.join('\n')}',
+        () =>
+            _error = '找不到前端构建产物（ui/dist/index.html）。已尝试：\n${roots.join('\n')}',
       );
       return;
     }
@@ -63,12 +63,32 @@ class _ShellAppState extends State<ShellApp> {
     try {
       final AssetServer server = AssetServer(root: Directory(uiDir));
       await server.start();
-      final WebViewController controller = WebViewController()
-        ..setJavaScriptMode(JavaScriptMode.unrestricted);
+      late final WebViewController controller;
+      controller = WebViewController()
+        ..setJavaScriptMode(JavaScriptMode.unrestricted)
+        ..setOnConsoleMessage(
+          (JavaScriptConsoleMessage message) =>
+              debugPrint('console ${message.level.name}: ${message.message}'),
+        )
+        ..setNavigationDelegate(
+          NavigationDelegate(
+            onPageStarted: (String url) => debugPrint('page started: $url'),
+            onPageFinished: (String url) =>
+                unawaited(_inspect(controller, url)),
+            onHttpError: (HttpResponseError error) => debugPrint(
+              'http error ${error.response?.statusCode} ${error.request?.uri}',
+            ),
+            onWebResourceError: (WebResourceError error) => debugPrint(
+              'resource error ${error.errorCode} ${error.description} ${error.url}',
+            ),
+          ),
+        );
       final ShellChannel channel = ShellChannel(
         host: BridgeHost(bridge: WorkbenchBridge(runsDir: runsDir)),
         post: (String json) => unawaited(
-          controller.runJavaScript('window.__conatusReceive(${jsonEncode(json)});'),
+          controller.runJavaScript(
+            'window.__conatusReceive(${jsonEncode(json)});',
+          ),
         ),
       );
       await controller.addJavaScriptChannel(
@@ -85,6 +105,28 @@ class _ShellAppState extends State<ShellApp> {
     } on Object catch (error) {
       if (!mounted) return;
       setState(() => _error = '$error');
+    }
+  }
+
+  Future<void> _inspect(WebViewController controller, String url) async {
+    debugPrint('page finished: $url');
+    try {
+      final Object report = await controller.runJavaScriptReturningResult(
+        'JSON.stringify({root: (document.getElementById("root") || {innerHTML: ""}).innerHTML.length, '
+        'errors: window.__errors || []})',
+      );
+      debugPrint('page report: $report');
+      if (kDebugMode) {
+        // 前端首屏要等一个 fixture 动态 import，页完成时还是空壳；延迟复查一次。
+        await Future<void>.delayed(const Duration(seconds: 3));
+        final Object mounted = await controller.runJavaScriptReturningResult(
+          'JSON.stringify({root: document.getElementById("root").innerHTML.length, '
+          'errors: window.__errors || []})',
+        );
+        debugPrint('page settled: $mounted');
+      }
+    } on Object catch (error) {
+      debugPrint('inspect failed: $error');
     }
   }
 
@@ -124,7 +166,9 @@ class _StartupError extends StatelessWidget {
           const SizedBox(height: 8),
           SelectableText(message),
           const SizedBox(height: 12),
-          const Text('先在 ui/ 下跑 npm run build，并用 CONATUS_WORK_UI / CONATUS_WORK_RUNS 指定路径。'),
+          const Text(
+            '先在 ui/ 下跑 npm run build，并用 CONATUS_WORK_UI / CONATUS_WORK_RUNS 指定路径。',
+          ),
         ],
       ),
     );

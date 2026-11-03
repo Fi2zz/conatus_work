@@ -2,9 +2,12 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
+	<!-- 桌面壳要读用户工作区、并连本地回环资源服务；按设计稿 7.5 不走 App Store/沙箱。 -->
 	<key>com.apple.security.app-sandbox</key>
-	<true/>
+	<false/>
 	<key>com.apple.security.cs.allow-jit</key>
+	<true/>
+	<key>com.apple.security.network.client</key>
 	<true/>
 	<key>com.apple.security.network.server</key>
 	<true/>

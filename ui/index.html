@@ -6,6 +6,16 @@
     <title>Conatus Work</title>
   </head>
   <body>
+    <!-- 启动期错误捕获：壳可以把 window.__errors 读出来做诊断。 -->
+    <script>
+      window.__errors = []
+      window.addEventListener('error', function (event) {
+        window.__errors.push(String(event.message || event.error))
+      })
+      window.addEventListener('unhandledrejection', function (event) {
+        window.__errors.push('rejection: ' + String(event.reason))
+      })
+    </script>
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
   </body>

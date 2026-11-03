@@ -4,6 +4,12 @@
 <dict>
 	<key>CFBundleDevelopmentRegion</key>
 	<string>$(DEVELOPMENT_LANGUAGE)</string>
+	<key>NSAppTransportSecurity</key>
+	<dict>
+		<!-- 只放开本地回环：界面由 127.0.0.1 上的受控资源服务提供。 -->
+		<key>NSAllowsLocalNetworking</key>
+		<true/>
+	</dict>
 	<key>CFBundleDisplayName</key>
 	<string>Conatus Work</string>
 	<key>CFBundleExecutable</key>
