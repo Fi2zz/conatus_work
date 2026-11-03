@@ -10,10 +10,10 @@ class MainFlutterWindow: NSWindow {
     self.minSize = NSSize(width: 960, height: 600)
     self.center()
     self.setFrame(self.frame, display: true)
-    self.title = "Conatus Work"
-
     RegisterGeneratedPlugins(registry: flutterViewController)
 
     super.awakeFromNib()
+    // 模板的 MainMenu.xib 会在 awakeFromNib 后重置标题，这里再写一次。
+    self.title = "Conatus Work"
   }
 }

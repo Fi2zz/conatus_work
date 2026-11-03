@@ -8,10 +8,7 @@ import 'package:webview_flutter/webview_flutter.dart';
 
 import 'asset_server.dart';
 import 'channel.dart';
-
-/// 开发期默认路径（相对 `shell/` 目录）。
-const String kDefaultUiDir = '../ui/dist';
-const String kDefaultRunsDir = '../var/runs';
+import 'paths.dart';
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
@@ -44,8 +41,25 @@ class _ShellAppState extends State<ShellApp> {
   }
 
   Future<void> _boot() async {
-    final String uiDir = _pathFromEnv('CONATUS_WORK_UI', kDefaultUiDir);
-    final String runsDir = _pathFromEnv('CONATUS_WORK_RUNS', kDefaultRunsDir);
+    final List<String> roots = candidateRoots(
+      cwd: Directory.current.path,
+      executable: Platform.resolvedExecutable,
+    );
+    final String? uiDir =
+        _env('CONATUS_WORK_UI') ?? findUiDir(roots);
+    if (uiDir == null) {
+      if (!mounted) return;
+      setState(
+        () => _error =
+            '找不到前端构建产物（ui/dist/index.html）。已尝试：\n${roots.join('\n')}',
+      );
+      return;
+    }
+    final String runsDir =
+        _env('CONATUS_WORK_RUNS') ??
+        findRunsDir(roots) ??
+        '${Directory(uiDir).parent.parent.path}/var/runs';
+    debugPrint('conatus shell: ui=$uiDir runs=$runsDir');
     try {
       final AssetServer server = AssetServer(root: Directory(uiDir));
       await server.start();
@@ -117,7 +131,7 @@ class _StartupError extends StatelessWidget {
   }
 }
 
-String _pathFromEnv(String name, String fallback) {
+String? _env(String name) {
   final String? value = Platform.environment[name];
-  return value == null || value.isEmpty ? fallback : value;
+  return value == null || value.isEmpty ? null : value;
 }

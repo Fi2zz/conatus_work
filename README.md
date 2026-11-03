@@ -66,7 +66,8 @@ cd ../shell && flutter run -d macos
 
 - 壳用 loopback HTTP + 一次性 token 提供 `ui/dist`，不用 `file://`（ES module 与 CORS 更稳）
 - 消息通道：WKWebView `JavaScriptChannel('conatus')` 上行、`window.__conatusReceive` 下行
-- 路径可用 `CONATUS_WORK_UI` / `CONATUS_WORK_RUNS` 覆盖，缺省 `../ui/dist`、`../var/runs`
+- 路径不依赖 cwd：先从当前目录、再从可执行文件位置向上找含 `ui/dist` 的仓库根；
+  `CONATUS_WORK_UI` / `CONATUS_WORK_RUNS` 可覆盖
 - `ui/dist` 缺失时窗口显示明确错误，不是白屏
 
 ## 桥接层（`lib/src/bridge/`）
