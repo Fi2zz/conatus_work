@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useRef } from 'react'
 import type { JSX, PointerEvent as ReactPointerEvent } from 'react'
 
 import { getTransport, hasTransport } from '@/bridge/transport-store'
@@ -100,7 +100,9 @@ export function Shell(): JSX.Element {
   const setNewTaskOpen = useUiStore((state) => state.setNewTaskOpen)
   const setCompareOpen = useUiStore((state) => state.setCompareOpen)
   const leftCollapsed = useUiStore((state) => state.leftCollapsed)
-  const [stopping, setStopping] = useState(false)
+  const stoppingRunId = useUiStore((state) => state.stoppingRunId)
+  const setStoppingRun = useUiStore((state) => state.setStoppingRun)
+  const stopping = stoppingRunId !== null && stoppingRunId === activeRunId
   const toggleLeft = useUiStore((state) => state.toggleLeft)
   const rightWidth = useUiStore((state) => state.rightWidth)
 
@@ -133,6 +135,11 @@ export function Shell(): JSX.Element {
     return () => window.removeEventListener('keydown', onKeyDown)
   }, [setCommandOpen, setUndoDialog, setNewTaskOpen, running, stopping, active?.id])
 
+  // 运行结束（或切换了任务）就把「停止中」清掉。
+  useEffect(() => {
+    if (stoppingRunId !== null && !running) setStoppingRun(null)
+  }, [stoppingRunId, running, setStoppingRun])
+
   function selectTask(runId: string): void {
     setActive(runId)
     const existing = runs[runId]
@@ -150,11 +157,12 @@ export function Shell(): JSX.Element {
 
   async function stop(): Promise<void> {
     if (!active || stopping) return
-    setStopping(true)
+    // 先给即时反馈，等运行真正结束（task/ended）再清掉。
+    setStoppingRun(active.id)
     try {
       await getTransport().cancelTask(active.id)
-    } finally {
-      setStopping(false)
+    } catch {
+      setStoppingRun(null)
     }
   }
 
@@ -259,8 +267,19 @@ export function Shell(): JSX.Element {
               对比
             </Button>
             {running ? (
-              <Button size="sm" data-testid="stop-button" onClick={() => void stop()}>
-                停止
+              <Button
+                size="sm"
+                variant="danger"
+                data-testid="stop-button"
+                aria-label="停止运行（⌘.）"
+                title="停止运行（⌘.）"
+                disabled={stopping}
+                onClick={() => void stop()}
+              >
+                <span aria-hidden className="text-[9px] leading-none">
+                  ■
+                </span>
+                {stopping ? '停止中…' : '停止'}
               </Button>
             ) : null}
             {retryable ? (

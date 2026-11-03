@@ -25,7 +25,13 @@ export function seedRun(timeline: TimelineEntry[], over: Partial<RunView> = {}):
     unknownEvents: 0,
     seenSeqs: {},
   })
-  useUiStore.setState({ filter: 'all', expandedKeys: new Set<string>(), rightTab: 'artifacts', undoDialog: false })
+  useUiStore.setState({
+    filter: 'all',
+    expandedKeys: new Set<string>(),
+    rightTab: 'artifacts',
+    undoDialog: false,
+    stoppingRunId: null,
+  })
   return run
 }
 

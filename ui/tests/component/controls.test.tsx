@@ -46,6 +46,9 @@ it('exposes an explicit stop button while running', async () => {
   expect(button).toHaveTextContent('停止')
   await userEvent.click(button)
   expect(cancelled).toEqual(['run-a'])
+  // 点击后立即进入「停止中」，直到运行结束
+  expect(button).toHaveTextContent('停止中')
+  expect(button).toBeDisabled()
 })
 
 it('stops the running task with cmd+period', async () => {

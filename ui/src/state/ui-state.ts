@@ -19,6 +19,7 @@ interface UiState {
   settingsOpen: boolean
   newTaskOpen: boolean
   compareOpen: boolean
+  stoppingRunId: string | null
   undoNotice: { runId: string; targetTurn: number; steps: number } | null
   setFilter: (filter: TimelineFilter) => void
   toggleLeft: () => void
@@ -34,6 +35,7 @@ interface UiState {
   setSettingsOpen: (open: boolean) => void
   setNewTaskOpen: (open: boolean) => void
   setCompareOpen: (open: boolean) => void
+  setStoppingRun: (runId: string | null) => void
   setUndoNotice: (notice: { runId: string; targetTurn: number; steps: number } | null) => void
 }
 
@@ -52,6 +54,7 @@ export const useUiStore = create<UiState>((set) => ({
   settingsOpen: false,
   newTaskOpen: false,
   compareOpen: false,
+  stoppingRunId: null,
   undoNotice: null,
   setFilter: (filter) => set({ filter }),
   toggleLeft: () => set((state) => ({ leftCollapsed: !state.leftCollapsed })),
@@ -73,5 +76,6 @@ export const useUiStore = create<UiState>((set) => ({
   setSettingsOpen: (settingsOpen) => set({ settingsOpen }),
   setNewTaskOpen: (newTaskOpen) => set({ newTaskOpen }),
   setCompareOpen: (compareOpen) => set({ compareOpen }),
+  setStoppingRun: (stoppingRunId) => set({ stoppingRunId }),
   setUndoNotice: (undoNotice) => set({ undoNotice }),
 }))

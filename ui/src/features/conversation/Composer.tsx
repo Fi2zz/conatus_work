@@ -13,6 +13,9 @@ export function Composer(): JSX.Element {
   const draft = useUiStore((state) => state.composerDraft)
   const setDraft = useUiStore((state) => state.setComposerDraft)
   const area = useRef<HTMLTextAreaElement>(null)
+  const stoppingRunId = useUiStore((state) => state.stoppingRunId)
+  const setStoppingRun = useUiStore((state) => state.setStoppingRun)
+  const stopping = run?.id !== undefined && stoppingRunId === run.id
 
   const pendingApproval = run?.approval !== undefined
   const ended = run ? FINISHED.has(run.status) : false
@@ -64,13 +67,19 @@ export function Composer(): JSX.Element {
             variant="danger"
             data-testid="composer-stop"
             aria-label="停止运行"
-            onClick={() => void getTransport().cancelTask(run.id)}
+            disabled={stopping}
+            onClick={() => {
+              setStoppingRun(run.id)
+              void getTransport()
+                .cancelTask(run.id)
+                .catch(() => setStoppingRun(null))
+            }}
             className="mb-0.5"
           >
             <span aria-hidden className="text-[9px] leading-none">
               ■
             </span>
-            停止
+            {stopping ? '停止中…' : '停止'}
           </Button>
         ) : (
           <Button

@@ -51,7 +51,7 @@ Future<TaskOutcome> agentTaskBody(RunScope scope, TaskSpec task) async {
   final Timer timer = Timer(Duration(seconds: seconds), cancel.cancel);
   // 壳里点「停止」是写 abort.request；进程内运行要自己轮询，否则只能等跑完。
   final AbortSignal signal = AbortSignal(scope.paths.abortFlagPath);
-  final Timer heartbeat = Timer.periodic(const Duration(milliseconds: 400), (
+  final Timer heartbeat = Timer.periodic(const Duration(milliseconds: 120), (
     Timer _,
   ) {
     if (signal.requested) cancel.cancel();
