@@ -15,12 +15,32 @@ type PreviewState =
   | { status: 'missing' }
   | { status: 'ok'; content: string; truncated: boolean }
 
+function prettyJson(text: string): string {
+  try {
+    return JSON.stringify(JSON.parse(text), null, 2)
+  } catch {
+    return text
+  }
+}
+
 function bodyOf(artifact: ArtifactView, state: PreviewState): JSX.Element {
-  if (state.status === 'loading') return <p className="p-3 text-[12px] text-ink-muted">加载中…</p>
+  if (state.status === 'loading') {
+    return (
+      <div className="flex flex-col gap-2 p-4" aria-busy>
+        {[92, 78, 84, 56].map((width, index) => (
+          <div
+            key={index}
+            className="h-3 animate-pulse rounded-sm bg-panel-muted"
+            style={{ width: `${width}%` }}
+          />
+        ))}
+      </div>
+    )
+  }
   if (state.status === 'missing') {
     return (
-      <p data-testid="artifact-missing" className="p-3 text-[12px] text-ink-muted">
-        产物正文不可用：{artifact.path}
+      <p data-testid="artifact-missing" className="p-4 text-[11.5px] text-ink-muted">
+        产物正文不可用：<span className="font-mono">{artifact.path}</span>
       </p>
     )
   }
@@ -39,13 +59,26 @@ function bodyOf(artifact: ArtifactView, state: PreviewState): JSX.Element {
     return (
       <div
         data-testid="artifact-markdown"
-        className="prose-sm overflow-y-auto p-3 text-[12.5px] [&_h1]:text-[15px] [&_h1]:font-semibold [&_h2]:mt-3 [&_h2]:text-[13.5px] [&_h2]:font-semibold [&_li]:ml-4 [&_li]:list-disc [&_p]:mt-1"
+        className="prose-wb overflow-y-auto px-4 py-3"
         dangerouslySetInnerHTML={{ __html: renderMarkdown(state.content) }}
       />
     )
   }
+  if (artifact.path.endsWith('.json')) {
+    return (
+      <pre
+        data-testid="artifact-text"
+        className="min-w-0 overflow-auto px-4 py-3 font-mono text-[10.5px] leading-relaxed whitespace-pre"
+      >
+        {prettyJson(state.content)}
+      </pre>
+    )
+  }
   return (
-    <pre data-testid="artifact-text" className="overflow-auto whitespace-pre-wrap p-3 font-mono text-[11.5px]">
+    <pre
+      data-testid="artifact-text"
+      className="min-w-0 overflow-auto px-4 py-3 font-mono text-[11px] leading-relaxed whitespace-pre-wrap"
+    >
       {state.content}
     </pre>
   )
@@ -78,7 +111,10 @@ export function ArtifactPreview({ runId, artifact }: ArtifactPreviewProps): JSX.
   return (
     <div data-testid="artifact-preview" className="flex min-h-0 flex-1 flex-col">
       {state.status === 'ok' && state.truncated ? (
-        <p data-testid="artifact-truncated" className="border-b border-line bg-warning/10 px-3 py-1 text-[11px] text-warning">
+        <p
+          data-testid="artifact-truncated"
+          className="border-b border-warning/30 bg-warning/10 px-3 py-1 text-[10.5px] text-warning"
+        >
           正文超过 64 KB，只显示前 64 KB。
         </p>
       ) : null}

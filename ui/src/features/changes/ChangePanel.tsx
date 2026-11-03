@@ -2,7 +2,9 @@ import { useState } from 'react'
 import type { JSX } from 'react'
 
 import { getTransport } from '@/bridge/transport-store'
-import type { BridgeErrorCode, RedoResult } from '@/bridge/types'
+import type { BridgeErrorCode } from '@/bridge/types'
+import { Button } from '@/components/ui/button'
+import { EmptyState } from '@/components/ui/empty-state'
 import { undoScope } from '@/state/selectors'
 import { useUiStore } from '@/state/ui-state'
 import { useWorkbench } from '@/state/workbench-store'
@@ -17,6 +19,17 @@ const ERROR_TEXT: Record<BridgeErrorCode, string> = {
   INTERNAL: '宿主内部错误。',
 }
 
+function Stat({ label, value, tone }: { label: string; value: number; tone?: 'success' | 'danger' }): JSX.Element {
+  return (
+    <span className="inline-flex items-baseline gap-1">
+      <span className="text-[10.5px] text-ink-muted">{label}</span>
+      <span className={cn('text-[12px] font-semibold tnum', tone === 'danger' && 'text-danger')}>
+        {value}
+      </span>
+    </span>
+  )
+}
+
 export function ChangePanel(): JSX.Element {
   const run = useWorkbench((state) => (state.activeRunId ? state.runs[state.activeRunId] : undefined))
   const setDialogOpen = useUiStore((state) => state.setUndoDialog)
@@ -24,11 +37,10 @@ export function ChangePanel(): JSX.Element {
   const [selected, setSelected] = useState<string | null>(null)
   const [redoMessage, setRedoMessage] = useState<string | null>(null)
 
-  if (!run) return <p className="p-3 text-[12px] text-ink-muted">未选择任务。</p>
-
+  if (!run) return <EmptyState title="未选择任务" hint="选一条运行后，这里会列出它改动的文件。" />
   if (!run.changes) {
     return (
-      <p data-testid="changes-empty" className="p-3 text-[12px] text-ink-muted">
+      <p data-testid="changes-empty" className="p-4 text-[11.5px] text-ink-muted">
         该运行未记录变更。
       </p>
     )
@@ -46,49 +58,55 @@ export function ChangePanel(): JSX.Element {
       setRedoMessage(ERROR_TEXT[result.error.code])
       return
     }
-    const value: RedoResult = result.value
-    if (!value.ok) setRedoMessage(ERROR_TEXT[value.code ?? 'INTERNAL'])
+    if (!result.value.ok) setRedoMessage(ERROR_TEXT[result.value.code ?? 'INTERNAL'])
   }
 
   return (
     <div className="flex min-h-0 flex-1 flex-col">
       <div
         data-testid="change-summary"
-        className="flex items-center justify-between border-b border-line px-3 py-1.5 text-[11.5px]"
+        className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1 border-b border-line/70 px-3 py-2"
       >
-        <span>
-          移动 {run.changes.summary.moved} · 冲突 {run.changes.summary.quarantined ?? 0} · 新增{' '}
-          {run.changes.summary.added} · 修改 {run.changes.summary.modified} · 删除{' '}
-          {run.changes.summary.deleted}
+        <span className="flex items-center gap-3">
+          移动 {run.changes.summary.moved}
+          <Stat label="冲突" value={run.changes.summary.quarantined ?? 0} />
+          <Stat label="新增" value={run.changes.summary.added} />
+          <Stat label="修改" value={run.changes.summary.modified} />
+          <Stat label="删除" value={run.changes.summary.deleted} tone="danger" />
         </span>
-        <span className="text-ink-muted">{scope.usable ? `可撤销至轮次 ${scope.targetTurn}` : scope.reason}</span>
+        <span className="text-[10.5px] text-ink-muted">
+          {scope.usable ? `可撤销至轮次 ${scope.targetTurn}` : scope.reason}
+        </span>
       </div>
 
       {activeNotice ? (
-        <p data-testid="undo-notice" className="border-b border-line bg-success/10 px-3 py-1.5 text-[11px] text-success">
+        <p
+          data-testid="undo-notice"
+          className="border-b border-success/30 bg-success/8 px-3 py-1.5 text-[11px] text-success"
+        >
           已撤销到轮次 {activeNotice.targetTurn}（回退 {activeNotice.steps} 轮），可以重做。
         </p>
       ) : null}
 
       {files.length === 0 ? (
-        <p data-testid="changes-empty-files" className="p-3 text-[12px] text-ink-muted">
+        <p data-testid="changes-empty-files" className="p-4 text-[11.5px] text-ink-muted">
           该运行没有文件级变更记录。
         </p>
       ) : (
         <>
-          <ul className="max-h-40 overflow-auto border-b border-line">
+          <ul className="max-h-40 overflow-auto border-b border-line/70 py-1">
             {files.map((file) => (
               <li key={file.to}>
                 <button
                   type="button"
                   onClick={() => setSelected(file.to)}
                   className={cn(
-                    'w-full px-3 py-1 text-left font-mono text-[11px] hover:bg-panel-muted',
+                    'w-full px-3 py-1 text-left transition-colors duration-[var(--dur-fast)] hover:bg-panel-muted',
                     activeFile?.to === file.to && 'bg-panel-muted',
                   )}
                 >
-                  <span className="block truncate">{file.to}</span>
-                  <span className="block truncate text-ink-muted">← {file.from}</span>
+                  <span className="block truncate font-mono text-[11px]">{file.to}</span>
+                  <span className="block truncate font-mono text-[10px] text-ink-faint">← {file.from}</span>
                 </button>
               </li>
             ))}
@@ -100,29 +118,27 @@ export function ChangePanel(): JSX.Element {
       )}
 
       {redoMessage ? (
-        <p data-testid="undo-pruned" className="border-t border-line bg-warning/10 px-3 py-1 text-[11px] text-warning">
+        <p
+          data-testid="undo-pruned"
+          className="border-t border-warning/30 bg-warning/10 px-3 py-1 text-[10.5px] text-warning"
+        >
           {redoMessage}
         </p>
       ) : null}
 
-      <div className="flex items-center justify-between gap-2 border-t border-line px-3 py-2">
-        <button
-          type="button"
-          data-testid="redo-button"
-          onClick={() => void requestRedo()}
-          className="rounded border border-line px-2 py-1 text-[11.5px]"
-        >
+      <div className="flex items-center justify-between gap-2 border-t border-line/70 px-3 py-2">
+        <Button size="sm" data-testid="redo-button" onClick={() => void requestRedo()}>
           重做
-        </button>
-        <button
-          type="button"
+        </Button>
+        <Button
+          size="sm"
+          variant="primary"
           data-testid="undo-button"
           disabled={!scope.usable}
           onClick={() => setDialogOpen(true)}
-          className={cn('rounded px-2 py-1 text-[11.5px] text-white', scope.usable ? 'bg-accent' : 'bg-ink-muted/40')}
         >
           撤销这批变更
-        </button>
+        </Button>
       </div>
     </div>
   )

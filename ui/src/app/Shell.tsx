@@ -1,160 +1,36 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useRef } from 'react'
 import type { JSX, PointerEvent as ReactPointerEvent } from 'react'
 
 import { getTransport, hasTransport } from '@/bridge/transport-store'
-import type { TaskCard } from '@/bridge/types'
-import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog'
+import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
 import { ApprovalBar } from '@/features/approval/ApprovalBar'
-import { ArtifactPanel } from '@/features/artifacts/ArtifactPanel'
-import { ChangePanel } from '@/features/changes/ChangePanel'
-import { UndoDialogHost } from '@/features/changes/UndoDialogHost'
-import { CheckpointPanel } from '@/features/checkpoints/CheckpointPanel'
 import { Composer } from '@/features/conversation/Composer'
 import { Timeline } from '@/features/conversation/Timeline'
-import { SettingsPage } from '@/features/settings/SettingsPage'
 import { CommandPalette } from '@/features/tasks/CommandPalette'
 import { TaskList } from '@/features/tasks/TaskList'
+import { UndoDialogHost } from '@/features/changes/UndoDialogHost'
 import { cn } from '@/lib/utils'
 import { undoScope } from '@/state/selectors'
-import { useUiStore, type RightTab } from '@/state/ui-state'
+import { useUiStore } from '@/state/ui-state'
 import { useWorkbench, useWorkbenchStore } from '@/state/workbench-store'
-
-const TABS: Array<{ value: RightTab; label: string }> = [
-  { value: 'artifacts', label: '产物' },
-  { value: 'changes', label: '变更' },
-  { value: 'checkpoints', label: '检查点' },
-]
+import { NewTaskDialog, SettingsDialog } from './dialogs'
+import { RightPane } from './RightPane'
 
 const RAIL_WIDTH = 56
-const LIST_WIDTH = 240
+const LIST_WIDTH = 264
 const DEFAULT_RIGHT = 380
+
+const STATUS_TONE = {
+  pending: 'neutral',
+  running: 'accent',
+  succeeded: 'success',
+  failed: 'danger',
+  aborted: 'neutral',
+} as const
 
 function clampWidth(width: number): number {
   return Math.min(560, Math.max(320, width))
-}
-
-function RightPane(): JSX.Element {
-  const tab = useUiStore((state) => state.rightTab)
-  const setTab = useUiStore((state) => state.setRightTab)
-  return (
-    <aside data-testid="right-pane" className="flex min-h-0 flex-col border-l border-line bg-panel">
-      <div className="flex gap-3 border-b border-line px-3 pt-2 text-[12px]">
-        {TABS.map((item) => (
-          <button
-            key={item.value}
-            type="button"
-            onClick={() => setTab(item.value)}
-            className={cn('pb-1.5', tab === item.value ? 'border-b-2 border-accent text-ink' : 'text-ink-muted')}
-          >
-            {item.label}
-          </button>
-        ))}
-      </div>
-      <div className="flex min-h-0 flex-1 flex-col">
-        {tab === 'artifacts' ? <ArtifactPanel /> : null}
-        {tab === 'changes' ? <ChangePanel /> : null}
-        {tab === 'checkpoints' ? <CheckpointPanel /> : null}
-      </div>
-    </aside>
-  )
-}
-
-function NewTaskDialog(): JSX.Element {
-  const open = useUiStore((state) => state.newTaskOpen)
-  const setOpen = useUiStore((state) => state.setNewTaskOpen)
-  const adoptRun = useWorkbenchStore((store) => store.adoptRun)
-  const [cards, setCards] = useState<TaskCard[]>([])
-  const [error, setError] = useState<string | null>(null)
-  const [workspace, setWorkspace] = useState<string | null>(null)
-
-  useEffect(() => {
-    if (!open || !hasTransport()) return
-    void getTransport()
-      .listCards()
-      .then((result) => {
-        if (result.ok) setCards(result.value)
-        else setError(result.error.message)
-      })
-      .catch((cause: unknown) => setError(String(cause)))
-  }, [open])
-
-  async function pick(card: TaskCard): Promise<void> {
-    setOpen(false)
-    setError(null)
-    const started = await getTransport().startTask(card.id, workspace ?? undefined)
-    if (!started.ok) {
-      setError(started.error.message)
-      setOpen(true)
-      return
-    }
-    const view = await getTransport().openTask(started.value.runId)
-    if (view.ok) adoptRun(view.value)
-  }
-
-  if (!open) return <></>
-  return (
-    <Dialog open onOpenChange={setOpen}>
-      <DialogContent labelledBy="new-task-title">
-        <DialogTitle id="new-task-title">新任务</DialogTitle>
-        <div data-testid="new-task-dialog">
-          {error ? <p className="mb-2 text-[12px] text-danger">{error}</p> : null}
-          <div className="mb-2 flex items-center justify-between gap-2 text-[11.5px]">
-            <span className="truncate text-ink-muted" data-testid="workspace-path">
-              工作区：{workspace ?? '任务卡默认'}
-            </span>
-            <button
-              type="button"
-              data-testid="choose-workspace"
-              onClick={() => {
-                void getTransport()
-                  .chooseWorkspace()
-                  .then((result) => {
-                    if (result.ok) setWorkspace(result.value.path)
-                  })
-              }}
-              className="shrink-0 rounded border border-line px-1.5 py-0.5"
-            >
-              选择…
-            </button>
-          </div>
-          {cards.length === 0 ? (
-            <p className="text-[12px] text-ink-muted">没有可用的任务卡。</p>
-          ) : (
-            <ul className="max-h-72 overflow-auto">
-              {cards.map((card) => (
-                <li key={card.id}>
-                  <button
-                    type="button"
-                    onClick={() => void pick(card)}
-                    className="w-full rounded px-2 py-1 text-left text-[12px] hover:bg-panel-muted"
-                  >
-                    <span className="block truncate">{card.title}</span>
-                    <span className="block truncate text-[10.5px] text-ink-muted">
-                      {card.chain} · {card.id}
-                    </span>
-                  </button>
-                </li>
-              ))}
-            </ul>
-          )}
-        </div>
-      </DialogContent>
-    </Dialog>
-  )
-}
-
-function SettingsDialog(): JSX.Element {
-  const open = useUiStore((state) => state.settingsOpen)
-  const setOpen = useUiStore((state) => state.setSettingsOpen)
-  if (!open) return <></>
-  return (
-    <Dialog open onOpenChange={setOpen}>
-      <DialogContent labelledBy="settings-title">
-        <DialogTitle id="settings-title">设置</DialogTitle>
-        <SettingsPage />
-      </DialogContent>
-    </Dialog>
-  )
 }
 
 function LeftRail(): JSX.Element {
@@ -163,10 +39,7 @@ function LeftRail(): JSX.Element {
   const activeRunId = useWorkbench((state) => state.activeRunId)
   const setActive = useWorkbenchStore((store) => store.setActive)
   return (
-    <aside
-      data-testid="left-rail"
-      className="flex min-h-0 flex-col items-center gap-2 border-r border-line bg-panel-muted py-2"
-    >
+    <aside data-testid="left-rail" className="flex min-h-0 flex-col items-center gap-1.5 py-2">
       {order.map((id) => (
         <button
           key={id}
@@ -174,8 +47,8 @@ function LeftRail(): JSX.Element {
           title={runs[id]?.title ?? id}
           onClick={() => setActive(id)}
           className={cn(
-            'flex h-7 w-7 items-center justify-center rounded text-[11px]',
-            id === activeRunId ? 'bg-panel text-ink' : 'text-ink-muted hover:bg-panel',
+            'flex h-7 w-7 items-center justify-center rounded-md text-[11px] transition-colors',
+            id === activeRunId ? 'bg-panel text-ink shadow-panel' : 'text-ink-muted hover:bg-panel/70',
           )}
         >
           {runs[id]?.title.slice(0, 1) ?? '·'}
@@ -200,10 +73,6 @@ function Splitter(): JSX.Element {
     setRightWidth(clampWidth(drag.current.startWidth - (event.clientX - drag.current.startX)))
   }
 
-  function onPointerUp(): void {
-    drag.current = null
-  }
-
   return (
     <div
       data-testid="right-splitter"
@@ -211,10 +80,10 @@ function Splitter(): JSX.Element {
       aria-orientation="vertical"
       onPointerDown={onPointerDown}
       onPointerMove={onPointerMove}
-      onPointerUp={onPointerUp}
-      onPointerCancel={onPointerUp}
+      onPointerUp={() => (drag.current = null)}
+      onPointerCancel={() => (drag.current = null)}
       onDoubleClick={() => setRightWidth(DEFAULT_RIGHT)}
-      className="w-1 cursor-col-resize bg-line/60 hover:bg-accent/60"
+      className="ruler group w-1 cursor-col-resize bg-panel-muted/40 transition-colors hover:bg-accent/10"
     />
   )
 }
@@ -245,10 +114,14 @@ export function Shell(): JSX.Element {
         event.preventDefault()
         setUndoDialog(true)
       }
+      if (key === 'n') {
+        event.preventDefault()
+        setNewTaskOpen(true)
+      }
     }
     window.addEventListener('keydown', onKeyDown)
     return () => window.removeEventListener('keydown', onKeyDown)
-  }, [setCommandOpen, setUndoDialog])
+  }, [setCommandOpen, setUndoDialog, setNewTaskOpen])
 
   function selectTask(runId: string): void {
     setActive(runId)
@@ -266,6 +139,7 @@ export function Shell(): JSX.Element {
   const active = activeRunId ? runs[activeRunId] : undefined
   const running = active?.status === 'running' || active?.status === 'pending'
   const retryable = active?.status === 'failed' || active?.status === 'aborted'
+  const scope = active ? undoScope(active) : { steps: 0, usable: false }
 
   async function stop(): Promise<void> {
     if (!active) return
@@ -286,26 +160,29 @@ export function Shell(): JSX.Element {
         gridTemplateColumns: `${leftCollapsed ? RAIL_WIDTH : LIST_WIDTH}px minmax(0,1fr) 4px ${rightWidth}px`,
       }}
     >
-      <aside className="flex min-h-0 flex-col border-r border-line bg-panel-muted">
-        <div className="flex items-center justify-between gap-2 border-b border-line px-3 py-2">
-          {leftCollapsed ? null : <span className="text-[12px] font-semibold">工作台</span>}
+      <aside className="flex min-h-0 flex-col border-r border-line bg-panel-muted/60">
+        <div className="flex items-center gap-2 border-b border-line/70 px-2 py-2">
           <button
             type="button"
             data-testid="left-toggle"
             onClick={toggleLeft}
-            className="rounded border border-line bg-panel px-1.5 py-0.5 text-[11px] text-ink-muted"
+            aria-label={leftCollapsed ? '展开任务列表' : '折叠任务列表'}
+            className="flex h-6 w-6 items-center justify-center rounded-md text-ink-muted transition-colors hover:bg-panel hover:text-ink"
           >
             {leftCollapsed ? '»' : '«'}
           </button>
           {leftCollapsed ? null : (
-            <button
-              type="button"
-              data-testid="new-task-button"
-              onClick={() => setNewTaskOpen(true)}
-              className="rounded border border-line bg-panel px-1.5 py-0.5 text-[11px]"
-            >
-              新任务
-            </button>
+            <>
+              <span className="label-micro flex-1">任务</span>
+              <Button
+                size="sm"
+                variant="quiet"
+                data-testid="new-task-button"
+                onClick={() => setNewTaskOpen(true)}
+              >
+                新任务
+              </Button>
+            </>
           )}
         </div>
         {leftCollapsed ? (
@@ -325,14 +202,17 @@ export function Shell(): JSX.Element {
             }))}
             activeId={activeRunId}
             onSelect={selectTask}
+            loading={order.length === 0 && hasTransport()}
           />
         )}
-        <div className="mt-auto flex items-center justify-between border-t border-line px-3 py-2 text-[11px] text-ink-muted">
+        <div className="mt-auto flex items-center justify-between border-t border-line/70 px-2.5 py-1.5 text-[10.5px] text-ink-muted">
           <button type="button" onClick={() => setSettingsOpen(true)} className="hover:text-ink">
             设置
           </button>
           {leftCollapsed ? null : (
-            <span data-testid="undo-scope-label">可撤销 {active ? undoScope(active).steps : 0} 轮</span>
+            <span data-testid="undo-scope-label" className="tnum">
+              可撤销 {scope.steps} 轮
+            </span>
           )}
         </div>
       </aside>
@@ -340,37 +220,30 @@ export function Shell(): JSX.Element {
       <main className="flex min-h-0 flex-col">
         <header
           data-testid="run-header"
-          className="flex items-baseline justify-between border-b border-line bg-panel px-4 py-2"
+          className="flex items-center justify-between gap-3 border-b border-line/70 bg-panel px-4 py-2"
         >
-          <h1 data-testid="run-title" className="truncate text-[13px] font-semibold">
-            {active?.title ?? '未选择任务'}
-          </h1>
-          <span className="flex items-center gap-2 text-[11px] text-ink-muted">
-            {active?.synthetic ? (
-              <span className="rounded border border-warning/50 px-1 text-[10px] text-warning">合成数据</span>
-            ) : null}
+          <div className="flex min-w-0 items-center gap-2">
+            <h1 data-testid="run-title" className="truncate text-[13.5px] font-semibold tracking-[-0.01em]">
+              {active?.title ?? '未选择任务'}
+            </h1>
+            {active?.synthetic ? <Badge tone="warning">合成数据</Badge> : null}
+            {active ? <Badge tone={STATUS_TONE[active.status]} dot>{active.status}</Badge> : null}
+          </div>
+          <div className="flex shrink-0 items-center gap-2">
+            <span className="hidden text-[10.5px] text-ink-faint tnum sm:inline">
+              {active ? `${active.model} · $${active.usage.costUsd.toFixed(4)}` : ''}
+            </span>
             {running ? (
-              <button
-                type="button"
-                data-testid="stop-button"
-                onClick={() => void stop()}
-                className="rounded border border-line px-1.5 py-0.5 text-[11px]"
-              >
+              <Button size="sm" data-testid="stop-button" onClick={() => void stop()}>
                 停止
-              </button>
+              </Button>
             ) : null}
             {retryable ? (
-              <button
-                type="button"
-                data-testid="retry-button"
-                onClick={() => void retry()}
-                className="rounded border border-line px-1.5 py-0.5 text-[11px]"
-              >
+              <Button size="sm" data-testid="retry-button" onClick={() => void retry()}>
                 重试
-              </button>
+              </Button>
             ) : null}
-            {active ? `${active.status} · ${active.model} · $${active.usage.costUsd.toFixed(4)}` : ''}
-          </span>
+          </div>
         </header>
         <section data-testid="timeline" className="min-h-0 flex-1">
           <Timeline />

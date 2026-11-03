@@ -12,7 +12,10 @@ export function FilterToggle(): JSX.Element {
   const filter = useUiStore((state) => state.filter)
   const setFilter = useUiStore((state) => state.setFilter)
   return (
-    <div data-testid="filter-toggle" className="flex items-center gap-1">
+    <div
+      data-testid="filter-toggle"
+      className="flex items-center gap-0.5 rounded-md border border-line bg-panel p-0.5"
+    >
       {OPTIONS.map((option) => (
         <button
           key={option.value}
@@ -20,8 +23,8 @@ export function FilterToggle(): JSX.Element {
           aria-pressed={filter === option.value}
           onClick={() => setFilter(option.value)}
           className={cn(
-            'rounded border px-2 py-0.5 text-[11px]',
-            filter === option.value ? 'border-line bg-panel text-ink' : 'border-transparent text-ink-muted',
+            'rounded-sm px-1.5 py-0.5 text-[10.5px] transition-colors duration-[var(--dur-fast)]',
+            filter === option.value ? 'bg-panel-muted text-ink' : 'text-ink-muted hover:text-ink',
           )}
         >
           {option.label}
