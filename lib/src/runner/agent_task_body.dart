@@ -17,6 +17,25 @@ String _prompt(RunScope scope, TaskSpec task) => scope.confirmed
     : '${task.prompt}\n\n【未确认】不要移动、删除或改动工作区内的已有文件；'
           '读取与在 out/ 写产物不受限制。';
 
+TokenUsage _tokens(RunScope scope) => scope.usage?.total ?? TokenUsage.zero;
+
+double? _cost(RunScope scope) => scope.rate?.costOf(_tokens(scope));
+
+/// 成功路径：用量取计量器（含重试），预算按它判定。
+TaskOutcome _outcome(RunScope scope, TaskSpec task) {
+  final TokenUsage tokens = _tokens(scope);
+  final double? cost = _cost(scope);
+  if (cost != null && cost > task.maxCostUsd) {
+    return TaskOutcome.failed(
+      FailureCategory.budget,
+      '成本 ${cost.toStringAsFixed(4)} USD 超过上限 ${task.maxCostUsd}',
+      tokens: tokens,
+      costUsd: cost,
+    );
+  }
+  return TaskOutcome.ok(tokens: tokens, costUsd: cost);
+}
+
 /// 调用模型跑一轮；产物由运行器统一校验。
 Future<TaskOutcome> agentTaskBody(RunScope scope, TaskSpec task) async {
   final AgentLoop? agent = scope.agent;
@@ -29,24 +48,22 @@ Future<TaskOutcome> agentTaskBody(RunScope scope, TaskSpec task) async {
   final AgentCancel cancel = AgentCancel();
   final Timer timer = Timer(Duration(minutes: task.maxMinutes), cancel.cancel);
   try {
-    final AgentTurn turn = await agent.run(
-      _prompt(scope, task),
-      cancel: cancel,
-    );
-    final double? cost = turn.cost;
-    if (cost != null && cost > task.maxCostUsd) {
-      return TaskOutcome.failed(
-        FailureCategory.budget,
-        '成本 ${cost.toStringAsFixed(4)} USD 超过上限 ${task.maxCostUsd}',
-        tokens: turn.tokens,
-        costUsd: cost,
-      );
-    }
-    return TaskOutcome.ok(tokens: turn.tokens, costUsd: cost);
+    await agent.run(_prompt(scope, task), cancel: cancel);
+    return _outcome(scope, task);
   } on AgentCancelled {
-    return const TaskOutcome.failed(FailureCategory.timeout, '超过任务时长上限');
+    return TaskOutcome.failed(
+      FailureCategory.timeout,
+      '超过任务时长上限',
+      tokens: _tokens(scope),
+      costUsd: _cost(scope),
+    );
   } catch (error) {
-    return TaskOutcome.failed(FailureCategory.llm, '$error');
+    return TaskOutcome.failed(
+      FailureCategory.llm,
+      '$error',
+      tokens: _tokens(scope),
+      costUsd: _cost(scope),
+    );
   } finally {
     timer.cancel();
   }

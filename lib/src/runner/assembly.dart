@@ -11,6 +11,7 @@ import '../tools/rooted_fs.dart';
 import 'llm_runtime.dart';
 import 'run_paths.dart';
 import 'task_spec.dart';
+import 'usage_meter.dart';
 import 'workspace.dart';
 
 /// 遍历时跳过的目录：通用依赖目录 + 产品自己的数据目录。
@@ -60,6 +61,8 @@ class RunScope {
     this.agent,
     this.modelLabel,
     this.confirmed = false,
+    this.usage,
+    this.rate,
   });
 
   /// 本次运行的上下文树。
@@ -94,6 +97,12 @@ class RunScope {
 
   /// 用户是否已在命令行确认执行。
   final bool confirmed;
+
+  /// 用量计量器（包在 provider 外，取消也不会丢）。
+  final UsageMeter? usage;
+
+  /// 模型费率；未配置单价时为 null。
+  final ModelRate? rate;
 
   /// 关闭会话并释放整棵上下文。
   Future<void> dispose() async {
@@ -159,13 +168,19 @@ Future<RunScope> assembleRun(AssemblyOptions options) async {
       : checkpoint.bind('events'));
   await checkpoint.flush();
   ctx.provide('checkpointManager', checkpoint);
-  final bool hasLlm = _provideModel(
-    ctx,
-    options.llm,
-    task,
-    workspace,
-    options.confirmed,
-  );
+  final UsageMeter? meter = options.llm == null
+      ? null
+      : UsageMeter(options.llm!.provider);
+  final bool hasLlm =
+      meter != null &&
+      _provideModel(
+        ctx,
+        meter,
+        options.llm!,
+        task,
+        workspace,
+        options.confirmed,
+      );
   final AgentLoop? agent = hasLlm
       ? provideAgentLoop(ctx, session: session, maxSteps: 40)
       : null;
@@ -182,19 +197,21 @@ Future<RunScope> assembleRun(AssemblyOptions options) async {
     agent: agent,
     modelLabel: options.llm?.modelLabel,
     confirmed: options.confirmed,
+    usage: meter,
+    rate: options.llm?.rate,
   );
 }
 
 /// 装好模型与系统提示；返回是否装了模型。
 bool _provideModel(
   Context ctx,
-  LlmRuntime? llm,
+  UsageMeter meter,
+  LlmRuntime llm,
   TaskSpec task,
   WorkspacePlan workspace,
   bool confirmed,
 ) {
-  if (llm == null) return false;
-  provideLlm(ctx, llm: FallbackLlm(<LlmProvider>[llm.provider]));
+  provideLlm(ctx, llm: FallbackLlm(<LlmProvider>[meter]));
   final ModelRate? rate = llm.rate;
   if (rate != null) ctx.provide('modelRate', rate);
   provideSystemPrompt(

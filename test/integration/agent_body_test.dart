@@ -204,4 +204,67 @@ void main() {
     expect(last, contains('--yes'));
     expect(last, contains('已确认'));
   });
+
+  test('模型中途抛错时，已完成的调用用量仍被记录', () async {
+    final ScriptedLlm llm = ScriptedLlm(<LlmResult>[
+      writeReport(),
+      const LlmResult(
+        content: '',
+        provider: 's',
+        model: 's',
+        usage: <String, dynamic>{'prompt_tokens': 0, 'completion_tokens': 0},
+      ),
+    ]);
+    // 第二次调用抛错：用量应停在第 1 次（10/5）。
+    final LlmProvider failing = _FailAfterFirst(llm);
+    final Runner runner = Runner(
+      body: agentTaskBody,
+      runsDir: '${tmp.path}/runs',
+      llm: LlmRuntime(
+        config: const LlmConfig(baseUrl: 'http://fake', model: 'fake'),
+        provider: failing,
+      ),
+    );
+    final RunRecord record = await runner.run(
+      RunRequest(
+        task: card(),
+        taskPath: '${tmp.path}/card.json',
+        workspaceRoot: '${tmp.path}/work',
+      ),
+    );
+    expect(record.status, TaskRunStatus.failed);
+    expect(record.failure.category, FailureCategory.llm);
+    expect(record.inputTokens, 10);
+    expect(record.outputTokens, 5);
+  });
+}
+
+class _FailAfterFirst implements LlmProvider {
+  _FailAfterFirst(this.inner);
+  final LlmProvider inner;
+  int calls = 0;
+
+  @override
+  String get name => 'fail-after-first';
+
+  @override
+  Future<LlmResult> chat(
+    List<LlmMessage> messages, {
+    Map<String, dynamic>? options,
+    List<Map<String, dynamic>>? tools,
+  }) {
+    calls += 1;
+    if (calls > 1) throw const LlmException('fake', 'boom');
+    return inner.chat(messages, options: options, tools: tools);
+  }
+
+  @override
+  Stream<LlmStreamEvent> chatStream(
+    List<LlmMessage> messages, {
+    Map<String, dynamic>? options,
+    List<Map<String, dynamic>>? tools,
+  }) => const Stream<LlmStreamEvent>.empty();
+
+  @override
+  void close() {}
 }
