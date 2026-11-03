@@ -23,7 +23,7 @@ help:
 	  'conatus_work 命令入口' \
 	  '' \
 	  '  make setup        安装依赖（dart / ui / shell）' \
-	  '  make dev          构建前端后启动 macOS 壳（flutter run）' \
+	  '  make dev          构建前端后启动 macOS 壳（强制用仓库 ui/dist）' \
 	  '  make dev-web      只启动前端开发服务器（浏览器 + fixture 回放）' \
 	  '  make build-ui     构建前端（tsc + vite）' \
 	  '  make build-shell  构建 macOS 壳（release）' \
@@ -45,8 +45,8 @@ setup:
 	cd $(SHELL_DIR) && flutter pub get
 
 dev: build-ui
-	@echo "==> flutter run -d macos"
-	cd $(SHELL_DIR) && flutter run -d macos
+	@echo "==> flutter run -d macos（ui=$(UI_DIR)/dist）"
+	cd $(SHELL_DIR) && CONATUS_WORK_UI="$(UI_DIR)/dist" flutter run -d macos
 
 dev-web:
 	@echo "==> vite dev server"
