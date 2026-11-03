@@ -159,6 +159,10 @@ export function createReplayTransport(fixture: ReplayFixture, options: ReplayOpt
       return ok([])
     },
 
+    async chooseWorkspace() {
+      return ok({ path: null })
+    },
+
     async openTask(runId: string) {
       if (!sessions.has(runId) && runId !== fixture.run.id) return notFound<RunView>(`没有这个运行：${runId}`)
       return ok(foldToNow(runId).runs[runId])

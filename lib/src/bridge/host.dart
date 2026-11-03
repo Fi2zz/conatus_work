@@ -14,7 +14,12 @@ const int kProtocolVersion = 1;
 
 /// 命令分发器。异常一律收敛成错误帧，不向上抛。
 class BridgeHost {
-  BridgeHost({required this.bridge, this.tasks, this.push});
+  BridgeHost({
+    required this.bridge,
+    this.tasks,
+    this.push,
+    this.chooseWorkspace,
+  });
 
   /// 底层命令实现。
   final WorkbenchBridge bridge;
@@ -24,6 +29,9 @@ class BridgeHost {
 
   /// 异步事件出口（运行期增量事件从这里推给前端）。
   final void Function(String json)? push;
+
+  /// 打开系统文件选择器选工作区；未接线时回 null。
+  final Future<String?> Function()? chooseWorkspace;
 
   /// 处理一条入站帧，返回要发回前端的帧。
   Future<List<String>> dispatch(String raw) async {
@@ -94,10 +102,17 @@ class BridgeHost {
         return <Object?>[
           for (final TaskCard card in service.cards()) card.toJson(),
         ];
+      case 'workspace.choose':
+        final String? path = await chooseWorkspace?.call();
+        return <String, Object?>{'path': path};
       case 'task.start':
         final TaskService service = _tasks();
+        final Object? workspace = payload['workspaceRoot'];
         final String runId = await service.start(
           cardId: _requireString(payload, 'cardId'),
+          workspaceRoot: workspace is String && workspace.isNotEmpty
+              ? workspace
+              : null,
           onEvent: (Map<String, Object?> event) => push?.call(_eventFrame(event)),
         );
         return <String, Object?>{'runId': runId};

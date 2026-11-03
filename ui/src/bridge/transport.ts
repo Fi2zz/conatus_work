@@ -16,8 +16,9 @@ export interface BridgeTransport {
   subscribe(listener: (event: BridgeEvent) => void): () => void
   listTasks(): Promise<CommandResult<RunSummary[]>>
   listCards(): Promise<CommandResult<TaskCard[]>>
+  chooseWorkspace(): Promise<CommandResult<{ path: string | null }>>
   openTask(runId: string): Promise<CommandResult<RunView>>
-  startTask(cardId: string): Promise<CommandResult<{ runId: string }>>
+  startTask(cardId: string, workspaceRoot?: string): Promise<CommandResult<{ runId: string }>>
   cancelTask(runId: string): Promise<CommandResult<{ status: RunStatus }>>
   sendMessage(runId: string, text: string): Promise<CommandResult<void>>
   respondApproval(requestId: string, decision: 'allow' | 'deny'): Promise<CommandResult<void>>

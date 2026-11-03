@@ -97,6 +97,7 @@ class TaskService {
   Future<String> start({
     required String cardId,
     required void Function(Map<String, Object?>) onEvent,
+    String? workspaceRoot,
   }) async {
     final String path = _cardPath(cardId);
     final TaskSpec task = await TaskSpec.load(path);
@@ -122,7 +123,7 @@ class TaskService {
       },
     });
 
-    unawaited(_execute(task, path, runId, paths, emit));
+    unawaited(_execute(task, path, runId, paths, emit, workspaceRoot));
     return runId;
   }
 
@@ -140,6 +141,7 @@ class TaskService {
     String runId,
     RunPaths paths,
     void Function(Map<String, Object?>) onEvent,
+    String? workspaceRoot,
   ) async {
     final RunEventStream stream = RunEventStream(
       path: paths.eventsPath,
@@ -160,7 +162,12 @@ class TaskService {
         body: body ?? agentTaskBody,
         runsDir: runsDir,
       ).run(
-        RunRequest(task: task, taskPath: cardPath, confirmed: true),
+        RunRequest(
+          task: task,
+          taskPath: cardPath,
+          workspaceRoot: workspaceRoot,
+          confirmed: true,
+        ),
         runId: runId,
       );
       stream.stop();

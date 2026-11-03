@@ -99,6 +99,29 @@ void main() {
     expect(File('${tmp.path}/runs/$runId/run.json').existsSync(), isTrue);
   });
 
+  test('start 的 workspaceRoot 覆盖任务卡里的根', () async {
+    final Directory other = Directory('${tmp.path}/other')..createSync();
+    Directory('${other.path}/inbox').createSync();
+    File('${other.path}/inbox/a.txt').writeAsStringSync('a');
+    final List<Map<String, Object?>> events = <Map<String, Object?>>[];
+    final TaskService runner = service(
+      body: (RunScope scope, TaskSpec task) async => const TaskOutcome.ok(),
+    );
+    final String runId = await runner.start(
+      cardId: 'move-v01',
+      workspaceRoot: other.path,
+      onEvent: events.add,
+    );
+    final bool finished = await _waitFor(
+      () => events.any((Map<String, Object?> e) => e['type'] == 'task/ended'),
+    );
+    expect(finished, isTrue);
+    final Map<String, Object?> run =
+        jsonDecode(File('${tmp.path}/runs/$runId/run.json').readAsStringSync())
+            as Map<String, Object?>;
+    expect(run['workspaceRoot'], other.path);
+  });
+
   test('cancel 写入中断标记', () async {
     final TaskService runner = service(
       body: (RunScope scope, TaskSpec task) async {

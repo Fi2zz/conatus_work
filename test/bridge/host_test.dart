@@ -52,6 +52,24 @@ void main() {
     expect(data['runs'], hasLength(1));
   });
 
+  test('workspace.choose 返回注入的目录', () async {
+    final BridgeHost picker = BridgeHost(
+      bridge: WorkbenchBridge(runsDir: runsRoot.path),
+      chooseWorkspace: () async => '/tmp/workspace',
+    );
+    final List<String> frames = await picker.dispatch(
+      jsonEncode(<String, Object?>{
+        'v': 1,
+        'kind': 'command',
+        'id': 'c9',
+        'command': 'workspace.choose',
+      }),
+    );
+    final Map<String, Object?> frame =
+        jsonDecode(frames.single) as Map<String, Object?>;
+    expect((frame['value']! as Map<String, Object?>)['path'], '/tmp/workspace');
+  });
+
   test('task.list 返回任务摘要', () async {
     final Map<String, Object?> frame = await call('task.list');
     expect(frame['ok'], isTrue);

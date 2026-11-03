@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:conatus_work/conatus_work.dart';
+import 'package:file_selector/file_selector.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:webview_flutter/webview_flutter.dart';
@@ -46,7 +47,10 @@ class _ShellAppState extends State<ShellApp> {
       cwd: Directory.current.path,
       executable: Platform.resolvedExecutable,
     );
-    final String? uiDir = _env('CONATUS_WORK_UI') ?? findUiDir(roots);
+    final String? uiDir =
+        _env('CONATUS_WORK_UI') ??
+        findBundledUiDir(Platform.resolvedExecutable) ??
+        findUiDir(roots);
     if (uiDir == null) {
       if (!mounted) return;
       setState(
@@ -55,12 +59,21 @@ class _ShellAppState extends State<ShellApp> {
       );
       return;
     }
+    final String? dataDir =
+        _env('CONATUS_WORK_DATA') ??
+        (findBundledResource(Platform.resolvedExecutable, 'ui') != null
+            ? userDataDir(Platform.environment['HOME'] ?? '.', 'Conatus Work')
+            : null);
+    final String fallbackRoot =
+        dataDir ?? '${Directory(uiDir).parent.parent.path}/var';
     final String runsDir =
-        _env('CONATUS_WORK_RUNS') ??
-        findRunsDir(roots) ??
-        '${Directory(uiDir).parent.parent.path}/var/runs';
+        _env('CONATUS_WORK_RUNS') ?? findRunsDir(roots) ?? '$fallbackRoot/runs';
+    Directory(runsDir).createSync(recursive: true);
     final String tasksDir =
-        _env('CONATUS_WORK_TASKS') ?? findTasksDir(roots) ?? '${Directory(uiDir).parent.parent.path}/tasks';
+        _env('CONATUS_WORK_TASKS') ??
+        findBundledResource(Platform.resolvedExecutable, 'tasks') ??
+        findTasksDir(roots) ??
+        '${dataDir ?? Directory(uiDir).parent.parent.path}/tasks';
     debugPrint('conatus shell: ui=$uiDir runs=$runsDir tasks=$tasksDir');
     try {
       final AssetServer server = AssetServer(root: Directory(uiDir));
@@ -85,13 +98,19 @@ class _ShellAppState extends State<ShellApp> {
             ),
           ),
         );
-      final ShellChannel channel = ShellChannel(
-        host: BridgeHost(bridge: WorkbenchBridge(runsDir: runsDir)),
-        post: (String json) => unawaited(
-          controller.runJavaScript(
-            'window.__conatusReceive(${jsonEncode(json)});',
-          ),
+      void push(String json) => unawaited(
+        controller.runJavaScript(
+          'window.__conatusReceive(${jsonEncode(json)});',
         ),
+      );
+      final ShellChannel channel = ShellChannel(
+        host: BridgeHost(
+          bridge: WorkbenchBridge(runsDir: runsDir),
+          tasks: TaskService(runsDir: runsDir, tasksDir: tasksDir),
+          push: push,
+          chooseWorkspace: () => getDirectoryPath(confirmButtonText: '选择工作区'),
+        ),
+        post: push,
       );
       await controller.addJavaScriptChannel(
         'conatus',

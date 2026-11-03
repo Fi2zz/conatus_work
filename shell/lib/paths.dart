@@ -27,6 +27,33 @@ List<String> candidateRoots({
   return roots;
 }
 
+/// `.app` 包里自带的资源目录：`<App>.app/Contents/Resources/ui`。
+///
+/// 打包后 `.app` 会被拷到仓库外，向上找仓库根不再成立，必须先看包内。
+String? findBundledUiDir(String executable) {
+  final File exe = File(executable);
+  final String parentName = exe.parent.path.split(Platform.pathSeparator).last;
+  if (parentName != 'MacOS') return null;
+  final Directory contents = exe.parent.parent;
+  final String candidate = '${contents.path}/Resources/ui';
+  return File('$candidate/index.html').existsSync() ? candidate : null;
+}
+
+/// `.app` 包里某个资源目录（`ui` / `tasks`）。
+String? findBundledResource(String executable, String name) {
+  final File exe = File(executable);
+  if (exe.parent.path.split(Platform.pathSeparator).last != 'MacOS') return null;
+  final String candidate = '${exe.parent.parent.path}/Resources/$name';
+  final bool exists = name == 'ui'
+      ? File('$candidate/index.html').existsSync()
+      : Directory(candidate).existsSync();
+  return exists ? candidate : null;
+}
+
+/// 用户数据目录：包里运行时不再写回仓库。
+String userDataDir(String home, String appName) =>
+    '$home/Library/Application Support/$appName';
+
 /// 第一个含有 `ui/dist` 的根目录对应的构建产物路径。
 String? findUiDir(List<String> roots) {
   for (final String root in roots) {

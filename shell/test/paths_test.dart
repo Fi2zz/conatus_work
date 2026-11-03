@@ -35,6 +35,16 @@ void main() {
     expect(findUiDir(roots), '${root.path}/ui/dist');
   });
 
+  test('优先使用 .app 包内资源', () {
+    final Directory bundle = Directory(
+      '${root.path}/app.app/Contents/Resources/ui',
+    )..createSync(recursive: true);
+    File('${bundle.path}/index.html').writeAsStringSync('<h1/>');
+    final String executable =
+        '${root.path}/app.app/Contents/MacOS/app';
+    expect(findBundledUiDir(executable), bundle.path);
+  });
+
   test('找不到构建产物时返回 null', () {
     final Directory empty = Directory.systemTemp.createTempSync('empty_');
     addTearDown(() => empty.deleteSync(recursive: true));

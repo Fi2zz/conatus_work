@@ -167,3 +167,18 @@ it('uses the WKWebView javascript channel when present', () => {
   off()
   delete (window as unknown as { conatus?: unknown }).conatus
 })
+
+it('asks the host to choose a workspace and passes it to task.start', async () => {
+  const { channel, transport } = await connected()
+
+  const picking = transport.chooseWorkspace()
+  const pickFrame = channel.commands()[0]
+  channel.receive({ v: 1, kind: 'result', id: pickFrame.id, ok: true, value: { path: '/tmp/ws' } })
+  expect(await picking).toEqual({ ok: true, value: { path: '/tmp/ws' } })
+
+  const starting = transport.startTask('move-v01', '/tmp/ws')
+  const startFrame = channel.commands()[1]
+  expect(startFrame.payload).toEqual({ cardId: 'move-v01', workspaceRoot: '/tmp/ws' })
+  channel.receive({ v: 1, kind: 'result', id: startFrame.id, ok: true, value: { runId: 'run-1' } })
+  expect(await starting).toEqual({ ok: true, value: { runId: 'run-1' } })
+})

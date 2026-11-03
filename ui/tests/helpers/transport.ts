@@ -40,6 +40,9 @@ export function createStubTransport(runs: RunSummary[], activeRunId: string | nu
     async listCards() {
       return ok([])
     },
+    async chooseWorkspace() {
+      return ok({ path: null })
+    },
     async openTask(runId) {
       const summary = runs.find((run) => run.id === runId)
       if (!summary) return { ok: false, error: { code: 'NOT_FOUND', message: runId } }

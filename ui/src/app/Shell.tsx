@@ -65,6 +65,7 @@ function NewTaskDialog(): JSX.Element {
   const adoptRun = useWorkbenchStore((store) => store.adoptRun)
   const [cards, setCards] = useState<TaskCard[]>([])
   const [error, setError] = useState<string | null>(null)
+  const [workspace, setWorkspace] = useState<string | null>(null)
 
   useEffect(() => {
     if (!open || !hasTransport()) return
@@ -80,7 +81,7 @@ function NewTaskDialog(): JSX.Element {
   async function pick(card: TaskCard): Promise<void> {
     setOpen(false)
     setError(null)
-    const started = await getTransport().startTask(card.id)
+    const started = await getTransport().startTask(card.id, workspace ?? undefined)
     if (!started.ok) {
       setError(started.error.message)
       setOpen(true)
@@ -97,6 +98,25 @@ function NewTaskDialog(): JSX.Element {
         <DialogTitle id="new-task-title">新任务</DialogTitle>
         <div data-testid="new-task-dialog">
           {error ? <p className="mb-2 text-[12px] text-danger">{error}</p> : null}
+          <div className="mb-2 flex items-center justify-between gap-2 text-[11.5px]">
+            <span className="truncate text-ink-muted" data-testid="workspace-path">
+              工作区：{workspace ?? '任务卡默认'}
+            </span>
+            <button
+              type="button"
+              data-testid="choose-workspace"
+              onClick={() => {
+                void getTransport()
+                  .chooseWorkspace()
+                  .then((result) => {
+                    if (result.ok) setWorkspace(result.value.path)
+                  })
+              }}
+              className="shrink-0 rounded border border-line px-1.5 py-0.5"
+            >
+              选择…
+            </button>
+          </div>
           {cards.length === 0 ? (
             <p className="text-[12px] text-ink-muted">没有可用的任务卡。</p>
           ) : (

@@ -31,6 +31,7 @@ dependencies:
   flutter:
     sdk: flutter
   webview_flutter: ^4.14.1
+  file_selector: ^1.0.3
   # 复用同一个仓库里的桥接层（WorkbenchBridge / BridgeHost）。
   conatus_work:
     path: ..
