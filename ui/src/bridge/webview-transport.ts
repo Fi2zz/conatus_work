@@ -239,7 +239,7 @@ export function createWebViewTransport(options: Options = {}): BridgeTransport {
         cardId,
         ...(workspaceRoot ? { workspaceRoot } : {}),
       }),
-    cancelTask: (runId: string) => Promise.resolve(unsupported<{ status: RunStatus }>(`task.cancel(${runId})`)),
+    cancelTask: (runId: string) => request<{ status: RunStatus }>('task.cancel', { runId }),
     sendMessage: () => Promise.resolve(unsupported<void>('message.send')),
     respondApproval: () => Promise.resolve(unsupported<void>('approval.respond')),
 

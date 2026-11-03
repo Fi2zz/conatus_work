@@ -185,6 +185,30 @@ void main() {
     expect(File('${tmp.path}/work/out/report.md').existsSync(), isTrue);
   });
 
+  test('abort.request 能中断进行中的模型调用', () async {
+    final String runs = '${tmp.path}/runs';
+    final Runner runner = Runner(
+      body: agentTaskBody,
+      runsDir: runs,
+      llm: LlmRuntime(
+        config: const LlmConfig(baseUrl: 'http://fake', model: 'fake'),
+        provider: SlowLlm(const Duration(seconds: 5)),
+      ),
+    );
+    final Future<RunRecord> running = runner.run(
+      RunRequest(
+        task: card(),
+        taskPath: '${tmp.path}/card.json',
+        workspaceRoot: '${tmp.path}/work',
+      ),
+      runId: 'run-abort-1',
+    );
+    await Future<void>.delayed(const Duration(milliseconds: 300));
+    File('$runs/run-abort-1/abort.request').writeAsStringSync('');
+    final RunRecord record = await running;
+    expect(record.status, TaskRunStatus.aborted);
+  });
+
   test('成本超限 → failed/budget', () async {
     final Runner runner = Runner(
       body: agentTaskBody,

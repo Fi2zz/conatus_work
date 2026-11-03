@@ -5,6 +5,7 @@ import 'dart:async';
 
 import 'package:conatus/conatus.dart';
 
+import 'abort_signal.dart';
 import 'assembly.dart';
 import 'run_store.dart';
 import 'task_body.dart';
@@ -48,10 +49,24 @@ Future<TaskOutcome> agentTaskBody(RunScope scope, TaskSpec task) async {
   final AgentCancel cancel = AgentCancel();
   final int seconds = task.maxSeconds ?? task.maxMinutes * 60;
   final Timer timer = Timer(Duration(seconds: seconds), cancel.cancel);
+  // 壳里点「停止」是写 abort.request；进程内运行要自己轮询，否则只能等跑完。
+  final AbortSignal signal = AbortSignal(scope.paths.abortFlagPath);
+  final Timer heartbeat = Timer.periodic(
+    const Duration(milliseconds: 400),
+    (Timer _) {
+      if (signal.requested) cancel.cancel();
+    },
+  );
   try {
     await agent.run(_prompt(scope, task), cancel: cancel);
     return _outcome(scope, task);
   } on AgentCancelled {
+    if (signal.requested) {
+      return TaskOutcome.aborted(
+        tokens: _tokens(scope),
+        costUsd: _cost(scope),
+      );
+    }
     return TaskOutcome.failed(
       FailureCategory.timeout,
       '超过任务时长上限',
@@ -67,5 +82,6 @@ Future<TaskOutcome> agentTaskBody(RunScope scope, TaskSpec task) async {
     );
   } finally {
     timer.cancel();
+    heartbeat.cancel();
   }
 }

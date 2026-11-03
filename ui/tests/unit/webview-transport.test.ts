@@ -182,3 +182,13 @@ it('asks the host to choose a workspace and passes it to task.start', async () =
   channel.receive({ v: 1, kind: 'result', id: startFrame.id, ok: true, value: { runId: 'run-1' } })
   expect(await starting).toEqual({ ok: true, value: { runId: 'run-1' } })
 })
+
+it('sends task.cancel and reports the abort status', async () => {
+  const { channel, transport } = await connected()
+  const pending = transport.cancelTask('run-x')
+  const frame = channel.commands()[0]
+  expect(frame.command).toBe('task.cancel')
+  expect(frame.payload).toEqual({ runId: 'run-x' })
+  channel.receive({ v: 1, kind: 'result', id: frame.id, ok: true, value: { status: 'aborted' } })
+  expect(await pending).toEqual({ ok: true, value: { status: 'aborted' } })
+})

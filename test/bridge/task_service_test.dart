@@ -171,6 +171,26 @@ void main() {
     expect(File('${tmp.path}/runs/$runId/run.json').existsSync(), isTrue);
   });
 
+  test('cancel 让运行以 aborted 收尾', () async {
+    final List<Map<String, Object?>> events = <Map<String, Object?>>[];
+    final TaskService runner = service(
+      body: (RunScope scope, TaskSpec task) async {
+        await Future<void>.delayed(const Duration(milliseconds: 400));
+        return const TaskOutcome.ok();
+      },
+    );
+    final String runId = await runner.start(cardId: 'move-v01', onEvent: events.add);
+    await Future<void>.delayed(const Duration(milliseconds: 100));
+    await runner.cancel(runId);
+    final bool finished = await _waitFor(
+      () => events.any((Map<String, Object?> e) => e['type'] == 'task/ended'),
+    );
+    expect(finished, isTrue);
+    final Map<String, Object?> data =
+        events.last['data']! as Map<String, Object?>;
+    expect(data['status'], 'aborted');
+  });
+
   test('cancel 写入中断标记', () async {
     final TaskService runner = service(
       body: (RunScope scope, TaskSpec task) async {
