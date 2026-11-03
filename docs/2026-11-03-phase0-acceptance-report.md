@@ -100,6 +100,29 @@
 > 救场率没有意义**，只有当批次内首次运行时它才反映真实返工。要拿干净救场率，
 > 需要清空 `var/runs` 后跑一轮。
 
+## 五之二、跨模型验证（GLM-5.3-Flash）
+
+同一套任务卡与夹具，换成 `opencode-go/glm-5.3-flash`（$0.15 / $0.50 每百万 token）：
+
+| 任务 | 结果 | 耗时 | 输入 token | 输出 token | 成本 |
+|---|---|---:|---:|---:|---:|
+| research-v03 | succeeded | 2.7 min | 753,902 | 7,563 | $0.036 |
+| research-v07 | **failed / timeout** | 20.0 min | 320,242 | 606 | $0.014 |
+| csv-v04 | succeeded | 2.1 min | 19,805 | 8,735 | $0.006 |
+| csv-v10 | succeeded | 3.0 min | 24,332 | 12,606 | $0.008 |
+| organize-v05 | succeeded | 0.8 min | 20,553 | 2,166 | $0.003 |
+| organize-v07 | succeeded | 0.5 min | 14,724 | 1,216 | $0.002 |
+
+**5/6 成功，总成本 $0.069**（DeepSeek 单任务均价的约 1/10）。
+
+结论：
+
+- **契约可移植**：`RootedFileSystem`、`move` 返回 sha256、`changes-manifest` /
+  `sources-json` 校验器在 GLM 上全部适用，没有出现「只有 DeepSeek 能过」的情况。
+- **差异出现在长任务**：GLM 在 `research-v07`（英文调研）上耗时 20 分钟只产出 606 个
+  输出 token，最终超时。怀疑是搜索/抓取循环，而非产物问题。
+- **成本差异巨大**：同样的中文调研任务，GLM 用 754K 输入完成，DeepSeek 需要 1.2M。
+
 ## 六、变更保护验证
 
 - **撤销**：organize v01–v10 每个变体运行后立刻 `undo`，比对 `inbox` 下全部文件的路径与

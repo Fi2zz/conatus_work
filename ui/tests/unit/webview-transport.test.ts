@@ -145,3 +145,25 @@ it('drops messages that do not come from the parent window', () => {
   )
   expect(seen).toHaveLength(1)
 })
+
+it('uses the WKWebView javascript channel when present', () => {
+  const sent: unknown[] = []
+  ;(window as unknown as { conatus?: unknown }).conatus = {
+    postMessage: (value: unknown) => sent.push(value),
+  }
+  const channel = createWindowChannel(window)
+  const seen: unknown[] = []
+  const off = channel.subscribe((frame) => seen.push(frame))
+
+  channel.post({ v: 1, kind: 'hello' })
+  expect(typeof sent[0]).toBe('string')
+  expect(JSON.parse(sent[0] as string)).toMatchObject({ kind: 'hello' })
+
+  ;(window as unknown as { __conatusReceive: (raw: string) => void }).__conatusReceive(
+    '{"v":1,"kind":"welcome"}',
+  )
+  expect(seen).toEqual([{ v: 1, kind: 'welcome' }])
+
+  off()
+  delete (window as unknown as { conatus?: unknown }).conatus
+})

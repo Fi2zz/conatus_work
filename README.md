@@ -54,6 +54,21 @@ dart pub get
 info（`--fatal-infos` 必红），去掉 overrides 则因「git ref 与解析后 SHA 是两种
 身份」求解失败。
 
+## 桌面壳（`shell/`）
+
+Flutter macOS 应用，不进 workspace（纯 Dart 的 `dart analyze` 解析不了 flutter 包，
+已在根 `analysis_options.yaml` 排除 `shell/**`）。
+
+```bash
+cd ui && npm run build          # 先产出前端构建
+cd ../shell && flutter run -d macos
+```
+
+- 壳用 loopback HTTP + 一次性 token 提供 `ui/dist`，不用 `file://`（ES module 与 CORS 更稳）
+- 消息通道：WKWebView `JavaScriptChannel('conatus')` 上行、`window.__conatusReceive` 下行
+- 路径可用 `CONATUS_WORK_UI` / `CONATUS_WORK_RUNS` 覆盖，缺省 `../ui/dist`、`../var/runs`
+- `ui/dist` 缺失时窗口显示明确错误，不是白屏
+
 ## 桥接层（`lib/src/bridge/`）
 
 把运行记录翻译成 React 侧消费的契约，不启动进程：

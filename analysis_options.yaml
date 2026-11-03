@@ -1,6 +1,10 @@
 include: package:lints/recommended.yaml
 
 analyzer:
+  # shell/ 是 Flutter 桌面壳（自有 pubspec、不进 workspace）。纯 Dart 的
+  # `dart analyze` 解析不了 package:flutter，由 shell 目录下的 `flutter analyze` 负责。
+  exclude:
+    - shell/**
   language:
     strict-casts: true
     strict-inference: true

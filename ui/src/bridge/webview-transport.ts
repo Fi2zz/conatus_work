@@ -41,12 +41,29 @@ function frameOf(value: unknown): ResultFrame | null {
   return frame as unknown as ResultFrame
 }
 
+interface NativeChannel {
+  postMessage?: (value: unknown) => void
+}
+
+function nativeChannel(): NativeChannel | undefined {
+  return (window as unknown as { conatus?: NativeChannel }).conatus
+}
+
+function webview2Channel(): NativeChannel | undefined {
+  return (window as unknown as { chrome?: { webview?: NativeChannel } }).chrome?.webview
+}
+
 /** 浏览器 / WebView 通道：只接收来自 parent 的消息。 */
 export function createWindowChannel(target: Window = window): HostChannel {
   return {
     post(frame) {
-      const webview = (window as unknown as { chrome?: { webview?: { postMessage?: (value: unknown) => void } } })
-        .chrome?.webview
+      const native = nativeChannel()
+      if (native?.postMessage) {
+        // WKWebView 的 JavaScriptChannel 只传字符串。
+        native.postMessage(JSON.stringify(frame))
+        return
+      }
+      const webview = webview2Channel()
       if (webview?.postMessage) {
         webview.postMessage(frame)
         return
@@ -54,6 +71,19 @@ export function createWindowChannel(target: Window = window): HostChannel {
       target.parent.postMessage(frame, '*')
     },
     subscribe(listener) {
+      if (nativeChannel()?.postMessage) {
+        const holder = window as unknown as { __conatusReceive?: (raw: string) => void }
+        holder.__conatusReceive = (raw: string) => {
+          try {
+            listener(JSON.parse(raw))
+          } catch {
+            // 坏帧直接丢弃
+          }
+        }
+        return () => {
+          delete holder.__conatusReceive
+        }
+      }
       function onMessage(event: MessageEvent): void {
         if (event.source !== window.parent) return
         listener(event.data)
