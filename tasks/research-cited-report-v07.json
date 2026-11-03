@@ -1,0 +1,46 @@
+{
+  "id": "research-cited-report-v07",
+  "chain": "research",
+  "title": "SQLite vs Postgres WAL 恢复",
+  "workspace": {
+    "root": "var/workspaces/research-v07",
+    "read": [
+      "inbox"
+    ],
+    "write": [
+      "out"
+    ]
+  },
+  "inputs": [
+    "inbox/brief.md"
+  ],
+  "prompt": "阅读 inbox/brief.md 并完成调研；最多 10 次网页抓取；至少 6 个来源，其中 3 个一手来源；输出 out/report.md 与 out/sources.json；每个事实性结论带脚注；不确定内容标注推断；不得编造 URL。sources.json 必须含 sources 数组，每条有 url/title/fetch_status/is_primary，fetch_status 为 ok，is_primary 为布尔值。图表与产物写完后立即结束。",
+  "network": "allow",
+  "expectedArtifacts": [
+    "out/report.md",
+    "out/sources.json"
+  ],
+  "acceptance": [
+    "每个事实性结论有引用或标注推断",
+    "sources.json 至少 6 条且含 3 条一手",
+    "只收录抓取成功的 URL",
+    "没有写入 out/ 之外"
+  ],
+  "limits": {
+    "maxMinutes": 20,
+    "maxCostUsd": 1.5
+  },
+  "checkpoint": {
+    "enabled": true,
+    "keep": 30
+  },
+  "artifactRules": {
+    "out/report.md": {
+      "minChars": 1500,
+      "maxChars": 20000
+    },
+    "out/sources.json": {
+      "check": "sources-json"
+    }
+  }
+}
