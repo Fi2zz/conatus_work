@@ -39,7 +39,7 @@ class LlmRuntime {
     if (input == null || output == null) return null;
     return ModelRate(
       inputPerMillion: input,
-      cachedPerMillion: input,
+      cachedPerMillion: config.priceCached ?? input,
       outputPerMillion: output,
     );
   }

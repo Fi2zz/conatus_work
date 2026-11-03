@@ -21,6 +21,7 @@ class LlmConfig {
     this.providerName = 'openai-compatible',
     this.priceInput,
     this.priceOutput,
+    this.priceCached,
   });
 
   /// OpenAI 兼容端点。
@@ -41,6 +42,9 @@ class LlmConfig {
   /// 输出单价（美元 / 百万 token）。
   final double? priceOutput;
 
+  /// 缓存命中输入的单价；缺省沿用 [priceInput]。
+  final double? priceCached;
+
   /// 写进 `run.json.model` 的标签。
   String get label => '$providerName/$model';
 }
@@ -53,6 +57,7 @@ LlmConfig llmConfigFromEnv(Map<String, String> env) {
   if (model == null) throw const LlmConfigError('缺少 WORK_LLM_MODEL');
   final double? priceInput = _price(env['WORK_LLM_PRICE_IN'], 'IN');
   final double? priceOutput = _price(env['WORK_LLM_PRICE_OUT'], 'OUT');
+  final double? priceCached = _price(env['WORK_LLM_PRICE_CACHED'], 'CACHED');
   if ((priceInput == null) != (priceOutput == null)) {
     throw const LlmConfigError('WORK_LLM_PRICE_IN 与 WORK_LLM_PRICE_OUT 必须成对出现');
   }
@@ -63,6 +68,7 @@ LlmConfig llmConfigFromEnv(Map<String, String> env) {
     providerName: _value(env['WORK_LLM_NAME']) ?? 'openai-compatible',
     priceInput: priceInput,
     priceOutput: priceOutput,
+    priceCached: priceCached,
   );
 }
 

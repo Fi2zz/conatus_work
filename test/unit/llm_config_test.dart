@@ -44,4 +44,22 @@ void main() {
       throwsA(isA<LlmConfigError>()),
     );
   });
+
+  test('缓存单价可选，缺省沿用输入单价', () {
+    final LlmConfig withCached = llmConfigFromEnv(<String, String>{
+      'WORK_LLM_BASE_URL': 'http://x',
+      'WORK_LLM_MODEL': 'm',
+      'WORK_LLM_PRICE_IN': '0.15',
+      'WORK_LLM_PRICE_OUT': '0.6',
+      'WORK_LLM_PRICE_CACHED': '0.003',
+    });
+    expect(withCached.priceCached, 0.003);
+    final LlmConfig without = llmConfigFromEnv(<String, String>{
+      'WORK_LLM_BASE_URL': 'http://x',
+      'WORK_LLM_MODEL': 'm',
+      'WORK_LLM_PRICE_IN': '0.15',
+      'WORK_LLM_PRICE_OUT': '0.6',
+    });
+    expect(without.priceCached, isNull);
+  });
 }
