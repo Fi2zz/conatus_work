@@ -114,6 +114,12 @@ class Runner {
     final RunPaths paths = RunPaths(runsDir: runsDir, runId: runId);
     final RunStore store = RunStore(paths);
     final RunRecord record = await store.load();
+    if (record.status == TaskRunStatus.succeeded) {
+      throw StateError('该运行已成功，无需恢复：${record.runId}');
+    }
+    if (record.status == TaskRunStatus.running && pidAlive(record.pid)) {
+      throw StateError('该运行仍在进行（pid ${record.pid}）');
+    }
     final TaskSpec task = await TaskSpec.load(record.taskPath);
     final WorkspacePlan workspace = await prepareWorkspace(
       task: task,
@@ -143,6 +149,10 @@ class Runner {
     final RunPaths paths = RunPaths(runsDir: runsDir, runId: runId);
     final RunStore store = RunStore(paths);
     final RunRecord record = await store.load();
+    if (record.status == TaskRunStatus.succeeded ||
+        record.status == TaskRunStatus.failed) {
+      return record;
+    }
     if (pidAlive(record.pid)) {
       await AbortSignal(paths.abortFlagPath).request();
       return record;

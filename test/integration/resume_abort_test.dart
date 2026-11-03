@@ -89,9 +89,16 @@ void main() {
   });
 
   test('resume 会清掉陈旧的 abort.request', () async {
+    bool first = true;
     final Runner runner = Runner(
-      body: noopTaskBody,
       runsDir: '${tmp.path}/runs',
+      body: (scope, task) async {
+        if (first) {
+          first = false;
+          throw StateError('boom');
+        }
+        return const TaskOutcome.ok();
+      },
     );
     final RunRecord record = await runner.run(
       RunRequest(
@@ -106,5 +113,36 @@ void main() {
     final RunRecord resumed = await runner.resume(record.runId);
     expect(resumed.status, TaskRunStatus.succeeded);
     expect(resumed.resumeCount, 1);
+  });
+
+  test('abort 已成功的运行：不改写状态', () async {
+    final Runner runner = Runner(
+      body: noopTaskBody,
+      runsDir: '${tmp.path}/runs',
+    );
+    final RunRecord record = await runner.run(
+      RunRequest(
+        task: TaskSpec.parse(cardJson()),
+        taskPath: cardPath,
+        workspaceRoot: '${tmp.path}/work',
+      ),
+    );
+    final RunRecord after = await runner.abort(record.runId);
+    expect(after.status, TaskRunStatus.succeeded);
+  });
+
+  test('resume 已成功的运行：拒绝', () async {
+    final Runner runner = Runner(
+      body: noopTaskBody,
+      runsDir: '${tmp.path}/runs',
+    );
+    final RunRecord record = await runner.run(
+      RunRequest(
+        task: TaskSpec.parse(cardJson()),
+        taskPath: cardPath,
+        workspaceRoot: '${tmp.path}/work',
+      ),
+    );
+    await expectLater(runner.resume(record.runId), throwsA(isA<StateError>()));
   });
 }
