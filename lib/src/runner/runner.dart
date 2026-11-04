@@ -235,9 +235,12 @@ class Runner {
       ),
       options: options,
     );
-    await checkpoint.bind(record.sessionId);
+    await checkpoint.bind(record.forkSessionId ?? record.sessionId);
     await checkpoint.flush();
     applySnapshot(record, await checkpoint.recordTurn());
+    record.turnHistory.add(
+      TurnCheckpoint(turn: checkpoint.turn, at: DateTime.now(), eventCount: 0),
+    );
     record
       ..status = TaskRunStatus.aborted
       ..endTurn = checkpoint.turn

@@ -87,6 +87,7 @@ void main() {
     final RunRecord aborted = await runner.abort(record.runId);
     expect(aborted.status, TaskRunStatus.aborted);
     expect(aborted.checkpointStatus, CheckpointStatus.ok);
+    expect(aborted.turnHistory, isNotEmpty);
   });
 
   test('resume 会清掉陈旧的 abort.request', () async {

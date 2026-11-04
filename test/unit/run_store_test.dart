@@ -84,6 +84,22 @@ void main() {
     expect(record.failure.message, 'disk full');
   });
 
+  test('aborted 不被检查点失败改写为 failed', () {
+    final RunRecord record = RunRecord(
+      runId: 'r',
+      taskId: 't',
+      chain: 'csv',
+      taskPath: '/t.json',
+      workspaceRoot: 'w',
+      sessionId: 'events',
+      pid: 1,
+      startedAt: DateTime(2026, 11, 2),
+    )..status = TaskRunStatus.aborted;
+    applyCheckpointFailure(record, 'disk full');
+    expect(record.status, TaskRunStatus.aborted);
+    expect(record.failure.category, isNull);
+  });
+
   test('已有业务失败不被检查点失败覆盖', () {
     final RunRecord record =
         RunRecord(

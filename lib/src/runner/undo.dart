@@ -179,6 +179,7 @@ extension RunnerUndo on Runner {
       ).redo(stage);
       await stages.clear();
       record.forkSessionId = null;
+      record.sessionId = stage.originalSessionId;
       record.endTurn = stage.fromTurn;
       record.turnHistory.add(
         TurnCheckpoint(

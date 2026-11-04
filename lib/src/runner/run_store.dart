@@ -53,6 +53,10 @@ RunRecord applySnapshot(RunRecord record, String? error) {
 /// 检查点失败且没有业务失败时，把任务升级为 `failed/checkpoint`。
 RunRecord applyCheckpointFailure(RunRecord record, String? error) {
   if (error == null || record.failure.category != null) return record;
+  if (record.status != TaskRunStatus.succeeded &&
+      record.status != TaskRunStatus.running) {
+    return record;
+  }
   record.failure = RunFailure(
     category: FailureCategory.checkpoint,
     message: error,
