@@ -133,3 +133,43 @@ it('offers a stop button next to the composer while running', async () => {
   await userEvent.click(screen.getByTestId('composer-stop'))
   expect(cancelled).toEqual(['run-a'])
 })
+
+it('clears the draft after a successful send', async () => {
+  seedRun([])
+  const sent: Array<[string, string]> = []
+  transportWith({
+    mode: 'host',
+    async sendMessage(runId: string, text: string) {
+      sent.push([runId, text])
+      return { ok: true, value: undefined }
+    },
+  })
+  useUiStore.setState({ composerDraft: '继续整理剩下的一半' })
+  render(<Shell />)
+  await userEvent.click(screen.getByTestId('composer-send'))
+  expect(sent).toEqual([['run-a', '继续整理剩下的一半']])
+  expect(useUiStore.getState().composerDraft).toBe('')
+})
+
+it('keeps the draft and explains a failed send', async () => {
+  seedRun([])
+  transportWith({
+    mode: 'host',
+    async sendMessage() {
+      return { ok: false, error: { code: 'INTERNAL', message: '宿主还没接上 message.send' } }
+    },
+  })
+  useUiStore.setState({ composerDraft: '别丢了我' })
+  render(<Shell />)
+  await userEvent.click(screen.getByTestId('composer-send'))
+  expect(await screen.findByTestId('composer-error')).toHaveTextContent('宿主还没接上')
+  expect(useUiStore.getState().composerDraft).toBe('别丢了我')
+})
+
+it('disables sending in replay mode and says why', () => {
+  seedRun([], { status: 'running' })
+  transportWith({ mode: 'replay' })
+  render(<Shell />)
+  expect(screen.getByTestId('composer-ended')).toHaveTextContent('回放模式')
+  expect(screen.queryByTestId('composer-send')).not.toBeInTheDocument()
+})

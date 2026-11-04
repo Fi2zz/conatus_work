@@ -106,8 +106,22 @@ it('saves model config through the host', async () => {
   expect(saved[0]).toMatchObject({ baseUrl: 'https://x/v1', model: 'm1' })
 })
 
+it('explains a failed approval submission and keeps the bar open', async () => {
+  seedApproval()
+  setTransport({
+    async respondApproval() {
+      return { ok: false, error: { code: 'DENIED', message: '审批已过期' } }
+    },
+  } as unknown as BridgeTransport)
+  render(<Shell />)
+  await userEvent.click(screen.getByRole('button', { name: '拒绝' }))
+  expect(await screen.findByTestId('approval-error')).toHaveTextContent('审批已过期')
+  expect(screen.getByTestId('approval-bar')).toBeInTheDocument()
+})
+
 it('explains that a finished replay will not execute new messages', () => {
   seedRun([], { status: 'succeeded' })
+  setTransport({ mode: 'replay' } as unknown as BridgeTransport)
   render(<Shell />)
   expect(screen.getByTestId('composer-ended')).toHaveTextContent('回放已结束')
 })

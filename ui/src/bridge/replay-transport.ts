@@ -127,6 +127,7 @@ export function createReplayTransport(fixture: ReplayFixture, options: ReplayOpt
   }
 
   return {
+    mode: 'replay',
     async connect() {
       emit({
         seq: -1,

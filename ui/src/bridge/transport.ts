@@ -12,6 +12,8 @@ import type {
 } from './types'
 
 export interface BridgeTransport {
+  /** `replay` 表示没有真实执行，界面据此禁用发送等写操作。 */
+  readonly mode?: 'replay' | 'host'
   connect(): Promise<void>
   disconnect(): void
   subscribe(listener: (event: BridgeEvent) => void): () => void

@@ -127,12 +127,30 @@ it('passes command errors through', async () => {
   expect(await pending).toMatchObject({ ok: false, error: { code: 'NOT_FOUND' } })
 })
 
-it('reports unsupported commands instead of pretending', async () => {
-  const { transport } = await connected()
-  expect(await transport.sendMessage('run-x', '你好')).toMatchObject({
+it('sends message.send with the run id and text', async () => {
+  const { channel, transport } = await connected()
+  const pending = transport.sendMessage('run-x', '继续整理剩下的一半')
+  const frame = channel.commands()[0]
+  expect(frame.command).toBe('message.send')
+  expect(frame.payload).toEqual({ runId: 'run-x', text: '继续整理剩下的一半' })
+  channel.receive({ v: 1, kind: 'result', id: frame.id, ok: true })
+  expect(await pending).toEqual({ ok: true, value: undefined })
+})
+
+it('sends approval.respond with the decision', async () => {
+  const { channel, transport } = await connected()
+  const pending = transport.respondApproval('req-1', 'deny')
+  const frame = channel.commands()[0]
+  expect(frame.command).toBe('approval.respond')
+  expect(frame.payload).toEqual({ requestId: 'req-1', decision: 'deny' })
+  channel.receive({
+    v: 1,
+    kind: 'result',
+    id: frame.id,
     ok: false,
-    error: { code: 'INTERNAL' },
+    error: { code: 'DENIED', message: '审批已过期' },
   })
+  expect(await pending).toMatchObject({ ok: false, error: { code: 'DENIED' } })
 })
 
 it('drops messages that do not come from the parent window', () => {

@@ -292,7 +292,7 @@ export function Shell(): JSX.Element {
         <section data-testid="timeline" className="min-h-0 flex-1">
           <Timeline />
         </section>
-        {active?.approval ? <ApprovalBar runId={active.id} request={active.approval} /> : null}
+        {active?.approval ? <ApprovalBar request={active.approval} /> : null}
         <Composer />
       </main>
 

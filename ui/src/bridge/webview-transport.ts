@@ -109,13 +109,6 @@ export function createWindowChannel(target: Window = window): HostChannel {
   }
 }
 
-function unsupported<T>(command: string): CommandResult<T> {
-  return {
-    ok: false,
-    error: { code: 'INTERNAL', message: `命令 ${command} 需要 Flutter 壳接线后才能执行` },
-  }
-}
-
 function summaryOf(fixture: ReplayFixture): RunSummary {
   const { workspaceRoot, ...summary } = fixture.run
   void workspaceRoot
@@ -195,6 +188,7 @@ export function createWebViewTransport(options: Options = {}): BridgeTransport {
   }
 
   return {
+    mode: 'host',
     async connect() {
       unsubscribe = channel.subscribe(receive)
       await new Promise<void>((resolve, reject) => {
@@ -240,8 +234,10 @@ export function createWebViewTransport(options: Options = {}): BridgeTransport {
         ...(workspaceRoot ? { workspaceRoot } : {}),
       }),
     cancelTask: (runId: string) => request<{ status: RunStatus }>('task.cancel', { runId }),
-    sendMessage: () => Promise.resolve(unsupported<void>('message.send')),
-    respondApproval: () => Promise.resolve(unsupported<void>('approval.respond')),
+    sendMessage: (runId: string, text: string) =>
+      request<void>('message.send', { runId, text }),
+    respondApproval: (requestId: string, decision: 'allow' | 'deny') =>
+      request<void>('approval.respond', { requestId, decision }),
 
     openDiff: (runId: string, filePath?: string) =>
       request<ChangeSet>('diff.open', { runId, ...(filePath ? { filePath } : {}) }),
