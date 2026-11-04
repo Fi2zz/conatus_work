@@ -1,9 +1,10 @@
 import { create } from 'zustand'
 
-export type RightTab = 'artifacts' | 'changes' | 'checkpoints'
+export type RightTab = 'artifacts' | 'changes' | 'checkpoints' | 'files'
 export type TimelineFilter = 'key' | 'all' | 'failed'
 export type TaskStatusFilter = 'all' | 'running' | 'failed'
 export type TaskTimeFilter = 'all' | 'today' | 'week' | 'month'
+export type AppModule = 'work' | 'experts' | 'skills' | 'connectors' | 'automation' | 'data'
 
 const PIN_KEY = 'conatus.pinnedTasks'
 
@@ -26,12 +27,15 @@ function writePinned(ids: string[]): void {
 }
 
 interface UiState {
+  module: AppModule
   filter: TimelineFilter
   leftCollapsed: boolean
   taskQuery: string
   taskStatus: TaskStatusFilter
   taskTime: TaskTimeFilter
   pinnedTaskIds: string[]
+  taskTitles: Record<string, string>
+  archivedTaskIds: string[]
   expandedKeys: Set<string>
   rightTab: RightTab
   rightWidth: number
@@ -46,11 +50,14 @@ interface UiState {
   stoppingRunId: string | null
   undoNotice: { runId: string; targetTurn: number; steps: number } | null
   setFilter: (filter: TimelineFilter) => void
+  setModule: (module: AppModule) => void
   toggleLeft: () => void
   setTaskQuery: (query: string) => void
   setTaskStatus: (status: TaskStatusFilter) => void
   setTaskTime: (time: TaskTimeFilter) => void
   togglePinnedTask: (runId: string) => void
+  setTaskTitle: (runId: string, title: string) => void
+  archiveTask: (runId: string) => void
   toggleExpanded: (key: string) => void
   setRightTab: (tab: RightTab) => void
   setRightWidth: (width: number) => void
@@ -67,12 +74,15 @@ interface UiState {
 }
 
 export const useUiStore = create<UiState>((set) => ({
+  module: 'work',
   filter: 'key',
   leftCollapsed: false,
   taskQuery: '',
   taskStatus: 'all',
   taskTime: 'all',
   pinnedTaskIds: readPinned(),
+  taskTitles: {},
+  archivedTaskIds: [],
   expandedKeys: new Set<string>(),
   rightTab: 'artifacts',
   rightWidth: 380,
@@ -87,6 +97,7 @@ export const useUiStore = create<UiState>((set) => ({
   stoppingRunId: null,
   undoNotice: null,
   setFilter: (filter) => set({ filter }),
+  setModule: (module) => set({ module }),
   toggleLeft: () => set((state) => ({ leftCollapsed: !state.leftCollapsed })),
   setTaskQuery: (taskQuery) => set({ taskQuery }),
   setTaskStatus: (taskStatus) => set({ taskStatus }),
@@ -99,6 +110,14 @@ export const useUiStore = create<UiState>((set) => ({
       writePinned(pinnedTaskIds)
       return { pinnedTaskIds }
     }),
+  setTaskTitle: (runId, title) =>
+    set((state) => ({ taskTitles: { ...state.taskTitles, [runId]: title } })),
+  archiveTask: (runId) =>
+    set((state) => ({
+      archivedTaskIds: state.archivedTaskIds.includes(runId)
+        ? state.archivedTaskIds
+        : [...state.archivedTaskIds, runId],
+    })),
   toggleExpanded: (key) =>
     set((state) => {
       const expandedKeys = new Set(state.expandedKeys)

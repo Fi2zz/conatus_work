@@ -9,6 +9,7 @@ import { findFixture } from '@/fixtures'
 import { readFixtureParam } from './fixture-param'
 import { ErrorBoundary } from './error-boundary'
 import { AppProvider } from './provider'
+import { AppFrame } from '@/features/prototype/PrototypePage'
 import { Shell } from './Shell'
 
 function hasNativeChannel(): boolean {
@@ -71,7 +72,7 @@ export default function App({ transport }: AppProps = {}): JSX.Element {
   return (
     <ErrorBoundary>
       <AppProvider transport={resolved}>
-        <Shell />
+        <AppFrame workbench={<Shell />} />
       </AppProvider>
     </ErrorBoundary>
   )
