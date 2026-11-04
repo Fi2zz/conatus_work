@@ -58,8 +58,9 @@ void main() {
     expect(firstRun.failure.category, FailureCategory.internal);
     final RunRecord resumed = await runner.resume(firstRun.runId);
     expect(resumed.status, TaskRunStatus.succeeded);
-    expect(resumed.startTurn, 1);
+    expect(resumed.startTurn, 0);
     expect(resumed.endTurn, 2);
+    expect(resumed.failure.category, isNull);
     expect(resumed.resumeCount, 1);
   });
 

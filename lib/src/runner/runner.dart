@@ -126,11 +126,13 @@ class Runner {
       rootOverride: record.workspaceRoot,
     );
     await AbortSignal(paths.abortFlagPath).clear();
+    final String sessionId = record.forkSessionId ?? record.sessionId;
     record
       ..status = TaskRunStatus.running
       ..pid = pid
       ..resumeCount += 1
-      ..endedAt = null;
+      ..endedAt = null
+      ..failure = RunFailure();
     await store.save(record);
     return RunExecution(
       body: body,
@@ -141,6 +143,47 @@ class Runner {
       store: store,
       fresh: false,
       llm: llm,
+      sessionId: sessionId,
+      accumulateUsage: true,
+    ).execute();
+  }
+
+  /// 在已结束的 run 上追加一条用户消息并继续执行；不新建 run。
+  Future<RunRecord> continueRun(String runId, String text) async {
+    if (text.trim().isEmpty) {
+      throw ArgumentError.value(text, 'text', '续写内容不能为空');
+    }
+    final RunPaths paths = RunPaths(runsDir: runsDir, runId: runId);
+    final RunStore store = RunStore(paths);
+    final RunRecord record = await store.load();
+    if (record.status == TaskRunStatus.running && pidAlive(record.pid)) {
+      throw StateError('该运行仍在进行（pid ${record.pid}）');
+    }
+    final TaskSpec task = await TaskSpec.load(record.taskPath);
+    final WorkspacePlan workspace = await prepareWorkspace(
+      task: task,
+      rootOverride: record.workspaceRoot,
+    );
+    await AbortSignal(paths.abortFlagPath).clear();
+    final String sessionId = record.forkSessionId ?? record.sessionId;
+    record
+      ..status = TaskRunStatus.running
+      ..pid = pid
+      ..endedAt = null
+      ..failure = RunFailure();
+    await store.save(record);
+    return RunExecution(
+      body: body,
+      record: record,
+      task: task,
+      workspace: workspace,
+      paths: paths,
+      store: store,
+      fresh: false,
+      llm: llm,
+      sessionId: sessionId,
+      userText: text,
+      accumulateUsage: true,
     ).execute();
   }
 

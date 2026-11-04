@@ -57,7 +57,8 @@ Future<TaskOutcome> agentTaskBody(RunScope scope, TaskSpec task) async {
     if (signal.requested) cancel.cancel();
   });
   try {
-    await agent.run(_prompt(scope, task), cancel: cancel);
+    final String prompt = scope.userText ?? _prompt(scope, task);
+    await agent.run(prompt, cancel: cancel);
     return _outcome(scope, task);
   } on AgentCancelled {
     if (signal.requested) {

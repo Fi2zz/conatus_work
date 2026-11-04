@@ -23,6 +23,9 @@ class RunExecution {
     this.fresh = true,
     this.llm,
     this.confirmed = false,
+    this.sessionId,
+    this.userText,
+    this.accumulateUsage = false,
   });
 
   final TaskBody body;
@@ -32,7 +35,7 @@ class RunExecution {
   final RunPaths paths;
   final RunStore store;
 
-  /// true 重建检查点时间线（新运行）；false 接管已有时间线（resume）。
+  /// true 重建检查点时间线（新运行）；false 接管已有时间线（resume / continue）。
   final bool fresh;
 
   /// 模型运行时；为空时不装配 Agent Loop。
@@ -40,6 +43,15 @@ class RunExecution {
 
   /// 用户是否已确认执行。
   final bool confirmed;
+
+  /// 接管的会话 id；空表示 `events`。
+  final String? sessionId;
+
+  /// 续写时替代任务卡 prompt 的用户文本。
+  final String? userText;
+
+  /// 是否在已有用量上继续累加（resume / continue）。
+  final bool accumulateUsage;
 
   Future<RunRecord> execute() async {
     RunScope? scope;
@@ -52,16 +64,21 @@ class RunExecution {
           fresh: fresh,
           llm: llm,
           confirmed: confirmed,
+          sessionId: sessionId,
+          userText: userText,
         ),
       );
       _attach(scope);
       await store.save(record);
       final TaskOutcome outcome = await _runBody(scope);
       _apply(outcome);
+      final int priorInput = accumulateUsage ? record.inputTokens : 0;
+      final int priorOutput = accumulateUsage ? record.outputTokens : 0;
+      final double priorCost = accumulateUsage ? record.costUsd : 0;
       record
-        ..inputTokens = outcome.tokens.prompt
-        ..outputTokens = outcome.tokens.completion
-        ..costUsd = outcome.costUsd ?? 0;
+        ..inputTokens = priorInput + outcome.tokens.prompt
+        ..outputTokens = priorOutput + outcome.tokens.completion
+        ..costUsd = priorCost + (outcome.costUsd ?? 0);
       if (record.status == TaskRunStatus.succeeded) await _checkArtifacts();
       await _snapshot(scope);
     } catch (error) {
@@ -82,10 +99,10 @@ class RunExecution {
 
   void _attach(RunScope scope) {
     record
-      ..startTurn = scope.checkpoint.turn
       ..sessionId = scope.session.id
       ..tools = scope.toolNames
       ..model = scope.modelLabel;
+    if (fresh) record.startTurn = scope.checkpoint.turn;
   }
 
   Future<TaskOutcome> _runBody(RunScope scope) async {
@@ -98,7 +115,9 @@ class RunExecution {
   void _apply(TaskOutcome outcome) {
     switch (outcome.status) {
       case TaskRunStatus.aborted:
-        record.status = TaskRunStatus.aborted;
+        record
+          ..status = TaskRunStatus.aborted
+          ..failure = RunFailure();
       case TaskRunStatus.failed:
         record
           ..status = TaskRunStatus.failed
@@ -108,7 +127,9 @@ class RunExecution {
           );
       case TaskRunStatus.running:
       case TaskRunStatus.succeeded:
-        record.status = TaskRunStatus.succeeded;
+        record
+          ..status = TaskRunStatus.succeeded
+          ..failure = RunFailure();
     }
   }
 

@@ -26,6 +26,8 @@ class AssemblyOptions {
     this.fresh = true,
     this.llm,
     this.confirmed = false,
+    this.sessionId,
+    this.userText,
   });
 
   /// 任务卡。
@@ -45,6 +47,12 @@ class AssemblyOptions {
 
   /// 用户是否已确认执行（headless 下由 `--yes` 给出）。
   final bool confirmed;
+
+  /// 本次要接管的会话 id；缺省 `events`（新运行）。
+  final String? sessionId;
+
+  /// 续写时替代任务卡 prompt 的用户文本。
+  final String? userText;
 }
 
 /// 一次运行持有的框架对象。
@@ -63,6 +71,7 @@ class RunScope {
     this.confirmed = false,
     this.usage,
     this.rate,
+    this.userText,
   });
 
   /// 本次运行的上下文树。
@@ -104,6 +113,9 @@ class RunScope {
   /// 模型费率；未配置单价时为 null。
   final ModelRate? rate;
 
+  /// 续写时替代任务卡 prompt 的用户文本。
+  final String? userText;
+
   /// 关闭会话并释放整棵上下文。
   Future<void> dispose() async {
     sessionStore.close(session.id);
@@ -117,6 +129,7 @@ Future<RunScope> assembleRun(AssemblyOptions options) async {
   final WorkspacePlan workspace = options.workspace;
   final RunPaths paths = options.paths;
   final bool fresh = options.fresh;
+  final String sessionId = options.sessionId ?? 'events';
   final Context ctx = Context.root();
   final RootedFileSystem fs = RootedFileSystem(
     inner: LocalFileSystem(cwd: workspace.rootAbsolute),
@@ -148,7 +161,7 @@ Future<RunScope> assembleRun(AssemblyOptions options) async {
       persistence: JsonlSessionPersistence(dir: paths.runDir),
     ),
   );
-  final Session session = await sessionStore.open('events');
+  final Session session = await sessionStore.open(sessionId);
 
   final CheckpointOptions checkpointOptions = CheckpointOptions(
     enabled: task.checkpointEnabled,
@@ -164,8 +177,8 @@ Future<RunScope> assembleRun(AssemblyOptions options) async {
     options: checkpointOptions,
   );
   final String? baselineError = await (fresh
-      ? checkpoint.reset('events')
-      : checkpoint.bind('events'));
+      ? checkpoint.reset(sessionId)
+      : checkpoint.bind(sessionId));
   await checkpoint.flush();
   ctx.provide('checkpointManager', checkpoint);
   final UsageMeter? meter = options.llm == null
@@ -199,6 +212,7 @@ Future<RunScope> assembleRun(AssemblyOptions options) async {
     confirmed: options.confirmed,
     usage: meter,
     rate: options.llm?.rate,
+    userText: options.userText,
   );
 }
 
