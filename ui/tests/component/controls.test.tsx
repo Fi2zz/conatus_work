@@ -135,7 +135,7 @@ it('offers a stop button next to the composer while running', async () => {
 })
 
 it('clears the draft after a successful send', async () => {
-  seedRun([])
+  seedRun([], { status: 'succeeded' })
   const sent: Array<[string, string]> = []
   transportWith({
     mode: 'host',
@@ -152,7 +152,7 @@ it('clears the draft after a successful send', async () => {
 })
 
 it('keeps the draft and explains a failed send', async () => {
-  seedRun([])
+  seedRun([], { status: 'succeeded' })
   transportWith({
     mode: 'host',
     async sendMessage() {
@@ -164,6 +164,23 @@ it('keeps the draft and explains a failed send', async () => {
   await userEvent.click(screen.getByTestId('composer-send'))
   expect(await screen.findByTestId('composer-error')).toHaveTextContent('宿主还没接上')
   expect(useUiStore.getState().composerDraft).toBe('别丢了我')
+})
+
+it('only offers stop while a host run is executing', () => {
+  seedRun([], { status: 'running' })
+  transportWith({ mode: 'host' })
+  render(<Shell />)
+  expect(screen.getByTestId('composer-stop')).toBeInTheDocument()
+  expect(screen.queryByTestId('composer-send')).not.toBeInTheDocument()
+  expect(screen.getByPlaceholderText('运行中，停止后可继续交代')).toBeInTheDocument()
+})
+
+it('lets a finished host run continue with a follow-up message', () => {
+  seedRun([], { status: 'succeeded' })
+  transportWith({ mode: 'host' })
+  render(<Shell />)
+  expect(screen.getByTestId('composer-send')).toBeInTheDocument()
+  expect(screen.getByTestId('composer-continue')).toHaveTextContent('继续该会话')
 })
 
 it('disables sending in replay mode and says why', () => {

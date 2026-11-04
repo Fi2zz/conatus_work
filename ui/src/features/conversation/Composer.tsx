@@ -33,7 +33,7 @@ export function Composer(): JSX.Element {
   }, [draft])
 
   async function send(): Promise<void> {
-    if (!run || disabled || draft.trim() === '') return
+    if (!run || disabled || running || draft.trim() === '') return
     setError(null)
     setSending(true)
     try {
@@ -63,12 +63,18 @@ export function Composer(): JSX.Element {
       ? '回放已结束，发送消息不会被执行。'
       : '回放模式，发送消息不会被执行。'
     : null
+  const continueHint = !replay && ended && !pendingApproval ? '任务已结束，发送消息会继续该会话。' : null
 
   return (
     <div className="border-t border-line/70 bg-panel px-3 py-2">
       {hint ? (
         <p data-testid="composer-ended" className="mb-1 text-[10.5px] text-ink-muted">
           {hint}
+        </p>
+      ) : null}
+      {continueHint ? (
+        <p data-testid="composer-continue" className="mb-1 text-[10.5px] text-ink-muted">
+          {continueHint}
         </p>
       ) : null}
       {error ? (
@@ -88,42 +94,45 @@ export function Composer(): JSX.Element {
             onKeyDown={onKeyDown}
             disabled={disabled}
             rows={1}
-            placeholder={pendingApproval ? '等待审批…' : '继续交代任务，⌘↵ 发送'}
+            placeholder={
+              pendingApproval
+                ? '等待审批…'
+                : running
+                  ? '运行中，停止后可继续交代'
+                  : '继续交代任务，⌘↵ 发送'
+            }
             className="max-h-40 w-full resize-none bg-transparent px-2.5 py-2 text-[12.5px] leading-relaxed outline-none disabled:opacity-60"
           />
         </div>
-        {pendingApproval || replay ? null : (
-          <>
-            {running && run ? (
-              <Button
-                variant="danger"
-                data-testid="composer-stop"
-                aria-label="停止运行"
-                disabled={stopping}
-                onClick={() => {
-                  setStoppingRun(run.id)
-                  void getTransport()
-                    .cancelTask(run.id)
-                    .catch(() => setStoppingRun(null))
-                }}
-                className="mb-0.5"
-              >
-                <span aria-hidden className="text-[9px] leading-none">
-                  ■
-                </span>
-                {stopping ? '停止中…' : '停止'}
-              </Button>
-            ) : null}
-            <Button
-              variant="primary"
-              data-testid="composer-send"
-              disabled={disabled || draft.trim() === ''}
-              onClick={() => void send()}
-              className="mb-0.5"
-            >
-              {sending ? '发送中…' : '发送'}
-            </Button>
-          </>
+        {pendingApproval || replay ? null : running && run ? (
+          <Button
+            variant="danger"
+            data-testid="composer-stop"
+            aria-label="停止运行"
+            disabled={stopping}
+            onClick={() => {
+              setStoppingRun(run.id)
+              void getTransport()
+                .cancelTask(run.id)
+                .catch(() => setStoppingRun(null))
+            }}
+            className="mb-0.5"
+          >
+            <span aria-hidden className="text-[9px] leading-none">
+              ■
+            </span>
+            {stopping ? '停止中…' : '停止'}
+          </Button>
+        ) : (
+          <Button
+            variant="primary"
+            data-testid="composer-send"
+            disabled={disabled || draft.trim() === ''}
+            onClick={() => void send()}
+            className="mb-0.5"
+          >
+            {sending ? '发送中…' : '发送'}
+          </Button>
         )}
       </div>
     </div>

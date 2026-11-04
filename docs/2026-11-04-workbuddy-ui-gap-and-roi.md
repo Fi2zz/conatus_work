@@ -26,7 +26,7 @@
 | 能力 | WorkBuddy | 我们 | 归属 |
 |---|---|---|---|
 | 自由任务输入 | 一句话描述直接开跑 | 只能选预置任务卡 | UI + 逻辑 |
-| 继续对话 | 已完成/失败/中断后都能继续 | UI 已接线，宿主 `message.send` 未实现 | 逻辑 |
+| 继续对话 | 已完成/失败/中断后都能继续 | 已实现：运行中只显示停止，结束后可续写 | — |
 | 附件上下文 | 上传 / 拖拽 / 粘贴截图 | 无附件入口 | UI + 逻辑 |
 | `@` 引用 / `/` 调技能 | 输入框内直接使用 | 无 | UI + 逻辑 |
 | 任务搜索 | 顶部搜索面板 | 无 | UI |
@@ -90,14 +90,14 @@
 | 6 | 任务归档 / 重命名 / 删除 / 批量 | UI + 逻辑 | `task.*` 命令 | 待宿主 |
 | 7 | 工作空间文件树 | UI + 逻辑 | `fs.list` / `fs.read` | 待宿主 |
 | 8 | 多文件页签、网页地址/刷新、代码高亮 | UI | 无 / 资源协议 | 部分（全屏、预览刷新已完成） |
-| 9 | 继续对话、审批应答 | 逻辑 | `message.send` / `approval.respond` | 见 2026-11-04-ui-shell-handoff.md |
+| 9 | 继续对话、审批应答 | 逻辑 | `message.send` / `approval.respond` | 已完成（Dart 侧已落地，UI 已适配） |
 | 10 | 技能 / 连接器 / 自动化管理界面 | UI + 逻辑 | 各自 host 命令 | 待排 |
 | 11 | 专家 / 专家团 | UI + 逻辑 | `conatus_team` 稳定 | 待排 |
 | 12 | 通知、菜单、更新、Windows | 壳 | 发布工程 | 待排 |
 
 ## 四、需要逻辑侧补的命令（UI 已按此预留）
 
-- `message.send` / `approval.respond`：见 `2026-11-04-ui-shell-handoff.md`。
+- `message.send` / `approval.respond`：已于 2026-11-04 落地；UI 运行中禁发、结束后可续写。
 - `task.rename` `{ runId, title }` → `RunSummary`。
 - `task.archive` / `task.delete` `{ runId }` → `{}`。
 - `task.pin` 可先留在 UI 本地（`localStorage`），不必进宿主。

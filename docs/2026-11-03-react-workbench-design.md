@@ -343,11 +343,11 @@ npm run build                        # 产物可被 WebView 加载
 - DOCX / XLSX / XLS 内嵌预览（`docx-preview` + SheetJS，按需加载）。
 - 时间线零依赖虚拟化（`content-visibility`）。
 - UI CI：Vitest + Playwright 已进 `.github/workflows/test.yml`。
+- `message.send` / `approval.respond`：Dart 侧已实现真实续写与审批源，UI 已适配
+  （运行中只显示停止，结束后可续写；审批失败保留审批条）。
 
 仍未做：
 
-- `message.send` / `approval.respond` 的宿主实现；UI 侧已接线并有失败反馈，契约见
-  `2026-11-04-ui-shell-handoff.md`。
 - PPTX 内嵌预览与 Office 产物管线（DOCX / XLSX 已支持预览）。
 - 多任务并行执行与并行撤销（首版保持「一任务 = 一轮」）。
 - 安装升级、macOS 签名与公证、Windows 适配。
