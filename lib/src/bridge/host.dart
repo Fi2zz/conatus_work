@@ -6,7 +6,7 @@ library;
 import 'dart:convert';
 import 'dart:typed_data';
 
-import '../runner/run_types.dart';
+import '../runner/undo.dart';
 import 'bridge.dart';
 import 'bridge_error.dart';
 import 'config_store.dart';
@@ -62,6 +62,9 @@ class BridgeHost {
 
   /// 本地模型配置；未接线时设置页只读。
   final ConfigStore? configStore;
+
+  /// 桥接层自己产生的事件序号；与运行日志的 seq 分属不同区段。
+  int _eventSeq = 2000000;
 
   /// 处理一条入站帧，返回要发回前端的帧。
   Future<List<String>> dispatch(String raw) async {
@@ -233,27 +236,40 @@ class BridgeHost {
         if (changes == null) throw StateError('该运行未记录变更');
         return changes;
       case 'undo':
-        final Object? steps = payload['steps'];
-        final RunRecord record = await bridge.undo(
-          _requireString(payload, 'runId'),
-          steps: steps is num ? steps.toInt() : null,
+        final String undoRun = _requireString(payload, 'runId');
+        final int? undoSteps = _stepsOf(payload);
+        push?.call(
+          _eventFrame(
+            _revertEvent('undo/started', undoRun, <String, Object?>{
+              'steps': undoSteps ?? 0,
+            }),
+          ),
         );
-        return <String, Object?>{
-          'ok': true,
-          'appliedSteps': steps is num ? steps.toInt() : 1,
-          'failures': <Object?>[],
-          'forkSessionId': record.forkSessionId,
-        };
+        final RevertOutcome undone = await bridge.undoDetailed(
+          undoRun,
+          steps: undoSteps,
+        );
+        push?.call(
+          _eventFrame(
+            _revertEvent('undo/finished', undoRun, <String, Object?>{
+              ...undone.toJson(),
+              'steps': undoSteps ?? undone.appliedSteps,
+            }),
+          ),
+        );
+        return undone.toJson();
       case 'redo':
-        final RunRecord record = await bridge.redo(
-          _requireString(payload, 'runId'),
+        final String redoRun = _requireString(payload, 'runId');
+        final RevertOutcome redone = await bridge.redoDetailed(redoRun);
+        push?.call(
+          _eventFrame(
+            _revertEvent('redo/finished', redoRun, <String, Object?>{
+              ...redone.toJson(),
+              'steps': redone.appliedSteps,
+            }),
+          ),
         );
-        return <String, Object?>{
-          'ok': true,
-          'appliedSteps': 1,
-          'failures': <Object?>[],
-          'forkSessionId': record.forkSessionId,
-        };
+        return redone.toJson();
       default:
         throw ArgumentError('未知命令：$command');
     }
@@ -272,6 +288,23 @@ class BridgeHost {
     }
     return value;
   }
+
+  int? _stepsOf(Map<String, Object?> payload) {
+    final Object? value = payload['steps'];
+    return value is num ? value.toInt() : null;
+  }
+
+  Map<String, Object?> _revertEvent(
+    String type,
+    String runId,
+    Map<String, Object?> data,
+  ) => <String, Object?>{
+    'seq': _eventSeq++,
+    'at': 0,
+    'type': type,
+    'runId': runId,
+    'data': data,
+  };
 }
 
 Object? _decode(String raw) {

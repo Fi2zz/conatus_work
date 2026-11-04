@@ -57,7 +57,11 @@ void main() {
     expect(record.status, TaskRunStatus.succeeded);
     expect(File('${tmp.path}/work/out/a.txt').existsSync(), isTrue);
 
-    final RunRecord undone = await runner.undo(record.runId);
+    final RevertOutcome outcome = await runner.undoOutcome(record.runId);
+    expect(outcome.ok, isTrue);
+    expect(outcome.appliedSteps, 1);
+    expect(outcome.failures, isEmpty);
+    final RunRecord undone = outcome.record;
     expect(File('${tmp.path}/work/inbox/a.txt').existsSync(), isTrue);
     expect(File('${tmp.path}/work/out/a.txt').existsSync(), isFalse);
     expect(undone.forkSessionId, isNotNull);

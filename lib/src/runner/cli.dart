@@ -120,22 +120,35 @@ Future<int> _undo(List<String> args) async {
   if (runId == null) return _usage();
   final String? raw = _flag(args, '--steps');
   final int? steps = raw == null ? null : int.tryParse(raw);
-  final RunRecord record = await Runner(
+  final RevertOutcome outcome = await Runner(
     body: agentTaskBody,
     runsDir: kRunsDir,
-  ).undo(runId, steps: steps);
-  stdout.writeln('已撤销：${record.runId} forkSessionId=${record.forkSessionId}');
+  ).undoOutcome(runId, steps: steps);
+  if (!outcome.ok) {
+    stderr.writeln('撤销失败：${outcome.failures.first.error}');
+    return 1;
+  }
+  stdout.writeln(
+    '已撤销：${outcome.record.runId} appliedSteps=${outcome.appliedSteps} '
+    'forkSessionId=${outcome.record.forkSessionId}',
+  );
   return 0;
 }
 
 Future<int> _redo(List<String> args) async {
   final String? runId = _positional(args);
   if (runId == null) return _usage();
-  final RunRecord record = await Runner(
+  final RevertOutcome outcome = await Runner(
     body: agentTaskBody,
     runsDir: kRunsDir,
-  ).redo(runId);
-  stdout.writeln('已重做：${record.runId}');
+  ).redoOutcome(runId);
+  if (!outcome.ok) {
+    stderr.writeln('重做失败：${outcome.failures.first.error}');
+    return 1;
+  }
+  stdout.writeln(
+    '已重做：${outcome.record.runId} appliedSteps=${outcome.appliedSteps}',
+  );
   return 0;
 }
 

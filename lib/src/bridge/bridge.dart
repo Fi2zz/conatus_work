@@ -142,10 +142,25 @@ class WorkbenchBridge {
     ).undo(runId, steps: steps);
   }
 
+  /// 撤销并返回实际步数 / 失败明细（桥接层用）。
+  Future<RevertOutcome> undoDetailed(String runId, {int? steps}) {
+    _runDir(runId);
+    return Runner(
+      body: noopTaskBody,
+      runsDir: runsDir,
+    ).undoOutcome(runId, steps: steps);
+  }
+
   /// 重做上次撤销；没有撤销点时抛 [StateError]。
   Future<RunRecord> redo(String runId) {
     _runDir(runId);
     return Runner(body: noopTaskBody, runsDir: runsDir).redo(runId);
+  }
+
+  /// 重做并返回实际恢复轮数（桥接层用）。
+  Future<RevertOutcome> redoDetailed(String runId) {
+    _runDir(runId);
+    return Runner(body: noopTaskBody, runsDir: runsDir).redoOutcome(runId);
   }
 
   String _runDir(String runId) {
