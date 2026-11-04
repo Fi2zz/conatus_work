@@ -31,6 +31,16 @@ bool binaryArtifact(String path) {
     '.xlsx',
     '.ppt',
     '.pptx',
+    '.mp3',
+    '.wav',
+    '.m4a',
+    '.ogg',
+    '.aac',
+    '.flac',
+    '.mp4',
+    '.webm',
+    '.mov',
+    '.m4v',
   ].any(lower.endsWith);
 }
 

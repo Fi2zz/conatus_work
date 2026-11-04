@@ -16,6 +16,16 @@ void main() {
       'xlsx',
       'ppt',
       'pptx',
+      'mp3',
+      'wav',
+      'm4a',
+      'ogg',
+      'aac',
+      'flac',
+      'mp4',
+      'webm',
+      'mov',
+      'm4v',
     ]) {
       expect(binaryArtifact('out/report.$ext'), isTrue, reason: ext);
     }
