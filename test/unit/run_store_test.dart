@@ -66,6 +66,47 @@ void main() {
     expect(patched.checkpointError, 'disk full');
   });
 
+  test('检查点失败在无业务失败时升级为 failed/checkpoint', () {
+    final RunRecord record = RunRecord(
+      runId: 'r',
+      taskId: 't',
+      chain: 'csv',
+      taskPath: '/t.json',
+      workspaceRoot: 'w',
+      sessionId: 'events',
+      pid: 1,
+      startedAt: DateTime(2026, 11, 2),
+    )..status = TaskRunStatus.succeeded;
+    applySnapshot(record, 'disk full');
+    applyCheckpointFailure(record, 'disk full');
+    expect(record.status, TaskRunStatus.failed);
+    expect(record.failure.category, FailureCategory.checkpoint);
+    expect(record.failure.message, 'disk full');
+  });
+
+  test('已有业务失败不被检查点失败覆盖', () {
+    final RunRecord record =
+        RunRecord(
+            runId: 'r',
+            taskId: 't',
+            chain: 'csv',
+            taskPath: '/t.json',
+            workspaceRoot: 'w',
+            sessionId: 'events',
+            pid: 1,
+            startedAt: DateTime(2026, 11, 2),
+          )
+          ..status = TaskRunStatus.failed
+          ..failure = RunFailure(
+            category: FailureCategory.artifact,
+            message: '产物缺失',
+          );
+    applySnapshot(record, 'disk full');
+    applyCheckpointFailure(record, 'disk full');
+    expect(record.status, TaskRunStatus.failed);
+    expect(record.failure.category, FailureCategory.artifact);
+  });
+
   test('时间戳带时区偏移', () async {
     final Directory tmp = Directory.systemTemp.createTempSync('run_store_tz_');
     addTearDown(() => tmp.deleteSync(recursive: true));

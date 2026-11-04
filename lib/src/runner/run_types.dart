@@ -75,6 +75,9 @@ class RunRecord {
   int inputTokens = 0;
   int outputTokens = 0;
   double costUsd = 0;
+  int undoCount = 0;
+  int undoFailureCount = 0;
+  int redoCount = 0;
   List<ArtifactCheck> artifacts = <ArtifactCheck>[];
   List<String> tools = <String>[];
   String? forkSessionId;
@@ -105,6 +108,11 @@ class RunRecord {
       'inputTokens': inputTokens,
       'outputTokens': outputTokens,
       'costUsd': costUsd,
+    },
+    'undo': <String, Object?>{
+      'ok': undoCount,
+      'failed': undoFailureCount,
+      'redo': redoCount,
     },
     'artifacts': <Object?>[for (final ArtifactCheck a in artifacts) a.toJson()],
     'tools': tools,
@@ -138,6 +146,7 @@ class RunRecord {
     final Map<String, Object?> turns = asJsonMap(json['turns']);
     final Map<String, Object?> checkpoint = asJsonMap(json['checkpoint']);
     final Map<String, Object?> usage = asJsonMap(json['usage']);
+    final Map<String, Object?> undo = asJsonMap(json['undo']);
     record
       ..endedAt = asJsonDate(json['endedAt'])
       ..status = TaskRunStatus.values.byName(
@@ -155,6 +164,9 @@ class RunRecord {
       ..inputTokens = usage['inputTokens'] as int? ?? 0
       ..outputTokens = usage['outputTokens'] as int? ?? 0
       ..costUsd = (usage['costUsd'] as num? ?? 0).toDouble()
+      ..undoCount = undo['ok'] as int? ?? 0
+      ..undoFailureCount = undo['failed'] as int? ?? 0
+      ..redoCount = undo['redo'] as int? ?? 0
       ..forkSessionId = json['forkSessionId'] as String?;
   }
 

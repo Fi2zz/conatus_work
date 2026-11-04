@@ -165,7 +165,9 @@ class RunExecution {
     final String? turnError = await scope.checkpoint.recordTurn(
       lastEventId: scope.session.lastEventId,
     );
-    applySnapshot(record, scope.baselineError ?? turnError);
+    final String? snapshotError = scope.baselineError ?? turnError;
+    applySnapshot(record, snapshotError);
+    applyCheckpointFailure(record, snapshotError);
     record.endTurn = scope.checkpoint.turn;
     record.turnHistory.add(
       TurnCheckpoint(

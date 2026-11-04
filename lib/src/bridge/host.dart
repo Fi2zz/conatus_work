@@ -217,8 +217,10 @@ class BridgeHost {
         );
         return null;
       case 'task.cancel':
-        await _tasks().cancel(_requireString(payload, 'runId'));
-        return <String, Object?>{'status': 'aborted'};
+        final String cancelled = await _tasks().cancel(
+          _requireString(payload, 'runId'),
+        );
+        return <String, Object?>{'status': cancelled};
       case 'approval.respond':
         final String decision = _requireString(payload, 'decision');
         if (decision != 'allow' && decision != 'deny') {

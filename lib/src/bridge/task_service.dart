@@ -129,8 +129,11 @@ class TaskService {
     final String runId = newRunId(DateTime.now());
     _runtimes[runId] = runtime;
     final RunPaths paths = RunPaths(runsDir: runsDir, runId: runId);
-    final String? root = workspaceRoot ?? _freshWorkspace(task.id, runId);
-    final String? fixture = root == null ? null : _fixtureFor(task);
+    final String? freshRoot = workspaceRoot == null
+        ? _freshWorkspace(task.id, runId)
+        : null;
+    final String? root = workspaceRoot ?? freshRoot;
+    final String? fixture = freshRoot == null ? null : _fixtureFor(task);
 
     void emit(Map<String, Object?> event) =>
         onEvent(<String, Object?>{...event, 'runId': runId});
@@ -159,8 +162,26 @@ class TaskService {
     return runId;
   }
 
-  /// 请求中断；运行器会轮询 `abort.request`。
-  Future<void> cancel(String runId) async {
+  /// 请求中断；返回收口后的状态。未知 run 抛 [BridgeError]。
+  Future<String> cancel(String runId) async {
+    if (_streams.containsKey(runId) || _runtimes.containsKey(runId)) {
+      await _requestAbort(runId);
+      return 'aborted';
+    }
+    final RunRecord record = await _loadRecord(runId);
+    if (record.status != TaskRunStatus.running) return record.status.name;
+    if (!pidAlive(record.pid)) {
+      final RunRecord aborted = await Runner(
+        body: body ?? agentTaskBody,
+        runsDir: runsDir,
+      ).abort(runId);
+      return aborted.status.name;
+    }
+    await _requestAbort(runId);
+    return 'aborted';
+  }
+
+  Future<void> _requestAbort(String runId) async {
     _denyPending(runId);
     _runtimes[runId]?.abortInFlight();
     final RunPaths paths = RunPaths(runsDir: runsDir, runId: runId);
@@ -182,11 +203,13 @@ class TaskService {
       throw ApprovalError('NOT_FOUND', '未知审批请求：$requestId');
     }
     _resolvedApprovals.add(requestId);
-    pending.emit(_extraEvent('approval/resolved', pending.runId, <String, Object?>{
-      'requestId': requestId,
-      'name': pending.name,
-      'decision': decision,
-    }));
+    pending.emit(
+      _extraEvent('approval/resolved', pending.runId, <String, Object?>{
+        'requestId': requestId,
+        'name': pending.name,
+        'decision': decision,
+      }),
+    );
     pending.completer.complete(decision == 'allow');
   }
 
@@ -226,15 +249,9 @@ class TaskService {
     void emit(Map<String, Object?> event) =>
         onEvent(<String, Object?>{...event, 'runId': runId});
     emit(
-      _extraEvent('task/status', runId, <String, Object?>{
-        'status': 'running',
-      }),
+      _extraEvent('task/status', runId, <String, Object?>{'status': 'running'}),
     );
-    await stream.start(
-      emit,
-      interval: pollInterval,
-      startAtEnd: true,
-    );
+    await stream.start(emit, interval: pollInterval, startAtEnd: true);
     unawaited(_continueRun(record, text, paths, stream, emit, runtime));
   }
 
@@ -321,13 +338,15 @@ class TaskService {
       emit: emit,
       completer: completer,
     );
-    emit(_extraEvent('approval/requested', runId, <String, Object?>{
-      'requestId': request.id,
-      'callId': request.id,
-      'name': request.toolName,
-      'args': jsonEncode(request.arguments),
-      'riskLevel': 'high',
-    }));
+    emit(
+      _extraEvent('approval/requested', runId, <String, Object?>{
+        'requestId': request.id,
+        'callId': request.id,
+        'name': request.toolName,
+        'args': jsonEncode(request.arguments),
+        'riskLevel': 'high',
+      }),
+    );
     return completer.future.timeout(
       const Duration(minutes: 5),
       onTimeout: () {
@@ -367,11 +386,13 @@ class TaskService {
       final _PendingApproval? pending = _approvals.remove(id);
       if (pending == null) continue;
       _resolvedApprovals.add(id);
-      pending.emit(_extraEvent('approval/resolved', runId, <String, Object?>{
-        'requestId': id,
-        'name': pending.name,
-        'decision': 'deny',
-      }));
+      pending.emit(
+        _extraEvent('approval/resolved', runId, <String, Object?>{
+          'requestId': id,
+          'name': pending.name,
+          'decision': 'deny',
+        }),
+      );
       if (!pending.completer.isCompleted) pending.completer.complete(false);
     }
   }

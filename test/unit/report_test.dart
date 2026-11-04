@@ -59,7 +59,13 @@ void main() {
   test('每行带 P50/P95，末尾带失败分类与救场构成', () {
     final RunRecord a = rec('research', TaskRunStatus.succeeded, task: 'a')
       ..startedAt = DateTime(2026, 11, 2, 10)
-      ..endedAt = DateTime(2026, 11, 2, 10, 4);
+      ..endedAt = DateTime(2026, 11, 2, 10, 4)
+      ..inputTokens = 1200
+      ..outputTokens = 300
+      ..costUsd = 0.012
+      ..undoCount = 1
+      ..undoFailureCount = 0
+      ..redoCount = 1;
     final RunRecord b = rec('research', TaskRunStatus.failed, task: 'b')
       ..startedAt = DateTime(2026, 11, 2, 11)
       ..endedAt = DateTime(2026, 11, 2, 11, 8)
@@ -69,5 +75,9 @@ void main() {
     expect(text, contains('p95=8.0min'));
     expect(text, contains('failures=artifact:1'));
     expect(text, contains('rescuedBy=rerun:0,human:0'));
+    expect(text, contains('tokensIn=1200'));
+    expect(text, contains('tokensOut=300'));
+    expect(text, contains('costUsd=0.0120'));
+    expect(text, contains('undo=ok:1,failed:0,redo:1'));
   });
 }

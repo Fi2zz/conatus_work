@@ -121,6 +121,7 @@ class Runner {
     String runId, {
     void Function(LlmStreamEvent event)? onStream,
     Approval? approval,
+    bool confirmed = false,
   }) async {
     final RunPaths paths = RunPaths(runsDir: runsDir, runId: runId);
     final RunStore store = RunStore(paths);
@@ -154,6 +155,7 @@ class Runner {
       store: store,
       fresh: false,
       llm: llm,
+      confirmed: confirmed,
       sessionId: sessionId,
       accumulateUsage: true,
       onStream: onStream,

@@ -132,6 +132,31 @@ void main() {
     expect(after.status, TaskRunStatus.succeeded);
   });
 
+  test('resume 透传 confirmed', () async {
+    bool first = true;
+    bool? confirmed;
+    final Runner runner = Runner(
+      runsDir: '${tmp.path}/runs',
+      body: (scope, task) async {
+        if (first) {
+          first = false;
+          throw StateError('boom');
+        }
+        confirmed = scope.confirmed;
+        return const TaskOutcome.ok();
+      },
+    );
+    final RunRecord record = await runner.run(
+      RunRequest(
+        task: TaskSpec.parse(cardJson()),
+        taskPath: cardPath,
+        workspaceRoot: '${tmp.path}/work',
+      ),
+    );
+    await runner.resume(record.runId, confirmed: true);
+    expect(confirmed, isTrue);
+  });
+
   test('resume 已成功的运行：拒绝', () async {
     final Runner runner = Runner(
       body: noopTaskBody,

@@ -99,7 +99,7 @@ Future<int> _resume(List<String> args) async {
     body: agentTaskBody,
     llm: runtime,
     runsDir: kRunsDir,
-  ).resume(runId);
+  ).resume(runId, confirmed: args.contains('--yes'));
   stdout.writeln(_summary(record));
   return record.status == TaskRunStatus.succeeded ? 0 : 1;
 }
@@ -231,9 +231,10 @@ Future<int> _usage() async {
   stdout.writeln('用法：');
   stdout.writeln('  runner list');
   stdout.writeln(
-    '  runner run <card> [--workspace <dir>] [--rerun-of <runId>]',
+    '  runner run <card> [--workspace <dir>] [--fixture <dir>] '
+    '[--rerun-of <runId>] [--yes]',
   );
-  stdout.writeln('  runner resume <runId>');
+  stdout.writeln('  runner resume <runId> [--yes]');
   stdout.writeln('  runner abort <runId>');
   stdout.writeln('  runner undo <runId> [--steps N]');
   stdout.writeln('  runner redo <runId>');

@@ -55,7 +55,9 @@ class RevertOutcome {
   Map<String, Object?> toJson() => <String, Object?>{
     'ok': ok,
     'appliedSteps': appliedSteps,
-    'failures': <Object?>[for (final UndoFailure failure in failures) failure.toJson()],
+    'failures': <Object?>[
+      for (final UndoFailure failure in failures) failure.toJson(),
+    ],
     if (code != null) 'code': code,
   };
 }
@@ -91,7 +93,8 @@ extension RunnerUndo on Runner {
     await checkpoint.flush();
     final int available = checkpoint.turn - (record.startTurn ?? 0);
     if (available < 1) {
-      return _failure(
+      return _persistUndoFailure(
+        store,
         record,
         '没有可撤销的轮次（当前第 ${checkpoint.turn} 轮）',
         'STALE_TURN',
@@ -109,6 +112,7 @@ extension RunnerUndo on Runner {
         sessions: sessions,
       ).undo(session, steps ?? available);
       record.forkSessionId = result.stage.forkSessionId;
+      record.undoCount += 1;
       await RevertStageStore(paths).save(result.stage);
       await store.save(record);
       return RevertOutcome(
@@ -117,9 +121,14 @@ extension RunnerUndo on Runner {
         appliedSteps: _steps(result.stage.fromTurn, result.stage.toTurn),
       );
     } on RevertException catch (error) {
-      return _failure(record, error.message, _codeOf(error.message));
+      return _persistUndoFailure(
+        store,
+        record,
+        error.message,
+        _codeOf(error.message),
+      );
     } on Object catch (error) {
-      return _failure(record, '$error', 'INTERNAL');
+      return _persistUndoFailure(store, record, '$error', 'INTERNAL');
     }
   }
 
@@ -160,9 +169,13 @@ extension RunnerUndo on Runner {
       persistence: JsonlSessionPersistence(dir: paths.runDir),
     );
     try {
-      await RevertService(checkpoint: checkpoint, sessions: sessions).redo(stage);
+      await RevertService(
+        checkpoint: checkpoint,
+        sessions: sessions,
+      ).redo(stage);
       await stages.clear();
       record.forkSessionId = null;
+      record.redoCount += 1;
       await store.save(record);
       return RevertOutcome(
         record: record,
@@ -175,6 +188,17 @@ extension RunnerUndo on Runner {
       return _failure(record, '$error', 'INTERNAL');
     }
   }
+}
+
+Future<RevertOutcome> _persistUndoFailure(
+  RunStore store,
+  RunRecord record,
+  String message,
+  String code,
+) async {
+  record.undoFailureCount += 1;
+  await store.save(record);
+  return _failure(record, message, code);
 }
 
 RevertOutcome _failure(RunRecord record, String message, String code) =>

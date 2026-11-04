@@ -41,7 +41,28 @@ String _row(String chain, List<RunRecord> rows) {
       '\trescueRate=${_percent(rescued, total)}%'
       '\tartifactRate=${_percent(passed, artifacts.length)}%'
       '\tp50=${_minutes(_percentile(rows, 0.5))}'
-      '\tp95=${_minutes(_percentile(rows, 0.95))}';
+      '\tp95=${_minutes(_percentile(rows, 0.95))}'
+      '${_usageColumns(rows)}';
+}
+
+String _usageColumns(List<RunRecord> rows) {
+  int inputTokens = 0;
+  int outputTokens = 0;
+  double costUsd = 0;
+  int undoOk = 0;
+  int undoFailed = 0;
+  int redo = 0;
+  for (final RunRecord record in rows) {
+    inputTokens += record.inputTokens;
+    outputTokens += record.outputTokens;
+    costUsd += record.costUsd;
+    undoOk += record.undoCount;
+    undoFailed += record.undoFailureCount;
+    redo += record.redoCount;
+  }
+  return '\ttokensIn=$inputTokens\ttokensOut=$outputTokens'
+      '\tcostUsd=${costUsd.toStringAsFixed(4)}'
+      '\tundo=ok:$undoOk,failed:$undoFailed,redo:$redo';
 }
 
 /// 同一任务多次尝试只保留最近一次：任务数按任务卡算，不按进程算。

@@ -236,7 +236,9 @@ void main() {
     );
 
     final List<Map<String, Object?>> deltas = events
-        .where((Map<String, Object?> e) => e['type'] == 'message/assistant/delta')
+        .where(
+          (Map<String, Object?> e) => e['type'] == 'message/assistant/delta',
+        )
         .toList();
     expect(deltas, hasLength(2));
     final Map<String, Object?> done = events.firstWhere(
@@ -244,8 +246,7 @@ void main() {
     );
     final Map<String, Object?> deltaData =
         deltas.first['data']! as Map<String, Object?>;
-    final Map<String, Object?> doneData =
-        done['data']! as Map<String, Object?>;
+    final Map<String, Object?> doneData = done['data']! as Map<String, Object?>;
     expect(doneData['entryId'], deltaData['entryId']);
   });
 
@@ -336,7 +337,9 @@ void main() {
   });
 
   test('未选工作区时新建干净目录并复制示例数据', () async {
-    Directory('$tasksDir/fixtures/organize/v01/inbox').createSync(recursive: true);
+    Directory(
+      '$tasksDir/fixtures/organize/v01/inbox',
+    ).createSync(recursive: true);
     File('$tasksDir/fixtures/organize/v01/inbox/a.txt').writeAsStringSync('a');
 
     final List<Map<String, Object?>> events = <Map<String, Object?>>[];
@@ -345,16 +348,26 @@ void main() {
       tasksDir: tasksDir,
       workspacesDir: '${tmp.path}/ws',
       pollInterval: const Duration(milliseconds: 20),
-      env: <String, String>{'WORK_LLM_BASE_URL': 'http://x', 'WORK_LLM_MODEL': 'm'},
+      env: <String, String>{
+        'WORK_LLM_BASE_URL': 'http://x',
+        'WORK_LLM_MODEL': 'm',
+      },
       body: (RunScope scope, TaskSpec task) async => const TaskOutcome.ok(),
     );
-    final String runId = await runner.start(cardId: 'move-v01', onEvent: events.add);
+    final String runId = await runner.start(
+      cardId: 'move-v01',
+      onEvent: events.add,
+    );
     final bool finished = await _waitFor(
       () => events.any((Map<String, Object?> e) => e['type'] == 'task/ended'),
     );
     expect(finished, isTrue);
     final File record = File('${tmp.path}/runs/$runId/run.json');
-    expect(record.existsSync(), isTrue, reason: '最后一条事件：${events.isEmpty ? '无' : events.last}');
+    expect(
+      record.existsSync(),
+      isTrue,
+      reason: '最后一条事件：${events.isEmpty ? '无' : events.last}',
+    );
     final Map<String, Object?> run =
         jsonDecode(record.readAsStringSync()) as Map<String, Object?>;
     expect(run['status'], 'succeeded');
@@ -391,14 +404,20 @@ void main() {
       runsDir: '${tmp.path}/runs',
       tasksDir: tasksDir,
       pollInterval: const Duration(milliseconds: 20),
-      env: <String, String>{'WORK_LLM_BASE_URL': 'http://x', 'WORK_LLM_MODEL': 'm'},
+      env: <String, String>{
+        'WORK_LLM_BASE_URL': 'http://x',
+        'WORK_LLM_MODEL': 'm',
+      },
       clientFactory: () => client,
       body: (RunScope scope, TaskSpec task) async {
         await Future<void>.delayed(const Duration(milliseconds: 500));
         return const TaskOutcome.ok();
       },
     );
-    final String runId = await runner.start(cardId: 'move-v01', onEvent: (_) {});
+    final String runId = await runner.start(
+      cardId: 'move-v01',
+      onEvent: (_) {},
+    );
     await Future<void>.delayed(const Duration(milliseconds: 60));
     await runner.cancel(runId);
     expect(client.closed, isTrue);
@@ -425,12 +444,14 @@ void main() {
       body: (RunScope scope, TaskSpec task) async {
         final String? text = scope.userText;
         if (text != null) {
-          scope.session.append('user/message', data: <String, Object?>{
-            'text': text,
-          });
-          scope.session.append('assistant/message', data: <String, Object?>{
-            'text': '收到',
-          });
+          scope.session.append(
+            'user/message',
+            data: <String, Object?>{'text': text},
+          );
+          scope.session.append(
+            'assistant/message',
+            data: <String, Object?>{'text': '收到'},
+          );
         }
         return const TaskOutcome.ok(
           tokens: TokenUsage(prompt: 1, completion: 1),
@@ -476,10 +497,7 @@ void main() {
       isTrue,
     );
     final Map<String, Object?> ended = events.last;
-    expect(
-      (ended['data']! as Map<String, Object?>)['status'],
-      'succeeded',
-    );
+    expect((ended['data']! as Map<String, Object?>)['status'], 'succeeded');
   });
 
   test('运行中的 run 拒绝 send', () async {
@@ -489,7 +507,10 @@ void main() {
         return const TaskOutcome.ok();
       },
     );
-    final String runId = await runner.start(cardId: 'move-v01', onEvent: (_) {});
+    final String runId = await runner.start(
+      cardId: 'move-v01',
+      onEvent: (_) {},
+    );
     await Future<void>.delayed(const Duration(milliseconds: 150));
     await expectLater(
       runner.send(runId, '插话', onEvent: (_) {}),
@@ -502,6 +523,73 @@ void main() {
       ),
     );
     await runner.cancel(runId);
+  });
+
+  test('cancel 未知 run 回 NOT_FOUND', () async {
+    await expectLater(
+      service().cancel('run_missing'),
+      throwsA(
+        isA<BridgeError>().having(
+          (BridgeError error) => error.code,
+          'code',
+          'NOT_FOUND',
+        ),
+      ),
+    );
+  });
+
+  test('cancel 已结束 run 返回真实状态且不写中断标记', () async {
+    final TaskService runner = service(body: noopTaskBody);
+    final String runId = await runner.start(
+      cardId: 'move-v01',
+      onEvent: (_) {},
+    );
+    await _waitFor(() => File('${tmp.path}/runs/$runId/run.json').existsSync());
+    final bool finished = await _waitFor(() {
+      final File file = File('${tmp.path}/runs/$runId/run.json');
+      if (!file.existsSync()) return false;
+      final Map<String, Object?> run =
+          jsonDecode(file.readAsStringSync()) as Map<String, Object?>;
+      return run['status'] == 'succeeded';
+    });
+    expect(finished, isTrue);
+    final String status = await runner.cancel(runId);
+    expect(status, 'succeeded');
+    expect(File('${tmp.path}/runs/$runId/abort.request').existsSync(), isFalse);
+  });
+
+  test('手选工作区不拷贝示例 fixture', () async {
+    final Directory fixture = Directory('$tasksDir/fixtures/organize/v01/inbox')
+      ..createSync(recursive: true);
+    File('${fixture.path}/sample.txt').writeAsStringSync('sample');
+    final Directory other = Directory('${tmp.path}/other')..createSync();
+    Directory('${other.path}/inbox').createSync();
+    File('${other.path}/inbox/a.txt').writeAsStringSync('a');
+
+    final TaskService runner = service(body: noopTaskBody);
+    final String runId = await runner.start(
+      cardId: 'move-v01',
+      workspaceRoot: other.path,
+      onEvent: (_) {},
+    );
+    expect(
+      await _waitFor(
+        () => File('${tmp.path}/runs/$runId/run.json').existsSync(),
+      ),
+      isTrue,
+    );
+    expect(
+      await _waitFor(() {
+        final File file = File('${tmp.path}/runs/$runId/run.json');
+        if (!file.existsSync()) return false;
+        final Map<String, Object?> run =
+            jsonDecode(file.readAsStringSync()) as Map<String, Object?>;
+        return run['status'] != 'running';
+      }),
+      isTrue,
+    );
+    expect(File('${other.path}/inbox/sample.txt').existsSync(), isFalse);
+    expect(File('${other.path}/inbox/a.txt').existsSync(), isTrue);
   });
 
   test('非法任务卡 id 被拒绝', () async {
