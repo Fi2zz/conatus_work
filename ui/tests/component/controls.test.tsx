@@ -198,8 +198,20 @@ it('expands the result pane and exits with escape', async () => {
   expect(pane).toHaveAttribute('data-expanded', 'false')
   await userEvent.click(screen.getByTestId('right-expand'))
   expect(pane).toHaveAttribute('data-expanded', 'true')
+  expect(screen.getByTestId('right-exit-floating')).toBeInTheDocument()
   fireEvent.keyDown(window, { key: 'Escape' })
   expect(pane).toHaveAttribute('data-expanded', 'false')
+})
+
+it('auto-collapses the task list in a narrow window', () => {
+  const original = Object.getOwnPropertyDescriptor(window, 'innerWidth')
+  Object.defineProperty(window, 'innerWidth', { configurable: true, writable: true, value: 820 })
+  seedRun([])
+  render(<Shell />)
+  expect(screen.getByTestId('left-rail')).toBeInTheDocument()
+  expect(screen.queryByTestId('task-list')).not.toBeInTheDocument()
+  expect(screen.getByTestId('left-toggle')).toBeDisabled()
+  if (original) Object.defineProperty(window, 'innerWidth', original)
 })
 
 it('adds and removes a mock attachment', async () => {

@@ -61,12 +61,23 @@ export function RightPane(): JSX.Element {
           type="button"
           data-testid="right-expand"
           aria-label={expanded ? '退出全屏' : '全屏查看结果'}
+          title={expanded ? '退出全屏（Esc）' : '全屏查看结果'}
           onClick={() => setExpanded(!expanded)}
           className="mr-1 shrink-0 rounded-sm px-1 text-[10.5px] text-ink-muted hover:bg-panel-muted hover:text-ink"
         >
-          {expanded ? '退出全屏' : '全屏'}
+          {expanded ? '退出全屏 (Esc)' : '全屏'}
         </button>
       </div>
+      {expanded ? (
+        <button
+          type="button"
+          data-testid="right-exit-floating"
+          onClick={() => setExpanded(false)}
+          className="fixed right-3 bottom-3 z-50 rounded-md bg-accent px-3 py-1.5 text-[11.5px] text-white shadow-lg hover:opacity-90"
+        >
+          退出全屏 (Esc)
+        </button>
+      ) : null}
       <div className="flex min-h-0 flex-1 flex-col">
         {tab === 'artifacts' ? <ArtifactPanel /> : null}
         {tab === 'files' ? <WorkspacePanel /> : null}

@@ -12,6 +12,7 @@ import { CommandPalette } from '@/features/tasks/CommandPalette'
 import { TaskList } from '@/features/tasks/TaskList'
 import { UndoDialogHost } from '@/features/changes/UndoDialogHost'
 import { cn } from '@/lib/utils'
+import { useViewportWidth } from '@/lib/viewport'
 import { undoScope } from '@/state/selectors'
 import { useUiStore } from '@/state/ui-state'
 import { useWorkbench, useWorkbenchStore } from '@/state/workbench-store'
@@ -101,11 +102,15 @@ export function Shell(): JSX.Element {
   const setNewTaskOpen = useUiStore((state) => state.setNewTaskOpen)
   const setCompareOpen = useUiStore((state) => state.setCompareOpen)
   const leftCollapsed = useUiStore((state) => state.leftCollapsed)
+  const viewport = useViewportWidth()
+  const narrow = viewport < 1000
+  const showList = !leftCollapsed && !narrow
   const stoppingRunId = useUiStore((state) => state.stoppingRunId)
   const setStoppingRun = useUiStore((state) => state.setStoppingRun)
   const stopping = stoppingRunId !== null && stoppingRunId === activeRunId
   const toggleLeft = useUiStore((state) => state.toggleLeft)
   const rightWidth = useUiStore((state) => state.rightWidth)
+  const rightPx = viewport < 900 ? Math.min(rightWidth, 320) : rightWidth
 
   const summaries = order.map((id) => runs[id]).filter(Boolean)
   const active = activeRunId ? runs[activeRunId] : undefined
@@ -181,9 +186,9 @@ export function Shell(): JSX.Element {
   return (
     <div
       data-testid="shell"
-      className="grid h-full bg-canvas text-ink"
+      className="grid h-full min-w-[720px] bg-canvas text-ink"
       style={{
-        gridTemplateColumns: `${leftCollapsed ? RAIL_WIDTH : LIST_WIDTH}px minmax(0,1fr) 4px ${rightWidth}px`,
+        gridTemplateColumns: `${showList ? LIST_WIDTH : RAIL_WIDTH}px minmax(0,1fr) 4px ${rightPx}px`,
       }}
     >
       <aside className="flex min-h-0 flex-col border-r border-line bg-panel-muted/60">
@@ -192,12 +197,14 @@ export function Shell(): JSX.Element {
             type="button"
             data-testid="left-toggle"
             onClick={toggleLeft}
-            aria-label={leftCollapsed ? '展开任务列表' : '折叠任务列表'}
-            className="flex h-6 w-6 items-center justify-center rounded-md text-ink-muted transition-colors hover:bg-panel hover:text-ink"
+            disabled={narrow}
+            title={narrow ? '窗口较窄，任务列表已自动收起' : undefined}
+            aria-label={showList ? '折叠任务列表' : '展开任务列表'}
+            className="flex h-6 w-6 items-center justify-center rounded-md text-ink-muted transition-colors hover:bg-panel hover:text-ink disabled:opacity-40"
           >
-            {leftCollapsed ? '»' : '«'}
+            {showList ? '«' : '»'}
           </button>
-          {leftCollapsed ? null : (
+          {showList ? (
             <>
               <span className="label-micro flex-1">任务</span>
               <Button
@@ -209,11 +216,9 @@ export function Shell(): JSX.Element {
                 新任务
               </Button>
             </>
-          )}
+          ) : null}
         </div>
-        {leftCollapsed ? (
-          <LeftRail />
-        ) : (
+        {showList ? (
           <TaskList
             runs={summaries.map((run) => ({
               id: run.id,
@@ -230,16 +235,18 @@ export function Shell(): JSX.Element {
             onSelect={selectTask}
             loading={order.length === 0 && hasTransport()}
           />
+        ) : (
+          <LeftRail />
         )}
         <div className="mt-auto flex items-center justify-between border-t border-line/70 px-2.5 py-1.5 text-[10.5px] text-ink-muted">
           <button type="button" onClick={() => setSettingsOpen(true)} className="hover:text-ink">
             设置
           </button>
-          {leftCollapsed ? null : (
+          {showList ? (
             <span data-testid="undo-scope-label" className="tnum">
               可撤销 {scope.steps} 轮
             </span>
-          )}
+          ) : null}
         </div>
       </aside>
 
@@ -256,9 +263,11 @@ export function Shell(): JSX.Element {
             {active ? <Badge tone={STATUS_TONE[active.status]} dot>{active.status}</Badge> : null}
           </div>
           <div className="flex shrink-0 items-center gap-2">
-            <span className="hidden text-[10.5px] text-ink-faint tnum sm:inline">
-              {active ? `${active.model} · $${active.usage.costUsd.toFixed(4)}` : ''}
-            </span>
+            {narrow ? null : (
+              <span className="hidden text-[10.5px] text-ink-faint tnum sm:inline">
+                {active ? `${active.model} · $${active.usage.costUsd.toFixed(4)}` : ''}
+              </span>
+            )}
             <Button
               size="sm"
               variant="ghost"
