@@ -12,6 +12,7 @@ import 'package:http/http.dart' as http;
 import '../runner/abort_signal.dart';
 import '../runner/agent_task_body.dart';
 import '../runner/approval_bridge.dart';
+import '../runner/checkpoint_budget.dart';
 import '../runner/llm_config.dart';
 import '../runner/llm_runtime.dart';
 import '../runner/run_paths.dart';
@@ -294,6 +295,7 @@ class TaskService {
             body: body ?? agentTaskBody,
             runsDir: runsDir,
             llm: runtime,
+            checkpointBudgetBytes: checkpointBudgetFromEnv(_env),
           ).continueRun(
             record.runId,
             text,
@@ -476,6 +478,7 @@ class TaskService {
             body: body ?? agentTaskBody,
             runsDir: runsDir,
             llm: runtime,
+            checkpointBudgetBytes: checkpointBudgetFromEnv(_env),
           ).run(
             RunRequest(
               task: task,

@@ -114,7 +114,7 @@ class RunExecution {
       final String sessionId = scope?.session.id ?? 'events';
       await scope?.dispose();
       try {
-        await enforceCheckpointBudget(
+        final int keep = await enforceCheckpointBudget(
           BudgetRequest(
             task: task,
             root: workspace.rootAbsolute,
@@ -125,6 +125,15 @@ class RunExecution {
                 checkpointBudgetFromEnv(Platform.environment),
           ),
         );
+        record.checkpointKeep = keep;
+        final int retained = keep > 1 ? keep - 1 : 0;
+        if (record.turnHistory.length > retained) {
+          record.turnHistory.removeRange(
+            0,
+            record.turnHistory.length - retained,
+          );
+        }
+        await store.save(record);
       } on Object {
         // 预算清理是尽力而为，不能反过来让运行失败。
       }

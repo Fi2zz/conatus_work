@@ -75,6 +75,7 @@ void main() {
   test('预算充足时不裁剪历史', () async {
     final RunRecord record = await runThreeTurns();
     expect(await turnsOf(record), hasLength(4));
+    expect(record.checkpointKeep, 30);
   });
 
   test('超预算时收紧 keep 并实际回收字节', () async {
@@ -85,5 +86,6 @@ void main() {
     );
     expect(directorySizeBytes(checkpoints), greaterThan(0));
     expect(await turnsOf(record), hasLength(2));
+    expect(record.checkpointKeep, 2);
   });
 }

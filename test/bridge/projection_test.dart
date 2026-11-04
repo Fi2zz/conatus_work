@@ -45,6 +45,7 @@ void main() {
     final Map<String, Object?> run =
         jsonDecode(runJson.readAsStringSync()) as Map<String, Object?>;
     run['turns'] = <String, Object?>{'start': 0, 'end': 3};
+    run['checkpoint'] = <String, Object?>{'keep': 2};
     run['turnHistory'] = <Object?>[
       <String, Object?>{
         'turn': 3,
@@ -72,6 +73,7 @@ void main() {
     expect((turns.last as Map<String, Object?>)['eventCount'], 18);
     expect(checkpoints['gaps'], <Object?>[2]);
     expect(checkpoints['currentTurn'], 3);
+    expect(checkpoints['keep'], 2);
   });
 }
 

@@ -72,6 +72,7 @@ class RunRecord {
   int? endTurn;
   CheckpointStatus checkpointStatus = CheckpointStatus.pending;
   String? checkpointError;
+  int? checkpointKeep;
   int inputTokens = 0;
   int outputTokens = 0;
   double costUsd = 0;
@@ -105,6 +106,7 @@ class RunRecord {
     'checkpoint': <String, Object?>{
       'status': checkpointStatus.name,
       'error': checkpointError,
+      if (checkpointKeep != null) 'keep': checkpointKeep,
     },
     'usage': <String, Object?>{
       'inputTokens': inputTokens,
@@ -165,6 +167,7 @@ class RunRecord {
         checkpoint['status'] as String? ?? 'pending',
       )
       ..checkpointError = checkpoint['error'] as String?
+      ..checkpointKeep = checkpoint['keep'] as int?
       ..inputTokens = usage['inputTokens'] as int? ?? 0
       ..outputTokens = usage['outputTokens'] as int? ?? 0
       ..costUsd = (usage['costUsd'] as num? ?? 0).toDouble()

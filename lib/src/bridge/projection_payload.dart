@@ -165,7 +165,11 @@ Map<String, Object?> buildCheckpointView(
   final int startTurn = (turns['start'] as num?)?.toInt() ?? 0;
   final int currentTurn = (turns['end'] as num?)?.toInt() ?? startTurn;
   final Map<String, Object?> checkpoint = _map(card?['checkpoint']);
-  final int keep = (checkpoint['keep'] as num?)?.toInt() ?? 5;
+  final Map<String, Object?> saved = _map(run['checkpoint']);
+  final int keep =
+      (saved['keep'] as num?)?.toInt() ??
+      (checkpoint['keep'] as num?)?.toInt() ??
+      5;
   final Map<int, Map<String, Object?>> byTurn = <int, Map<String, Object?>>{};
   for (final Object? item in _list(run['turnHistory'])) {
     final Map<String, Object?> entry = _map(item);
