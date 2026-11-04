@@ -23,7 +23,7 @@ RunFixture projectRunDir(String runDir) {
         run['taskPath'] is String ? run['taskPath']! as String : '',
       );
   final List<Map<String, Object?>> rawEvents = readJsonLines(
-    _sessionPath(runDir, run['sessionId']),
+    _sessionPath(runDir, run['forkSessionId'] ?? run['sessionId']),
   );
 
   final bool bundled = Directory('$runDir/workspace').existsSync();
