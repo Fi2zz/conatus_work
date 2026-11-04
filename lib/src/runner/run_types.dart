@@ -77,6 +77,7 @@ class RunRecord {
   double costUsd = 0;
   int undoCount = 0;
   int undoFailureCount = 0;
+  int undoDamage = 0;
   int redoCount = 0;
   List<ArtifactCheck> artifacts = <ArtifactCheck>[];
   List<String> tools = <String>[];
@@ -112,6 +113,7 @@ class RunRecord {
     'undo': <String, Object?>{
       'ok': undoCount,
       'failed': undoFailureCount,
+      'damage': undoDamage,
       'redo': redoCount,
     },
     'artifacts': <Object?>[for (final ArtifactCheck a in artifacts) a.toJson()],
@@ -166,6 +168,7 @@ class RunRecord {
       ..costUsd = (usage['costUsd'] as num? ?? 0).toDouble()
       ..undoCount = undo['ok'] as int? ?? 0
       ..undoFailureCount = undo['failed'] as int? ?? 0
+      ..undoDamage = undo['damage'] as int? ?? 0
       ..redoCount = undo['redo'] as int? ?? 0
       ..forkSessionId = json['forkSessionId'] as String?;
   }

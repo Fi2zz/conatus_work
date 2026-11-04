@@ -28,6 +28,23 @@ void main() {
     ]);
   });
 
+  test('未知计划状态回落为 todo', () {
+    final EventMapper mapper = EventMapper(_startedAt);
+    final List<Map<String, Object?>> out = mapper.map(<String, Object?>{
+      'type': 'plan/updated',
+      'time': _startedAt,
+      'data': <String, Object?>{
+        'steps': <Object?>[
+          <String, Object?>{'id': '1', 'text': '扫描', 'status': 'in_progress'},
+        ],
+      },
+    });
+    final Map<String, Object?> data =
+        out.single['data']! as Map<String, Object?>;
+    final List<Object?> items = data['items']! as List<Object?>;
+    expect((items.single as Map<String, Object?>)['status'], 'todo');
+  });
+
   test('流式增量与最终消息共用一个 entryId', () {
     final EventMapper mapper = EventMapper(_startedAt);
     final Map<String, Object?> first = mapper.emitDelta('你');

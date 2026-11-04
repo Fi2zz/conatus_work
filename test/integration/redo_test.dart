@@ -74,6 +74,25 @@ void main() {
     expect(stage.existsSync(), isFalse, reason: '重做后撤销点应清除');
   });
 
+  test('redo 目标轮次被裁剪时返回 PRUNED', () async {
+    final File stage = File(
+      '${tmp.path}/runs/${record.runId}/revert-stage.json',
+    );
+    stage.writeAsStringSync(
+      jsonEncode(<String, Object?>{
+        'originalSessionId': 'events',
+        'forkSessionId': 'events-fork',
+        'fromTurn': 999,
+        'toTurn': 998,
+        'prompt': '',
+      }),
+    );
+    final RevertOutcome outcome = await runner.redoOutcome(record.runId);
+    expect(outcome.ok, isFalse);
+    expect(outcome.code, 'PRUNED');
+    expect(stage.existsSync(), isTrue, reason: '失败不能清掉撤销点');
+  });
+
   test('没有撤销点时 redo 明确报错', () async {
     expect(() => runner.redo(record.runId), throwsA(isA<StateError>()));
   });

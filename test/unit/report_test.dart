@@ -65,6 +65,7 @@ void main() {
       ..costUsd = 0.012
       ..undoCount = 1
       ..undoFailureCount = 0
+      ..undoDamage = 1
       ..redoCount = 1;
     final RunRecord b = rec('research', TaskRunStatus.failed, task: 'b')
       ..startedAt = DateTime(2026, 11, 2, 11)
@@ -78,6 +79,6 @@ void main() {
     expect(text, contains('tokensIn=1200'));
     expect(text, contains('tokensOut=300'));
     expect(text, contains('costUsd=0.0120'));
-    expect(text, contains('undo=ok:1,failed:0,redo:1'));
+    expect(text, contains('undo=ok:1,failed:0,damage:1,redo:1'));
   });
 }

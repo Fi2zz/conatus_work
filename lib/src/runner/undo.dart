@@ -5,6 +5,7 @@ import 'package:conatus/conatus.dart';
 import 'package:conatus_checkpoint/revert.dart';
 
 import 'revert_stage_store.dart';
+import 'revert_verify.dart';
 import 'run_paths.dart';
 import 'run_store.dart';
 import 'runner.dart';
@@ -81,12 +82,13 @@ extension RunnerUndo on Runner {
       keep: task.checkpointKeep,
       policy: productCheckpointPolicy(),
     );
+    final CheckpointStore checkpointStore = await openCheckpointStore(
+      options: options,
+      root: record.workspaceRoot,
+      projectDir: paths.runDir,
+    );
     final CheckpointManager checkpoint = CheckpointManager(
-      store: await openCheckpointStore(
-        options: options,
-        root: record.workspaceRoot,
-        projectDir: paths.runDir,
-      ),
+      store: checkpointStore,
       options: options,
     );
     await checkpoint.bind(record.forkSessionId ?? record.sessionId);
@@ -100,6 +102,26 @@ extension RunnerUndo on Runner {
         'STALE_TURN',
       );
     }
+    final int count = steps ?? available;
+    if (count < 1 || count > available) {
+      return _persistUndoFailure(
+        store,
+        record,
+        '没有可撤销的 $count 轮（当前第 ${checkpoint.turn} 轮）',
+        'STALE_TURN',
+      );
+    }
+    final int targetTurn = checkpoint.turn - count;
+    if (!checkpoint.list().any(
+      (CheckpointInfo info) => info.turn == targetTurn,
+    )) {
+      return _persistUndoFailure(
+        store,
+        record,
+        '找不到第 $targetTurn 轮检查点（可能已被裁剪）',
+        'PRUNED',
+      );
+    }
     final SessionStore sessions = SessionStore(
       persistence: JsonlSessionPersistence(dir: paths.runDir),
     );
@@ -110,13 +132,24 @@ extension RunnerUndo on Runner {
       final UndoResult result = await RevertService(
         checkpoint: checkpoint,
         sessions: sessions,
-      ).undo(session, steps ?? available);
+      ).undo(session, count);
       record.forkSessionId = result.stage.forkSessionId;
       record.endTurn = result.stage.toTurn;
       record.turnHistory.removeWhere(
         (TurnCheckpoint turn) => turn.turn > result.stage.toTurn,
       );
       record.undoCount += 1;
+      final bool damaged = await _workspaceDamaged(
+        VerifyRequest(
+          store: checkpointStore,
+          sessionId: session.id,
+          turn: result.stage.toTurn,
+          root: record.workspaceRoot,
+          projectDir: paths.runDir,
+          policy: productCheckpointPolicy(),
+        ),
+      );
+      if (damaged) record.undoDamage += 1;
       await RevertStageStore(paths).save(result.stage);
       await store.save(record);
       return RevertOutcome(
@@ -125,12 +158,7 @@ extension RunnerUndo on Runner {
         appliedSteps: _steps(result.stage.fromTurn, result.stage.toTurn),
       );
     } on RevertException catch (error) {
-      return _persistUndoFailure(
-        store,
-        record,
-        error.message,
-        _codeOf(error.message),
-      );
+      return _persistUndoFailure(store, record, error.message, 'INTERNAL');
     } on Object catch (error) {
       return _persistUndoFailure(store, record, '$error', 'INTERNAL');
     }
@@ -169,6 +197,11 @@ extension RunnerUndo on Runner {
     );
     await checkpoint.bind(stage.originalSessionId);
     await checkpoint.flush();
+    if (!checkpoint.list().any(
+      (CheckpointInfo info) => info.turn == stage.fromTurn,
+    )) {
+      return _failure(record, '找不到第 ${stage.fromTurn} 轮检查点（可能已被裁剪）', 'PRUNED');
+    }
     final SessionStore sessions = SessionStore(
       persistence: JsonlSessionPersistence(dir: paths.runDir),
     );
@@ -198,10 +231,18 @@ extension RunnerUndo on Runner {
         appliedSteps: _steps(stage.fromTurn, stage.toTurn),
       );
     } on RevertException catch (error) {
-      return _failure(record, error.message, _codeOf(error.message));
+      return _failure(record, error.message, 'INTERNAL');
     } on Object catch (error) {
       return _failure(record, '$error', 'INTERNAL');
     }
+  }
+}
+
+Future<bool> _workspaceDamaged(VerifyRequest request) async {
+  try {
+    return !await workspaceMatchesCheckpoint(request);
+  } on Object {
+    return true;
   }
 }
 
@@ -228,12 +269,4 @@ RevertOutcome _failure(RunRecord record, String message, String code) =>
 int _steps(int from, int to) {
   final int steps = from - to;
   return steps < 0 ? 0 : steps;
-}
-
-String _codeOf(String message) {
-  if (message.contains('裁剪')) return 'PRUNED';
-  if (message.contains('没有可撤销') || message.contains('轮次')) {
-    return 'STALE_TURN';
-  }
-  return 'INTERNAL';
 }

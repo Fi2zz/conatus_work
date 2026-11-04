@@ -179,6 +179,27 @@ void main() {
     expect((frame['error']! as Map<String, Object?>)['code'], 'NOT_FOUND');
   });
 
+  test('undo 失败也推 undo/finished 事件', () async {
+    final List<String> pushed = <String>[];
+    host = BridgeHost(
+      bridge: WorkbenchBridge(runsDir: runsRoot.path),
+      push: pushed.add,
+    );
+    final Map<String, Object?> frame = await call('undo', <String, Object?>{
+      'runId': 'run_missing',
+    });
+    expect(frame['ok'], isFalse);
+    final List<Map<String, Object?>> events = <Map<String, Object?>>[
+      for (final String raw in pushed)
+        (jsonDecode(raw) as Map<String, Object?>)['event']!
+            as Map<String, Object?>,
+    ];
+    expect(events.first['type'], 'undo/started');
+    final Map<String, Object?> finished = events.last;
+    expect(finished['type'], 'undo/finished');
+    expect((finished['data']! as Map<String, Object?>)['ok'], isFalse);
+  });
+
   test('task.list 返回任务摘要', () async {
     final Map<String, Object?> frame = await call('task.list');
     expect(frame['ok'], isTrue);

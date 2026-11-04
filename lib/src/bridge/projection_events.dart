@@ -194,7 +194,10 @@ List<Map<String, Object?>> _planItems(Map<String, Object?> data) =>
 
 String _planStatus(Map<String, Object?> item) {
   final Object? raw = item['status'];
-  if (raw is String && raw.isNotEmpty) return raw;
+  if (raw is String &&
+      const <String>{'todo', 'doing', 'done', 'failed'}.contains(raw)) {
+    return raw;
+  }
   return item['done'] == true ? 'done' : 'todo';
 }
 

@@ -17,7 +17,9 @@ import '../runner/run_paths.dart';
 import '../runner/run_store.dart';
 import '../runner/runner.dart';
 import '../runner/task_spec.dart';
+import '../runner/workspace.dart';
 import 'bridge_error.dart';
+import 'live_watch.dart';
 import 'projection_io.dart';
 import 'projection_payload.dart';
 import 'run_watch.dart';
@@ -89,6 +91,7 @@ class TaskService {
   final Map<String, RunEventStream> _streams = <String, RunEventStream>{};
   final Map<String, _PendingApproval> _approvals = <String, _PendingApproval>{};
   final Set<String> _resolvedApprovals = <String>{};
+  final List<String> _resolvedOrder = <String>[];
   int _extraSeq = 0;
   int _seqFloor = 0;
 
@@ -125,6 +128,7 @@ class TaskService {
   }) async {
     final String path = _cardPath(cardId);
     final TaskSpec task = await TaskSpec.load(path);
+    await cleanupWorkspaces();
     final LlmRuntime runtime = _runtime();
     final String runId = newRunId(DateTime.now());
     _runtimes[runId] = runtime;
@@ -202,7 +206,7 @@ class TaskService {
       }
       throw ApprovalError('NOT_FOUND', '未知审批请求：$requestId');
     }
-    _resolvedApprovals.add(requestId);
+    _rememberResolved(requestId);
     pending.emit(
       _extraEvent('approval/resolved', pending.runId, <String, Object?>{
         'requestId': requestId,
@@ -223,8 +227,9 @@ class TaskService {
       throw const BridgeError('INTERNAL', '发送内容不能为空');
     }
     final RunRecord record = await _loadRecord(runId);
+    final TaskSpec task;
     try {
-      await TaskSpec.load(record.taskPath);
+      task = await TaskSpec.load(record.taskPath);
     } on Object catch (error) {
       throw BridgeError('INTERNAL', '任务卡不可用：$error');
     }
@@ -254,18 +259,30 @@ class TaskService {
       _extraEvent('task/status', runId, <String, Object?>{'status': 'running'}),
     );
     await stream.start(emit, interval: pollInterval, startAtEnd: true);
-    unawaited(_continueRun(record, text, paths, stream, emit, runtime));
+    unawaited(_continueRun(record, task, text, paths, stream, emit, runtime));
   }
 
   Future<void> _continueRun(
     RunRecord record,
+    TaskSpec task,
     String text,
     RunPaths paths,
     RunEventStream stream,
     void Function(Map<String, Object?>) emit,
     LlmRuntime runtime,
   ) async {
+    LiveWatcher? watcher;
     try {
+      watcher = LiveWatcher(
+        task: task,
+        root: record.workspaceRoot,
+        sessionPath: paths.sessionPath(
+          record.forkSessionId ?? record.sessionId,
+        ),
+        interval: pollInterval,
+        emit: (String type, Map<String, Object?> data) =>
+            emit(_extraEvent(type, record.runId, data)),
+      )..start();
       final RunnerApproval approval = RunnerApproval(
         onRequest: (ApprovalRequest request) =>
             _requestApproval(record.runId, request, emit),
@@ -309,6 +326,7 @@ class TaskService {
         },
       });
     } finally {
+      watcher?.stop();
       _denyPending(record.runId);
       _streams.remove(record.runId);
       _runtimes.remove(record.runId)?.abortInFlight();
@@ -362,7 +380,7 @@ class TaskService {
       onTimeout: () {
         final _PendingApproval? pending = _approvals.remove(request.id);
         if (pending == null) return false;
-        _resolvedApprovals.add(request.id);
+        _rememberResolved(request.id);
         pending.emit(
           _extraEvent('approval/resolved', runId, <String, Object?>{
             'requestId': request.id,
@@ -387,6 +405,14 @@ class TaskService {
     'data': data,
   };
 
+  void _rememberResolved(String requestId) {
+    if (!_resolvedApprovals.add(requestId)) return;
+    _resolvedOrder.add(requestId);
+    while (_resolvedOrder.length > 512) {
+      _resolvedApprovals.remove(_resolvedOrder.removeAt(0));
+    }
+  }
+
   void _denyPending(String runId) {
     final List<String> ids = <String>[
       for (final MapEntry<String, _PendingApproval> entry in _approvals.entries)
@@ -395,7 +421,7 @@ class TaskService {
     for (final String id in ids) {
       final _PendingApproval? pending = _approvals.remove(id);
       if (pending == null) continue;
-      _resolvedApprovals.add(id);
+      _rememberResolved(id);
       pending.emit(
         _extraEvent('approval/resolved', runId, <String, Object?>{
           'requestId': id,
@@ -428,7 +454,16 @@ class TaskService {
       onEvent(event);
     }, interval: pollInterval);
 
+    LiveWatcher? watcher;
     try {
+      watcher = LiveWatcher(
+        task: task,
+        root: resolveWorkspaceRoot(task: task, rootOverride: workspaceRoot),
+        sessionPath: paths.eventsPath,
+        interval: pollInterval,
+        emit: (String type, Map<String, Object?> data) =>
+            onEvent(_extraEvent(type, runId, data)),
+      )..start();
       final RunnerApproval approval = RunnerApproval(
         onRequest: (ApprovalRequest request) =>
             _requestApproval(runId, request, onEvent),
@@ -478,6 +513,7 @@ class TaskService {
         },
       });
     } finally {
+      watcher?.stop();
       _denyPending(runId);
       _streams.remove(runId);
       _runtimes.remove(runId)?.abortInFlight();
@@ -495,13 +531,12 @@ class TaskService {
         'data': artifact.toJson(),
       });
     }
+    final List<Map<String, Object?>> rawEvents = readJsonLines(
+      paths.sessionPath(record.sessionId.isEmpty ? 'events' : record.sessionId),
+    );
     final Map<String, Object?>? changes = buildChanges(
       record.workspaceRoot,
-      readJsonLines(
-        paths.sessionPath(
-          record.sessionId.isEmpty ? 'events' : record.sessionId,
-        ),
-      ),
+      rawEvents,
     );
     if (changes != null) {
       events.add(<String, Object?>{
@@ -530,7 +565,7 @@ class TaskService {
           'turn': record.endTurn,
           'startTurn': record.startTurn ?? 0,
           'at': record.endedAt?.toIso8601String() ?? '',
-          'eventCount': cursor,
+          'eventCount': rawEvents.length,
         },
       });
     }
@@ -545,6 +580,36 @@ class TaskService {
       },
     });
     return events;
+  }
+
+  /// 清掉自动新建的工作区，只保留最近 [keep] 个（按修改时间）。
+  Future<void> cleanupWorkspaces({int keep = 20}) async {
+    final String? base = workspacesDir;
+    if (base == null) return;
+    final Directory dir = Directory(base);
+    if (!dir.existsSync()) return;
+    final List<Directory> workspaces = <Directory>[
+      for (final FileSystemEntity entity in dir.listSync())
+        if (entity is Directory) entity,
+    ];
+    workspaces.sort((Directory a, Directory b) {
+      DateTime left;
+      DateTime right;
+      try {
+        left = a.statSync().modified;
+        right = b.statSync().modified;
+      } on FileSystemException {
+        return 0;
+      }
+      return right.compareTo(left);
+    });
+    for (int i = keep; i < workspaces.length; i += 1) {
+      try {
+        await workspaces[i].delete(recursive: true);
+      } on FileSystemException {
+        // 被占用 / 已删除：下一轮再清。
+      }
+    }
   }
 
   /// 没选工作区时给一个干净目录，避免任务卡输入缺失导致预检失败。

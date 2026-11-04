@@ -1,11 +1,14 @@
 /// 一次运行的实际执行：装配、执行体、产物判定、检查点收口。
 library;
 
+import 'dart:io';
+
 import 'package:conatus/conatus.dart';
 
 import 'abort_signal.dart';
 import 'artifacts.dart';
 import 'assembly.dart';
+import 'checkpoint_budget.dart';
 import 'llm_runtime.dart';
 import 'run_paths.dart';
 import 'run_store.dart';
@@ -104,7 +107,19 @@ class RunExecution {
     } finally {
       record.endedAt = DateTime.now();
       await store.save(record);
+      final String sessionId = scope?.session.id ?? 'events';
       await scope?.dispose();
+      try {
+        await enforceCheckpointBudget(
+          task: task,
+          root: workspace.rootAbsolute,
+          projectDir: paths.runDir,
+          sessionId: sessionId,
+          budgetBytes: checkpointBudgetFromEnv(Platform.environment),
+        );
+      } on Object {
+        // 预算清理是尽力而为，不能反过来让运行失败。
+      }
     }
     return record;
   }

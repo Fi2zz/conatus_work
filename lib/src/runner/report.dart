@@ -51,6 +51,7 @@ String _usageColumns(List<RunRecord> rows) {
   double costUsd = 0;
   int undoOk = 0;
   int undoFailed = 0;
+  int undoDamage = 0;
   int redo = 0;
   for (final RunRecord record in rows) {
     inputTokens += record.inputTokens;
@@ -58,11 +59,12 @@ String _usageColumns(List<RunRecord> rows) {
     costUsd += record.costUsd;
     undoOk += record.undoCount;
     undoFailed += record.undoFailureCount;
+    undoDamage += record.undoDamage;
     redo += record.redoCount;
   }
   return '\ttokensIn=$inputTokens\ttokensOut=$outputTokens'
       '\tcostUsd=${costUsd.toStringAsFixed(4)}'
-      '\tundo=ok:$undoOk,failed:$undoFailed,redo:$redo';
+      '\tundo=ok:$undoOk,failed:$undoFailed,damage:$undoDamage,redo:$redo';
 }
 
 /// 同一任务多次尝试只保留最近一次：任务数按任务卡算，不按进程算。

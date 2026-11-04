@@ -52,6 +52,23 @@ void main() {
     expect((seen.last['data']! as Map<String, Object?>)['text'], '半行');
   });
 
+  test('start 之前的增量会缓冲到 start 后发出', () async {
+    final List<Map<String, Object?>> events = <Map<String, Object?>>[];
+    final RunEventStream stream = RunEventStream(
+      path: log.path,
+      startedAt: '2026-11-03T10:00:00.000',
+    );
+    addTearDown(stream.stop);
+    log.writeAsStringSync('');
+
+    stream.emitDelta('早到');
+    await stream.start(events.add, interval: const Duration(milliseconds: 20));
+    await Future<void>.delayed(const Duration(milliseconds: 40));
+
+    expect(events, hasLength(1));
+    expect(events.single['type'], 'message/assistant/delta');
+  });
+
   test('RunEventStream 把会话事件映射成桥接事件并连续编号', () async {
     final List<Map<String, Object?>> events = <Map<String, Object?>>[];
     final RunEventStream stream = RunEventStream(

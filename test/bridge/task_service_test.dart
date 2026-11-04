@@ -761,6 +761,90 @@ void main() {
     expect(keys.toSet().length, keys.length, reason: 'UI 按 runId:seq 去重');
   });
 
+  test('运行中实时推送产物与变更', () async {
+    final String liveRoot = '${tmp.path}/live';
+    Directory('$liveRoot/inbox').createSync(recursive: true);
+    File('$liveRoot/inbox/a.txt').writeAsStringSync('a');
+    final Map<String, Object?> card = cardJson(liveRoot)
+      ..['id'] = 'live-v01'
+      ..['expectedArtifacts'] = <String>['out/report.md'];
+    File('$tasksDir/live-v01.json').writeAsStringSync(jsonEncode(card));
+
+    final List<Map<String, Object?>> events = <Map<String, Object?>>[];
+    final TaskService runner = TaskService(
+      runsDir: '${tmp.path}/runs',
+      tasksDir: tasksDir,
+      pollInterval: const Duration(milliseconds: 20),
+      env: <String, String>{
+        'WORK_LLM_BASE_URL': 'http://x',
+        'WORK_LLM_MODEL': 'm',
+      },
+      body: (RunScope scope, TaskSpec task) async {
+        File('$liveRoot/out/report.md').writeAsStringSync('# 报告\n');
+        File('$liveRoot/out/changes.json').writeAsStringSync(
+          jsonEncode(<String, Object?>{
+            'summary': <String, Object?>{'moved': 1, 'deleted': 0},
+            'operations': <Object?>[
+              <String, Object?>{
+                'from': 'inbox/a.txt',
+                'to': 'out/a.txt',
+                'sha256': 'x',
+                'reason': '测试',
+              },
+            ],
+          }),
+        );
+        await Future<void>.delayed(const Duration(milliseconds: 120));
+        return const TaskOutcome.ok();
+      },
+    );
+    await runner.start(
+      cardId: 'live-v01',
+      workspaceRoot: liveRoot,
+      onEvent: events.add,
+    );
+    expect(
+      await _waitFor(
+        () => events.any((Map<String, Object?> e) => e['type'] == 'task/ended'),
+      ),
+      isTrue,
+    );
+    final int artifactIndex = events.indexWhere(
+      (Map<String, Object?> e) =>
+          e['type'] == 'artifact/added' &&
+          (e['data']! as Map<String, Object?>)['path'] == 'out/report.md',
+    );
+    final int changesIndex = events.indexWhere(
+      (Map<String, Object?> e) => e['type'] == 'changes/updated',
+    );
+    final int endedIndex = events.indexWhere(
+      (Map<String, Object?> e) => e['type'] == 'task/ended',
+    );
+    expect(artifactIndex, isNonNegative);
+    expect(changesIndex, isNonNegative);
+    expect(artifactIndex, lessThan(endedIndex));
+    expect(changesIndex, lessThan(endedIndex));
+  });
+
+  test('cleanupWorkspaces 只保留最近 N 个', () async {
+    final Directory base = Directory('${tmp.path}/ws')..createSync();
+    final Directory oldest = Directory('${base.path}/a')..createSync();
+    await Future<void>.delayed(const Duration(milliseconds: 20));
+    final Directory middle = Directory('${base.path}/b')..createSync();
+    await Future<void>.delayed(const Duration(milliseconds: 20));
+    final Directory newest = Directory('${base.path}/c')..createSync();
+    final TaskService runner = TaskService(
+      runsDir: '${tmp.path}/runs',
+      tasksDir: tasksDir,
+      workspacesDir: base.path,
+      env: <String, String>{},
+    );
+    await runner.cleanupWorkspaces(keep: 2);
+    expect(oldest.existsSync(), isFalse);
+    expect(middle.existsSync(), isTrue);
+    expect(newest.existsSync(), isTrue);
+  });
+
   test('非法任务卡 id 被拒绝', () async {
     await expectLater(
       service().start(cardId: '../etc/passwd', onEvent: (_) {}),

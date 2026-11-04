@@ -260,10 +260,13 @@ class BridgeHost {
             }),
           ),
         );
-        final RevertOutcome undone = await bridge.undoDetailed(
-          undoRun,
-          steps: undoSteps,
-        );
+        final RevertOutcome undone;
+        try {
+          undone = await bridge.undoDetailed(undoRun, steps: undoSteps);
+        } on Object catch (error) {
+          _pushRevertFailure('undo/finished', undoRun, undoSteps ?? 0, error);
+          rethrow;
+        }
         push?.call(
           _eventFrame(
             _revertEvent('undo/finished', undoRun, <String, Object?>{
@@ -275,7 +278,13 @@ class BridgeHost {
         return undone.toJson();
       case 'redo':
         final String redoRun = _requireString(payload, 'runId');
-        final RevertOutcome redone = await bridge.redoDetailed(redoRun);
+        final RevertOutcome redone;
+        try {
+          redone = await bridge.redoDetailed(redoRun);
+        } on Object catch (error) {
+          _pushRevertFailure('redo/finished', redoRun, 0, error);
+          rethrow;
+        }
         push?.call(
           _eventFrame(
             _revertEvent('redo/finished', redoRun, <String, Object?>{
@@ -307,6 +316,28 @@ class BridgeHost {
   int? _stepsOf(Map<String, Object?> payload) {
     final Object? value = payload['steps'];
     return value is num ? value.toInt() : null;
+  }
+
+  void _pushRevertFailure(String type, String runId, int steps, Object error) {
+    push?.call(
+      _eventFrame(
+        _revertEvent(type, runId, <String, Object?>{
+          'ok': false,
+          'appliedSteps': 0,
+          'failures': <Object?>[
+            <String, Object?>{'path': '工作区', 'error': '$error'},
+          ],
+          'steps': steps,
+          'code': _codeOfError(error),
+        }),
+      ),
+    );
+  }
+
+  String _codeOfError(Object error) {
+    if (error is BridgeError) return error.code;
+    if (error is StateError) return 'NOT_FOUND';
+    return 'INTERNAL';
   }
 
   Map<String, Object?> _revertEvent(
