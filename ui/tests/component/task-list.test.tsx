@@ -15,13 +15,17 @@ function seed(): void {
     pinnedTaskIds: [],
     taskTitles: {},
     archivedTaskIds: [],
+    batchMode: false,
+    selectedTaskIds: [],
+    archiveView: false,
+    taskGrouping: 'date',
   })
 }
 
 const runs = [
-  summaryOf({ id: 'run-a', title: '整理收件箱', status: 'succeeded', startedAt: '2026-11-03T10:00:00+08:00' }),
-  summaryOf({ id: 'run-b', title: '分析销售 CSV', status: 'failed', startedAt: '2026-11-02T10:00:00+08:00' }),
-  summaryOf({ id: 'run-c', title: '调研报告', status: 'running', startedAt: '2026-11-01T10:00:00+08:00' }),
+  summaryOf({ id: 'run-a', title: '整理收件箱', status: 'succeeded', chain: 'organize', startedAt: '2026-11-03T10:00:00+08:00' }),
+  summaryOf({ id: 'run-b', title: '分析销售 CSV', status: 'failed', chain: 'csv', startedAt: '2026-11-02T10:00:00+08:00' }),
+  summaryOf({ id: 'run-c', title: '调研报告', status: 'running', chain: 'research', startedAt: '2026-11-01T10:00:00+08:00' }),
 ]
 
 it('groups the newest day as 今天 and older ones separately', () => {
@@ -107,4 +111,30 @@ it('archives a task from the row menu', async () => {
   await userEvent.click(screen.getByTestId('task-archive'))
   expect(screen.queryByText('分析销售 CSV')).not.toBeInTheDocument()
   expect(useUiStore.getState().archivedTaskIds).toContain('run-b')
+})
+
+it('archives tasks in batch and restores them from the archive view', async () => {
+  seed()
+  render(<TaskList runs={runs} activeId={null} onSelect={() => {}} />)
+  await userEvent.click(screen.getByTestId('task-batch-toggle'))
+  await userEvent.click(screen.getByText('整理收件箱'))
+  await userEvent.click(screen.getByText('分析销售 CSV'))
+  expect(screen.getByTestId('task-batch-bar')).toHaveTextContent('已选 2')
+  await userEvent.click(screen.getByTestId('batch-archive'))
+  expect(useUiStore.getState().archivedTaskIds).toEqual(['run-a', 'run-b'])
+  expect(screen.queryByText('整理收件箱')).not.toBeInTheDocument()
+
+  await userEvent.click(screen.getByTestId('task-archive-toggle'))
+  expect(screen.getByText('整理收件箱')).toBeInTheDocument()
+  await userEvent.click(screen.getAllByTestId('task-restore')[0])
+  expect(useUiStore.getState().archivedTaskIds).toEqual(['run-b'])
+})
+
+it('groups tasks by workspace proxy', async () => {
+  seed()
+  render(<TaskList runs={runs} activeId={null} onSelect={() => {}} />)
+  await userEvent.click(screen.getByTestId('task-grouping-toggle'))
+  expect(screen.getByTestId('task-group-文件整理')).toBeInTheDocument()
+  expect(screen.getByTestId('task-group-数据分析')).toBeInTheDocument()
+  expect(screen.getByTestId('task-group-调研写作')).toBeInTheDocument()
 })

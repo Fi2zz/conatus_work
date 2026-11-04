@@ -157,3 +157,32 @@ it('refreshes the preview on demand', async () => {
   await userEvent.click(screen.getByTestId('refresh-artifact'))
   await waitFor(() => expect(calls).toBe(2))
 })
+
+it('opens artifacts as switchable tabs', async () => {
+  seedArtifacts([artifact('out/a.md'), artifact('out/b.md')], { 'out/a.md': '# A', 'out/b.md': '# B' })
+  render(<ArtifactPanel />)
+  await userEvent.click(screen.getByText('out/b.md'))
+  expect(screen.getAllByTestId('artifact-tab')).toHaveLength(1)
+  await userEvent.click(screen.getByText('out/a.md'))
+  expect(screen.getAllByTestId('artifact-tab')).toHaveLength(2)
+  await userEvent.click(screen.getAllByTestId('artifact-tab-close')[0])
+  expect(screen.getAllByTestId('artifact-tab')).toHaveLength(1)
+})
+
+it('highlights code artifacts', async () => {
+  seedArtifacts([artifact('out/main.ts')], { 'out/main.ts': 'const answer: number = 42' })
+  render(<ArtifactPanel />)
+  const code = await screen.findByTestId('artifact-code')
+  await waitFor(() => expect(code.querySelector('.hljs-keyword')).not.toBeNull())
+  expect(code).toHaveTextContent('const')
+})
+
+it('plays audio artifacts through a blob url', async () => {
+  const create = vi.fn(() => 'blob:mock-audio')
+  Object.assign(URL, { createObjectURL: create, revokeObjectURL: vi.fn() })
+  seedArtifacts([artifact('out/voice.mp3')], {}, { 'out/voice.mp3': 'SUQzBA==' })
+  render(<ArtifactPanel />)
+  const audio = (await screen.findByTestId('artifact-audio')) as HTMLAudioElement
+  expect(audio.getAttribute('src')).toBe('blob:mock-audio')
+  expect(create).toHaveBeenCalled()
+})

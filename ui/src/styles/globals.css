@@ -331,3 +331,33 @@ body {
   box-shadow: none;
   margin: 0 auto;
 }
+
+/* 代码预览（highlight.js）用的轻量配色，跟 Porcelain 令牌走。 */
+.hljs-keyword,
+.hljs-selector-tag,
+.hljs-built_in,
+.hljs-name {
+  color: var(--accent);
+}
+.hljs-string,
+.hljs-attr,
+.hljs-attribute {
+  color: var(--success);
+}
+.hljs-comment,
+.hljs-quote {
+  color: var(--ink-faint);
+  font-style: italic;
+}
+.hljs-number,
+.hljs-literal,
+.hljs-variable,
+.hljs-template-variable {
+  color: var(--warning);
+}
+.hljs-title,
+.hljs-section,
+.hljs-type {
+  color: var(--ink);
+  font-weight: 600;
+}

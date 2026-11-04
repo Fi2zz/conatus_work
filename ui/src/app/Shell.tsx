@@ -11,6 +11,8 @@ import { Timeline } from '@/features/conversation/Timeline'
 import { CommandPalette } from '@/features/tasks/CommandPalette'
 import { TaskList } from '@/features/tasks/TaskList'
 import { UndoDialogHost } from '@/features/changes/UndoDialogHost'
+import { ShortcutsDialog } from '@/features/help/ShortcutsDialog'
+import { UsageDialog } from '@/features/usage/UsageDialog'
 import { cn } from '@/lib/utils'
 import { useViewportWidth } from '@/lib/viewport'
 import { undoScope } from '@/state/selectors'
@@ -101,6 +103,8 @@ export function Shell(): JSX.Element {
   const setSettingsOpen = useUiStore((state) => state.setSettingsOpen)
   const setNewTaskOpen = useUiStore((state) => state.setNewTaskOpen)
   const setCompareOpen = useUiStore((state) => state.setCompareOpen)
+  const setUsageOpen = useUiStore((state) => state.setUsageOpen)
+  const setShortcutsOpen = useUiStore((state) => state.setShortcutsOpen)
   const leftCollapsed = useUiStore((state) => state.leftCollapsed)
   const viewport = useViewportWidth()
   const narrow = viewport < 1000
@@ -118,6 +122,11 @@ export function Shell(): JSX.Element {
 
   useEffect(() => {
     function onKeyDown(event: KeyboardEvent): void {
+      if (event.key === '?') {
+        event.preventDefault()
+        setShortcutsOpen(true)
+        return
+      }
       if (!(event.metaKey || event.ctrlKey)) return
       const key = event.key.toLowerCase()
       if (key === 'k') {
@@ -239,9 +248,28 @@ export function Shell(): JSX.Element {
           <LeftRail />
         )}
         <div className="mt-auto flex items-center justify-between border-t border-line/70 px-2.5 py-1.5 text-[10.5px] text-ink-muted">
-          <button type="button" onClick={() => setSettingsOpen(true)} className="hover:text-ink">
-            设置
-          </button>
+          <div className="flex items-center gap-2">
+            <button type="button" onClick={() => setSettingsOpen(true)} className="hover:text-ink">
+              设置
+            </button>
+            <button
+              type="button"
+              data-testid="usage-button"
+              onClick={() => setUsageOpen(true)}
+              className="hover:text-ink"
+            >
+              用量
+            </button>
+            <button
+              type="button"
+              data-testid="shortcuts-button"
+              aria-label="快捷键"
+              onClick={() => setShortcutsOpen(true)}
+              className="hover:text-ink"
+            >
+              ?
+            </button>
+          </div>
           {showList ? (
             <span data-testid="undo-scope-label" className="tnum">
               可撤销 {scope.steps} 轮
@@ -313,6 +341,8 @@ export function Shell(): JSX.Element {
       <NewTaskDialog />
       <CompareDialog />
       <SettingsDialog />
+      <UsageDialog />
+      <ShortcutsDialog />
       <UndoDialogHost />
     </div>
   )

@@ -10,10 +10,15 @@ interface TaskRowProps {
   active: boolean
   index: number
   pinned: boolean
+  batchMode: boolean
+  selected: boolean
+  archiveView: boolean
   onSelect: (runId: string) => void
   onTogglePin: (runId: string) => void
+  onToggleSelected: (runId: string) => void
   onRename: (runId: string, title: string) => void
   onArchive: (runId: string) => void
+  onRestore: (runId: string) => void
 }
 
 const MENU_ITEMS = [
@@ -30,10 +35,15 @@ export function TaskRow({
   active,
   index,
   pinned,
+  batchMode,
+  selected,
+  archiveView,
   onSelect,
   onTogglePin,
+  onToggleSelected,
   onRename,
   onArchive,
+  onRestore,
 }: TaskRowProps): JSX.Element {
   const [menuOpen, setMenuOpen] = useState(false)
   const [renaming, setRenaming] = useState(false)
@@ -81,22 +91,36 @@ export function TaskRow({
       ) : (
         <button
           type="button"
-          onClick={() => onSelect(run.id)}
+          onClick={() => (batchMode ? onToggleSelected(run.id) : onSelect(run.id))}
           style={{ animationDelay: `${Math.min(index, 8) * 18}ms` }}
           className={cn(
             'rise relative w-full rounded-md px-2 py-1.5 pr-10 text-left transition-colors duration-[var(--dur-fast)]',
-            active ? 'bg-panel shadow-panel' : 'hover:bg-panel/70',
+            active && !batchMode ? 'bg-panel shadow-panel' : 'hover:bg-panel/70',
+            selected && 'bg-accent/10',
           )}
         >
           <span
             aria-hidden
             className={cn(
               'absolute inset-y-1.5 left-0 w-[2px] rounded-full transition-colors',
-              active ? 'bg-accent' : 'bg-transparent',
+              active && !batchMode ? 'bg-accent' : 'bg-transparent',
             )}
           />
           <div className="flex items-center gap-1.5 pl-1.5">
-            <span className={cn('h-1.5 w-1.5 shrink-0 rounded-full', STATUS[run.status].dot)} />
+            {batchMode ? (
+              <span
+                data-testid="task-check"
+                aria-checked={selected}
+                className={cn(
+                  'flex h-3 w-3 shrink-0 items-center justify-center rounded-[3px] border text-[8px]',
+                  selected ? 'border-accent bg-accent text-white' : 'border-line-strong text-transparent',
+                )}
+              >
+                ✓
+              </span>
+            ) : (
+              <span className={cn('h-1.5 w-1.5 shrink-0 rounded-full', STATUS[run.status].dot)} />
+            )}
             <span className="truncate text-[12.5px] leading-snug">{run.title}</span>
           </div>
           <div className="mt-0.5 flex items-center gap-1.5 pl-4 text-[10.5px] text-ink-muted tnum">
@@ -109,7 +133,16 @@ export function TaskRow({
         </button>
       )}
 
-      {renaming ? null : (
+      {renaming || batchMode ? null : archiveView ? (
+        <button
+          type="button"
+          data-testid="task-restore"
+          onClick={() => onRestore(run.id)}
+          className="absolute top-1 right-1 rounded-sm px-1 text-[10px] text-accent hover:bg-panel-muted"
+        >
+          恢复
+        </button>
+      ) : (
         <div className="absolute top-1 right-1 flex items-center gap-0.5">
           <button
             type="button"

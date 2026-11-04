@@ -1,5 +1,5 @@
 import type { RunSummary } from '@/bridge/types'
-import type { TaskStatusFilter, TaskTimeFilter } from '@/state/ui-state'
+import type { TaskGrouping, TaskStatusFilter, TaskTimeFilter } from '@/state/ui-state'
 
 export const STATUS: Record<RunSummary['status'], { dot: string; label: string }> = {
   pending: { dot: 'bg-ink-faint', label: '等待' },
@@ -51,6 +51,7 @@ function dayOf(startedAt: string): string {
 export function groupRuns(
   runs: RunSummary[],
   pinned: Set<string>,
+  grouping: TaskGrouping = 'date',
 ): Array<[string, RunSummary[]]> {
   const groups: Array<[string, RunSummary[]]> = []
   const pinnedRuns = runs.filter((run) => pinned.has(run.id))
@@ -58,6 +59,13 @@ export function groupRuns(
 
   const rest = runs.filter((run) => !pinned.has(run.id))
   if (rest.length === 0) return groups
+  if (grouping === 'workspace') {
+    const labels = [...new Set(rest.map(workspaceOf))].sort()
+    for (const label of labels) {
+      groups.push([label, rest.filter((run) => workspaceOf(run) === label)])
+    }
+    return groups
+  }
   const days = [...new Set(rest.map((run) => dayOf(run.startedAt)))].sort().reverse()
   const olderDays = new Set(days.slice(2))
   if (days[0]) groups.push(['今天', rest.filter((run) => dayOf(run.startedAt) === days[0])])
@@ -65,6 +73,14 @@ export function groupRuns(
   const older = rest.filter((run) => olderDays.has(dayOf(run.startedAt)))
   if (older.length > 0) groups.push(['更早', older])
   return groups
+}
+
+/** 宿主还没有返回 workspace 字段；先用任务链做分组代理，接入后替换这里。 */
+export function workspaceOf(run: RunSummary): string {
+  if (run.chain === 'organize') return '文件整理'
+  if (run.chain === 'csv') return '数据分析'
+  if (run.chain === 'research') return '调研写作'
+  return '默认工作区'
 }
 
 export function duration(run: RunSummary): string {

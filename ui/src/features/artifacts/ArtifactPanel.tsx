@@ -14,10 +14,13 @@ function formatBytes(bytes: number): string {
 export function ArtifactPanel(): JSX.Element {
   const run = useWorkbench((state) => (state.activeRunId ? state.runs[state.activeRunId] : undefined))
   const selected = useUiStore((state) => state.selectedArtifact)
-  const setSelected = useUiStore((state) => state.setSelectedArtifact)
+  const tabs = useUiStore((state) => state.artifactTabs)
+  const openArtifact = useUiStore((state) => state.openArtifact)
+  const closeArtifact = useUiStore((state) => state.closeArtifact)
 
   const artifacts = run?.artifacts ?? []
   const active = artifacts.find((artifact) => artifact.path === selected) ?? artifacts[0]
+  const openTabs = tabs.filter((path) => artifacts.some((artifact) => artifact.path === path))
 
   if (!run) return <EmptyState title="未选择任务" hint="选一条运行后，这里会列出它产出的文件。" />
   if (artifacts.length === 0) {
@@ -38,7 +41,7 @@ export function ArtifactPanel(): JSX.Element {
             <li key={artifact.path}>
               <button
                 type="button"
-                onClick={() => setSelected(artifact.path)}
+                onClick={() => openArtifact(artifact.path)}
                 className={cn(
                   'flex w-full items-center gap-2 px-3 py-1.5 text-left transition-colors duration-[var(--dur-fast)] hover:bg-panel-muted',
                   activeRow && 'bg-panel-muted',
@@ -65,6 +68,37 @@ export function ArtifactPanel(): JSX.Element {
           )
         })}
       </ul>
+      {openTabs.length > 0 ? (
+        <div data-testid="artifact-tabs" className="flex overflow-x-auto border-b border-line/70">
+          {openTabs.map((path) => (
+            <div
+              key={path}
+              className={cn(
+                'flex shrink-0 items-center gap-1 border-r border-line/60 px-2 py-1 text-[10.5px]',
+                path === active?.path ? 'bg-panel-muted text-ink' : 'text-ink-muted hover:bg-panel-muted/60',
+              )}
+            >
+              <button
+                type="button"
+                data-testid="artifact-tab"
+                onClick={() => openArtifact(path)}
+                className="max-w-40 truncate font-mono"
+              >
+                {path.split('/').pop()}
+              </button>
+              <button
+                type="button"
+                data-testid="artifact-tab-close"
+                aria-label={`关闭 ${path}`}
+                onClick={() => closeArtifact(path)}
+                className="text-ink-faint hover:text-danger"
+              >
+                ×
+              </button>
+            </div>
+          ))}
+        </div>
+      ) : null}
       {active ? <ArtifactPreview runId={run.id} artifact={active} /> : null}
     </div>
   )

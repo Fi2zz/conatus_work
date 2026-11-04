@@ -3,9 +3,11 @@ import type { JSX } from 'react'
 
 import type { ArtifactView } from '@/bridge/types'
 import { bytesFromBase64 } from '@/lib/base64'
+import { CodePreview, languageOf } from './CodePreview'
 import { CsvTable } from './CsvTable'
 import { DocxPreview } from './DocxPreview'
 import { renderMarkdown } from './markdown'
+import { MediaPreview, mediaArtifact } from './MediaPreview'
 import { XlsxPreview } from './XlsxPreview'
 
 export type PreviewState =
@@ -73,6 +75,7 @@ function binaryBody(artifact: ArtifactView, content: string): JSX.Element {
     )
   }
   if (lower.endsWith('.pdf')) return <PdfFrame base64={content} title={artifact.path} />
+  if (mediaArtifact(lower)) return <MediaPreview base64={content} path={artifact.path} />
   if (lower.endsWith('.docx')) return <DocxPreview base64={content} />
   if (lower.endsWith('.xlsx') || lower.endsWith('.xls')) return <XlsxPreview base64={content} />
   return (
@@ -145,6 +148,9 @@ export function ArtifactBody({
         {prettyJson(state.content)}
       </pre>
     )
+  }
+  if (languageOf(lower) !== null) {
+    return <CodePreview content={state.content} path={artifact.path} />
   }
   return (
     <pre

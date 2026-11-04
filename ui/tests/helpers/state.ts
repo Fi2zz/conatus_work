@@ -26,11 +26,22 @@ export function seedRun(timeline: TimelineEntry[], over: Partial<RunView> = {}):
     seenSeqs: {},
   })
   useUiStore.setState({
+    module: 'work',
     filter: 'all',
     expandedKeys: new Set<string>(),
     rightTab: 'artifacts',
     undoDialog: false,
     stoppingRunId: null,
+    commandOpen: false,
+    settingsOpen: false,
+    newTaskOpen: false,
+    compareOpen: false,
+    usageOpen: false,
+    shortcutsOpen: false,
+    batchMode: false,
+    selectedTaskIds: [],
+    archiveView: false,
+    taskGrouping: 'date',
   })
   return run
 }
