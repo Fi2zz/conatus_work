@@ -63,3 +63,15 @@ it('shows version and copies diagnostics', async () => {
   await userEvent.click(screen.getByTestId('settings-copy-diag'))
   expect(write).toHaveBeenCalled()
 })
+
+it('offers multiple providers and fills the model preset', async () => {
+  transportWith({})
+  render(<SettingsPage />)
+  const provider = screen.getByTestId('settings-provider') as HTMLSelectElement
+  expect(provider.options.length).toBeGreaterThan(5)
+  await userEvent.selectOptions(provider, 'openai')
+  await userEvent.selectOptions(screen.getByTestId('settings-model-select'), 'gpt-4o')
+  expect(screen.getByTestId('settings-base-url')).toHaveValue('https://api.openai.com/v1')
+  expect(screen.getByTestId('settings-model')).toHaveValue('gpt-4o')
+  expect(screen.getByTestId('settings-price-in')).toHaveValue('2.5')
+})
