@@ -114,6 +114,11 @@ body {
   border-radius: var(--radius-sm);
 }
 
+/* 输入框外层已经有 focus-within 的蓝色边框，内层不再叠一圈焦点环。 */
+.composer-input:focus-visible {
+  outline: none;
+}
+
 ::selection {
   background: color-mix(in srgb, var(--accent) 22%, transparent);
 }

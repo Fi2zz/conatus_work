@@ -94,7 +94,7 @@ export function Composer(): JSX.Element {
           {error}
         </p>
       ) : null}
-      <div data-testid="composer-box" className="rounded-xl border border-line bg-canvas transition-colors focus-within:border-accent/60">
+      <div data-testid="composer-box" className="rounded-xl border border-line bg-canvas transition-colors focus-within:border-accent">
         {attachments.length > 0 ? (
           <div className="flex flex-wrap gap-1 px-3 pt-2">
             {attachments.map((name) => (
@@ -134,7 +134,7 @@ export function Composer(): JSX.Element {
                 ? '运行中，停止后可继续交代'
                 : '继续交代任务，⌘↵ 发送'
           }
-          className="max-h-[220px] min-h-[84px] w-full resize-none bg-transparent px-3 pt-2.5 pb-1 text-[13px] leading-relaxed outline-none disabled:opacity-60"
+          className="composer-input max-h-[220px] min-h-[84px] w-full resize-none bg-transparent px-3 pt-2.5 pb-1 text-[13px] leading-relaxed outline-none disabled:opacity-60"
         />
         <div className="flex items-center gap-1 px-2 pb-1.5">
           <ComposerTools disabled={disabled || running} onAttach={addAttachment} onInsert={insert} />
