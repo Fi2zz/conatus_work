@@ -31,7 +31,7 @@ export function Composer(): JSX.Element {
     const node = area.current
     if (!node) return
     node.style.height = 'auto'
-    node.style.height = `${Math.min(node.scrollHeight, 160)}px`
+    node.style.height = `${Math.max(84, Math.min(node.scrollHeight, 220))}px`
   }, [draft])
 
   async function send(): Promise<void> {
@@ -94,81 +94,86 @@ export function Composer(): JSX.Element {
           {error}
         </p>
       ) : null}
-      <div className="flex items-end gap-2">
-        <div className="flex-1 rounded-lg border border-line bg-canvas transition-colors focus-within:border-accent/60">
-          {attachments.length > 0 ? (
-            <div className="flex flex-wrap gap-1 px-2 pt-1.5">
-              {attachments.map((name) => (
-                <span
-                  key={name}
-                  data-testid="composer-attachment"
-                  className="flex items-center gap-1 rounded-sm border border-line bg-panel px-1.5 py-0.5 text-[10px] text-ink-muted"
+      <div data-testid="composer-box" className="rounded-xl border border-line bg-canvas transition-colors focus-within:border-accent/60">
+        {attachments.length > 0 ? (
+          <div className="flex flex-wrap gap-1 px-3 pt-2">
+            {attachments.map((name) => (
+              <span
+                key={name}
+                data-testid="composer-attachment"
+                className="flex items-center gap-1 rounded-sm border border-line bg-panel px-1.5 py-0.5 text-[10px] text-ink-muted"
+              >
+                {name}
+                <button
+                  type="button"
+                  data-testid="remove-attachment"
+                  aria-label={`移除 ${name}`}
+                  onClick={() => setAttachments((current) => current.filter((item) => item !== name))}
+                  className="text-ink-faint hover:text-danger"
                 >
-                  {name}
-                  <button
-                    type="button"
-                    data-testid="remove-attachment"
-                    aria-label={`移除 ${name}`}
-                    onClick={() => setAttachments((current) => current.filter((item) => item !== name))}
-                    className="text-ink-faint hover:text-danger"
-                  >
-                    ×
-                  </button>
-                </span>
-              ))}
-            </div>
-          ) : null}
-          <textarea
-            ref={area}
-            value={draft}
-            onChange={(event) => {
-              setDraft(event.target.value)
-              setError(null)
-            }}
-            onKeyDown={onKeyDown}
-            disabled={disabled}
-            rows={1}
-            placeholder={
-              pendingApproval
-                ? '等待审批…'
-                : running
-                  ? '运行中，停止后可继续交代'
-                  : '继续交代任务，⌘↵ 发送'
-            }
-            className="max-h-40 w-full resize-none bg-transparent px-2.5 py-2 text-[12.5px] leading-relaxed outline-none disabled:opacity-60"
-          />
+                  ×
+                </button>
+              </span>
+            ))}
+          </div>
+        ) : null}
+        <textarea
+          ref={area}
+          value={draft}
+          onChange={(event) => {
+            setDraft(event.target.value)
+            setError(null)
+          }}
+          onKeyDown={onKeyDown}
+          disabled={disabled}
+          rows={4}
+          placeholder={
+            pendingApproval
+              ? '等待审批…'
+              : running
+                ? '运行中，停止后可继续交代'
+                : '继续交代任务，⌘↵ 发送'
+          }
+          className="max-h-[220px] min-h-[84px] w-full resize-none bg-transparent px-3 pt-2.5 pb-1 text-[13px] leading-relaxed outline-none disabled:opacity-60"
+        />
+        <div className="flex items-center gap-1 px-2 pb-1.5">
           <ComposerTools disabled={disabled || running} onAttach={addAttachment} onInsert={insert} />
+          <span className="ml-auto hidden text-[9.5px] text-ink-faint sm:inline">原型：附件不会上传</span>
+          {pendingApproval || replay ? null : running && run ? (
+            <Button
+              variant="danger"
+              size="sm"
+              data-testid="composer-stop"
+              aria-label="停止运行"
+              title="停止运行"
+              disabled={stopping}
+              onClick={() => {
+                setStoppingRun(run.id)
+                void getTransport()
+                  .cancelTask(run.id)
+                  .catch(() => setStoppingRun(null))
+              }}
+              className="h-7 w-7 shrink-0 rounded-full p-0 text-[11px]"
+            >
+              <span aria-hidden className="text-[9px] leading-none">
+                ■
+              </span>
+            </Button>
+          ) : (
+            <Button
+              variant="primary"
+              size="sm"
+              data-testid="composer-send"
+              aria-label="发送"
+              title="发送（⌘↵）"
+              disabled={disabled || draft.trim() === ''}
+              onClick={() => void send()}
+              className="h-7 w-7 shrink-0 rounded-full p-0 text-[14px] leading-none"
+            >
+              <span aria-hidden>{sending ? '…' : '↑'}</span>
+            </Button>
+          )}
         </div>
-        {pendingApproval || replay ? null : running && run ? (
-          <Button
-            variant="danger"
-            data-testid="composer-stop"
-            aria-label="停止运行"
-            disabled={stopping}
-            onClick={() => {
-              setStoppingRun(run.id)
-              void getTransport()
-                .cancelTask(run.id)
-                .catch(() => setStoppingRun(null))
-            }}
-            className="mb-0.5"
-          >
-            <span aria-hidden className="text-[9px] leading-none">
-              ■
-            </span>
-            {stopping ? '停止中…' : '停止'}
-          </Button>
-        ) : (
-          <Button
-            variant="primary"
-            data-testid="composer-send"
-            disabled={disabled || draft.trim() === ''}
-            onClick={() => void send()}
-            className="mb-0.5"
-          >
-            {sending ? '发送中…' : '发送'}
-          </Button>
-        )}
       </div>
     </div>
   )

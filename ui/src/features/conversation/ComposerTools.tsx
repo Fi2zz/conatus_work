@@ -32,13 +32,13 @@ export function ComposerTools({ disabled, onAttach, onInsert }: ComposerToolsPro
   }
 
   return (
-    <div className="relative flex items-center gap-1 px-1.5 pb-1">
+    <div className="relative flex items-center gap-1">
       <button
         type="button"
         data-testid="composer-attach"
         disabled={disabled}
         onClick={() => setMenu(menu === 'attach' ? null : 'attach')}
-        className="rounded-sm px-1 text-[11px] text-ink-muted hover:bg-panel-muted hover:text-ink disabled:opacity-50"
+        className="rounded-sm px-1 text-[12px] text-ink-muted hover:bg-panel-muted hover:text-ink disabled:opacity-50"
       >
         ＋
       </button>
@@ -60,7 +60,6 @@ export function ComposerTools({ disabled, onAttach, onInsert }: ComposerToolsPro
       >
         / 技能
       </button>
-      <span className="ml-auto text-[9.5px] text-ink-faint">原型：附件不会上传</span>
 
       {menu ? (
         <div

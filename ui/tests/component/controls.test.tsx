@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from '@testing-library/react'
+import { fireEvent, render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 
 import { Shell } from '@/app/Shell'
@@ -232,4 +232,12 @@ it('inserts a context reference from the toolbar', async () => {
   await userEvent.click(screen.getByTestId('composer-mention'))
   await userEvent.click(screen.getAllByTestId('composer-option')[0])
   expect(useUiStore.getState().composerDraft).toContain('@当前工作区')
+})
+
+it('keeps the send control inside the composer box', () => {
+  seedRun([], { status: 'succeeded' })
+  transportWith({ mode: 'host' })
+  render(<Shell />)
+  const box = screen.getByTestId('composer-box')
+  expect(within(box).getByTestId('composer-send')).toBeInTheDocument()
 })
