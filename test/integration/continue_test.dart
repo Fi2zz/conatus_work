@@ -2,11 +2,13 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:conatus/conatus.dart';
+import 'package:conatus_work/src/bridge/projection.dart';
 import 'package:conatus_work/src/runner/assembly.dart';
 import 'package:conatus_work/src/runner/run_paths.dart';
 import 'package:conatus_work/src/runner/run_store.dart';
 import 'package:conatus_work/src/runner/runner.dart';
 import 'package:conatus_work/src/runner/task_spec.dart';
+import 'package:conatus_work/src/runner/undo.dart';
 import 'package:test/test.dart';
 
 Map<String, Object?> cardJson() => <String, Object?>{
@@ -91,11 +93,54 @@ void main() {
     final RunStore store = RunStore(
       RunPaths(runsDir: runner.runsDir, runId: first.runId),
     );
-    final RunRecord saved = await store.load()..forkSessionId = 'events-fork';
+    final RunRecord saved = await store.load()
+      ..forkSessionId = 'events-fork';
     await store.save(saved);
 
     await runner.continueRun(first.runId, '继续');
 
     expect(sessionId, 'events-fork');
+  });
+
+  test('undo 后 continueRun 的事件写进 fork 会话并可被投影', () async {
+    final Runner runner = Runner(
+      runsDir: '${tmp.path}/runs',
+      body: (RunScope scope, TaskSpec task) async {
+        final String? text = scope.userText;
+        if (text != null) {
+          scope.session.append(
+            'user/message',
+            data: <String, Object?>{'text': text},
+          );
+          scope.session.append(
+            'assistant/message',
+            data: <String, Object?>{'text': '收到'},
+          );
+        }
+        return const TaskOutcome.ok();
+      },
+    );
+    final RunRecord first = await runner.run(
+      RunRequest(
+        task: TaskSpec.parse(cardJson()),
+        taskPath: cardPath,
+        workspaceRoot: '${tmp.path}/work',
+      ),
+    );
+    final RevertOutcome undone = await runner.undoOutcome(first.runId);
+    expect(undone.ok, isTrue);
+    await runner.continueRun(first.runId, '撤销后继续');
+
+    final RunPaths paths = RunPaths(
+      runsDir: runner.runsDir,
+      runId: first.runId,
+    );
+    final RunFixture fixture = projectRunDir(paths.runDir);
+    final List<String> texts = <String>[
+      for (final Map<String, Object?> event in fixture.events)
+        if (event['type'] == 'message/user')
+          (event['data']! as Map<String, Object?>)['text']! as String,
+    ];
+    expect(texts, contains('撤销后继续'));
   });
 }

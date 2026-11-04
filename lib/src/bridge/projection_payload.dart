@@ -166,23 +166,28 @@ Map<String, Object?> buildCheckpointView(
   final int currentTurn = (turns['end'] as num?)?.toInt() ?? startTurn;
   final Map<String, Object?> checkpoint = _map(card?['checkpoint']);
   final int keep = (checkpoint['keep'] as num?)?.toInt() ?? 5;
-  final List<Object?> views = <Object?>[];
-  final List<int> gaps = <int>[];
-  int? previous;
+  final Map<int, Map<String, Object?>> byTurn = <int, Map<String, Object?>>{};
   for (final Object? item in _list(run['turnHistory'])) {
     final Map<String, Object?> entry = _map(item);
     final int? turn = (entry['turn'] as num?)?.toInt();
     if (turn == null) continue;
+    byTurn[turn] = <String, Object?>{
+      'turn': turn,
+      'at': entry['at'],
+      'eventCount': (entry['eventCount'] as num?)?.toInt() ?? 0,
+    };
+  }
+  final List<int> turnNumbers = byTurn.keys.toList()..sort();
+  final List<Object?> views = <Object?>[];
+  final List<int> gaps = <int>[];
+  int? previous;
+  for (final int turn in turnNumbers) {
     if (previous != null) {
       for (int missing = previous + 1; missing < turn; missing += 1) {
         gaps.add(missing);
       }
     }
-    views.add(<String, Object?>{
-      'turn': turn,
-      'at': entry['at'],
-      'eventCount': (entry['eventCount'] as num?)?.toInt() ?? 0,
-    });
+    views.add(byTurn[turn]!);
     previous = turn;
   }
   return <String, Object?>{

@@ -20,6 +20,7 @@ class JsonlTail {
   String _rest = '';
   bool _running = false;
   Timer? _timer;
+  void Function(Map<String, Object?>)? _onEvent;
 
   /// 每 [interval] 读一次新增内容，把解析出的条目交给 [onEvent]。
   ///
@@ -30,12 +31,19 @@ class JsonlTail {
     bool startAtEnd = false,
   }) async {
     _running = true;
+    _onEvent = onEvent;
     if (startAtEnd) {
       final File file = File(path);
       if (file.existsSync()) _offset = await file.length();
     }
     await _pump(onEvent);
     _timer = Timer.periodic(interval, (_) => unawaited(_pump(onEvent)));
+  }
+
+  /// 立即把当前已写入的内容读完。
+  Future<void> flush() async {
+    final void Function(Map<String, Object?>)? onEvent = _onEvent;
+    if (onEvent != null) await _pump(onEvent);
   }
 
   /// 停止轮询。
@@ -90,10 +98,7 @@ class RunEventStream {
   final String startedAt;
 
   final int _startSeq;
-  late final EventMapper _mapper = EventMapper(
-    startedAt,
-    startSeq: _startSeq,
-  );
+  late final EventMapper _mapper = EventMapper(startedAt, startSeq: _startSeq);
   JsonlTail? _tail;
   void Function(Map<String, Object?>)? _sink;
 
@@ -120,11 +125,20 @@ class RunEventStream {
     );
   }
 
+  /// 结束本次模型调用的流式正文。
+  void endDelta() => _mapper.endDelta();
+
   /// 推一条流式正文增量。
   void emitDelta(String text) {
     final void Function(Map<String, Object?>)? sink = _sink;
     if (sink == null) return;
     sink(_mapper.emitDelta(text));
+  }
+
+  /// 把已经写入文件的剩余事件立刻读完。
+  Future<void> flush() async {
+    final JsonlTail? tail = _tail;
+    if (tail != null) await tail.flush();
   }
 
   /// 停止尾随。

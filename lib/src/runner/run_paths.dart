@@ -30,7 +30,11 @@ class RunPaths {
 
   String get runJsonPath => '$runDir${Platform.pathSeparator}run.json';
 
-  String get eventsPath => '$runDir${Platform.pathSeparator}events.jsonl';
+  String get eventsPath => sessionPath('events');
+
+  /// 某个会话的 JSONL 落盘路径；`events` 是主会话。
+  String sessionPath(String sessionId) =>
+      '$runDir${Platform.pathSeparator}$sessionId.jsonl';
 
   String get artifactsDir => '$runDir${Platform.pathSeparator}artifacts';
 

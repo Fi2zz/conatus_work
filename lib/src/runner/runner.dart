@@ -184,7 +184,6 @@ class Runner {
       task: task,
       rootOverride: record.workspaceRoot,
     );
-    await AbortSignal(paths.abortFlagPath).clear();
     final String sessionId = record.forkSessionId ?? record.sessionId;
     record
       ..status = TaskRunStatus.running

@@ -68,6 +68,8 @@ void main() {
     expect(File('${tmp.path}/work/out/a.txt').existsSync(), isTrue);
     expect(File('${tmp.path}/work/inbox/a.txt').existsSync(), isFalse);
     expect(redone.forkSessionId, isNull);
+    expect(redone.endTurn, 1);
+    expect(redone.turnHistory.last.turn, 1);
     expect(stage.existsSync(), isFalse, reason: '重做后撤销点应清除');
   });
 

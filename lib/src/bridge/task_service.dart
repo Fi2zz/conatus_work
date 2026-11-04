@@ -18,7 +18,6 @@ import '../runner/run_store.dart';
 import '../runner/runner.dart';
 import '../runner/task_spec.dart';
 import 'bridge_error.dart';
-import 'projection_events.dart';
 import 'projection_io.dart';
 import 'projection_payload.dart';
 import 'run_watch.dart';
@@ -91,6 +90,7 @@ class TaskService {
   final Map<String, _PendingApproval> _approvals = <String, _PendingApproval>{};
   final Set<String> _resolvedApprovals = <String>{};
   int _extraSeq = 0;
+  int _seqFloor = 0;
 
   /// 列出任务卡（读不到的文件跳过）。
   List<TaskCard> cards() {
@@ -240,14 +240,11 @@ class TaskService {
     }
     final RunPaths paths = RunPaths(runsDir: runsDir, runId: runId);
     final String startedAt = record.startedAt.toIso8601String();
-    final int startSeq = buildEventStream(
-      readJsonLines(paths.eventsPath),
-      startedAt,
-    ).length;
+    final String activeSession = record.forkSessionId ?? record.sessionId;
     final RunEventStream stream = RunEventStream(
-      path: paths.eventsPath,
+      path: paths.sessionPath(activeSession),
       startedAt: startedAt,
-      startSeq: startSeq,
+      startSeq: _nextSendSeq(),
     );
     _streams[runId] = stream;
     _runtimes[runId] = runtime;
@@ -283,9 +280,11 @@ class TaskService {
             text,
             onStream: (LlmStreamEvent event) {
               if (event is LlmTextDelta) stream.emitDelta(event.text);
+              if (event is LlmStreamDone) stream.endDelta();
             },
             approval: approval,
           );
+      await stream.flush();
       stream.stop();
       for (final Map<String, Object?> event in _tail(
         updated,
@@ -314,6 +313,12 @@ class TaskService {
       _streams.remove(record.runId);
       _runtimes.remove(record.runId)?.abortInFlight();
     }
+  }
+
+  int _nextSendSeq() {
+    final int now = DateTime.now().microsecondsSinceEpoch;
+    _seqFloor = now > _seqFloor ? now : _seqFloor + 1000;
+    return _seqFloor;
   }
 
   Future<RunRecord> _loadRecord(String runId) async {
@@ -444,9 +449,11 @@ class TaskService {
             runId: runId,
             onStream: (LlmStreamEvent event) {
               if (event is LlmTextDelta) stream.emitDelta(event.text);
+              if (event is LlmStreamDone) stream.endDelta();
             },
             approval: approval,
           );
+      await stream.flush();
       stream.stop();
       for (final Map<String, Object?> event in _tail(
         record,
@@ -490,7 +497,11 @@ class TaskService {
     }
     final Map<String, Object?>? changes = buildChanges(
       record.workspaceRoot,
-      readJsonLines(paths.eventsPath),
+      readJsonLines(
+        paths.sessionPath(
+          record.sessionId.isEmpty ? 'events' : record.sessionId,
+        ),
+      ),
     );
     if (changes != null) {
       events.add(<String, Object?>{

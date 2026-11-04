@@ -51,6 +51,36 @@ void main() {
     expect((next['data']! as Map<String, Object?>)['entryId'], isNot(entryId));
   });
 
+  test('两次模型调用各自复用最近的流式 entryId', () {
+    final EventMapper mapper = EventMapper(_startedAt);
+    final Map<String, Object?> first = mapper.emitDelta('第一');
+    mapper.endDelta();
+    final Map<String, Object?> second = mapper.emitDelta('第二');
+    final String firstId =
+        (first['data']! as Map<String, Object?>)['entryId']! as String;
+    final String secondId =
+        (second['data']! as Map<String, Object?>)['entryId']! as String;
+    expect(secondId, isNot(firstId));
+
+    final List<Map<String, Object?>> doneA = mapper.map(<String, Object?>{
+      'type': 'assistant/message',
+      'id': 'e1',
+      'time': _startedAt,
+      'data': <String, Object?>{'text': '第一'},
+    });
+    final List<Map<String, Object?>> doneB = mapper.map(<String, Object?>{
+      'type': 'assistant/message',
+      'id': 'e2',
+      'time': _startedAt,
+      'data': <String, Object?>{'text': '第二'},
+    });
+    expect((doneA.single['data']! as Map<String, Object?>)['entryId'], firstId);
+    expect(
+      (doneB.single['data']! as Map<String, Object?>)['entryId'],
+      secondId,
+    );
+  });
+
   test('不同 seq 基数的增量不共用 entryId', () {
     final Map<String, Object?> first = EventMapper(_startedAt).emitDelta('a');
     final Map<String, Object?> second = EventMapper(

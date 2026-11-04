@@ -23,7 +23,7 @@ RunFixture projectRunDir(String runDir) {
         run['taskPath'] is String ? run['taskPath']! as String : '',
       );
   final List<Map<String, Object?>> rawEvents = readJsonLines(
-    '$runDir/events.jsonl',
+    _sessionPath(runDir, run['sessionId']),
   );
 
   final bool bundled = Directory('$runDir/workspace').existsSync();
@@ -128,6 +128,14 @@ RunFixture projectRunDir(String runDir) {
 
 Map<String, Object?> _map(Object? value) =>
     value is Map<String, Object?> ? value : <String, Object?>{};
+
+String _sessionPath(String runDir, Object? sessionId) {
+  final String id = sessionId is String && sessionId.isNotEmpty
+      ? sessionId
+      : 'events';
+  final String candidate = '$runDir/$id.jsonl';
+  return File(candidate).existsSync() ? candidate : '$runDir/events.jsonl';
+}
 
 List<Object?> _list(Object? value) =>
     value is List<Object?> ? value : <Object?>[];

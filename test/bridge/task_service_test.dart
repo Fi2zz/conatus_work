@@ -9,6 +9,7 @@ import 'package:conatus_work/src/runner/approval_bridge.dart';
 import 'package:conatus_work/src/runner/assembly.dart';
 import 'package:conatus_work/src/runner/runner.dart';
 import 'package:conatus_work/src/runner/task_spec.dart';
+import 'package:conatus_work/src/runner/undo.dart';
 import 'package:conatus_work/src/tools/rooted_fs.dart';
 import 'package:http/http.dart' as http;
 import 'package:test/test.dart';
@@ -612,6 +613,154 @@ void main() {
     );
   });
 
+  test('undo 后 send 仍能推送 fork 会话事件', () async {
+    final List<Map<String, Object?>> events = <Map<String, Object?>>[];
+    final TaskService runner = service(
+      body: (RunScope scope, TaskSpec task) async {
+        final String? text = scope.userText;
+        if (text != null) {
+          scope.session.append(
+            'user/message',
+            data: <String, Object?>{'text': text},
+          );
+        }
+        return const TaskOutcome.ok();
+      },
+    );
+    final String runId = await runner.start(
+      cardId: 'move-v01',
+      onEvent: events.add,
+    );
+    expect(
+      await _waitFor(
+        () => events.any((Map<String, Object?> e) => e['type'] == 'task/ended'),
+      ),
+      isTrue,
+    );
+    final RevertOutcome undone = await Runner(
+      body: noopTaskBody,
+      runsDir: '${tmp.path}/runs',
+    ).undoOutcome(runId);
+    expect(undone.ok, isTrue);
+    events.clear();
+
+    await runner.send(runId, '撤销后继续', onEvent: events.add);
+    expect(
+      await _waitFor(
+        () => events.any((Map<String, Object?> e) => e['type'] == 'task/ended'),
+      ),
+      isTrue,
+    );
+    final List<String> texts = <String>[
+      for (final Map<String, Object?> event in events)
+        if (event['type'] == 'message/user')
+          (event['data']! as Map<String, Object?>)['text']! as String,
+    ];
+    expect(texts, contains('撤销后继续'));
+  });
+
+  test('send 后立即 cancel 不会被续写清掉', () async {
+    final List<Map<String, Object?>> events = <Map<String, Object?>>[];
+    final TaskService runner = service(
+      body: (RunScope scope, TaskSpec task) async {
+        await Future<void>.delayed(const Duration(milliseconds: 400));
+        return const TaskOutcome.ok();
+      },
+    );
+    final String runId = await runner.start(
+      cardId: 'move-v01',
+      onEvent: events.add,
+    );
+    expect(
+      await _waitFor(
+        () => events.any((Map<String, Object?> e) => e['type'] == 'task/ended'),
+      ),
+      isTrue,
+    );
+    events.clear();
+
+    await runner.send(runId, '继续', onEvent: events.add);
+    await runner.cancel(runId);
+    expect(
+      await _waitFor(
+        () => events.any((Map<String, Object?> e) => e['type'] == 'task/ended'),
+      ),
+      isTrue,
+    );
+    final Map<String, Object?> ended = events.last;
+    expect((ended['data']! as Map<String, Object?>)['status'], 'aborted');
+  });
+
+  test('轮询间隔很长时收尾也会把最后一条消息读完', () async {
+    final List<Map<String, Object?>> events = <Map<String, Object?>>[];
+    final TaskService runner = TaskService(
+      runsDir: '${tmp.path}/runs',
+      tasksDir: tasksDir,
+      pollInterval: const Duration(seconds: 5),
+      env: <String, String>{
+        'WORK_LLM_BASE_URL': 'http://x',
+        'WORK_LLM_MODEL': 'm',
+      },
+      body: (RunScope scope, TaskSpec task) async {
+        scope.session.append(
+          'assistant/message',
+          data: <String, Object?>{'text': '收尾'},
+        );
+        return const TaskOutcome.ok();
+      },
+    );
+    await runner.start(cardId: 'move-v01', onEvent: events.add);
+    final bool delivered = await _waitForWithin(
+      () => events.any(
+        (Map<String, Object?> e) => e['type'] == 'message/assistant/done',
+      ),
+      const Duration(seconds: 2),
+    );
+    expect(delivered, isTrue);
+  });
+
+  test('start 与 send 的事件 seq 在整个 run 内唯一', () async {
+    final List<Map<String, Object?>> events = <Map<String, Object?>>[];
+    final TaskService runner = service(
+      body: (RunScope scope, TaskSpec task) async {
+        final String? text = scope.userText;
+        if (text != null) {
+          scope.session.append(
+            'user/message',
+            data: <String, Object?>{'text': text},
+          );
+          scope.session.append(
+            'assistant/message',
+            data: <String, Object?>{'text': '收到'},
+          );
+        }
+        return const TaskOutcome.ok();
+      },
+    );
+    final String runId = await runner.start(
+      cardId: 'move-v01',
+      onEvent: events.add,
+    );
+    expect(
+      await _waitFor(
+        () => events.any((Map<String, Object?> e) => e['type'] == 'task/ended'),
+      ),
+      isTrue,
+    );
+    await runner.send(runId, '继续', onEvent: events.add);
+    expect(
+      await _waitFor(
+        () => events.any((Map<String, Object?> e) => e['type'] == 'task/ended'),
+      ),
+      isTrue,
+    );
+    final List<String> keys = <String>[
+      for (final Map<String, Object?> event in events)
+        '${event['runId']}:${event['seq']}',
+    ];
+    expect(keys.toSet().length, keys.length, reason: 'UI 按 runId:seq 去重');
+  });
+
   test('非法任务卡 id 被拒绝', () async {
     await expectLater(
       service().start(cardId: '../etc/passwd', onEvent: (_) {}),
@@ -622,6 +771,15 @@ void main() {
 
 Future<bool> _waitFor(bool Function() condition) async {
   final DateTime deadline = DateTime.now().add(const Duration(seconds: 10));
+  while (DateTime.now().isBefore(deadline)) {
+    if (condition()) return true;
+    await Future<void>.delayed(const Duration(milliseconds: 50));
+  }
+  return condition();
+}
+
+Future<bool> _waitForWithin(bool Function() condition, Duration timeout) async {
+  final DateTime deadline = DateTime.now().add(timeout);
   while (DateTime.now().isBefore(deadline)) {
     if (condition()) return true;
     await Future<void>.delayed(const Duration(milliseconds: 50));

@@ -15,6 +15,7 @@ class EventMapper {
 
   int _seq;
   String? _streamEntryId;
+  final List<String> _streamQueue = <String>[];
   final Map<String, int> _startedCallAt = <String, int>{};
 
   int get seq => _seq;
@@ -22,6 +23,7 @@ class EventMapper {
   /// 产出一条流式正文增量；同一轮内复用 entryId，最终消息会沿用。
   Map<String, Object?> emitDelta(String text) {
     final String entryId = _streamEntryId ??= 'assistant-stream-$_seq';
+    if (!_streamQueue.contains(entryId)) _streamQueue.add(entryId);
     return <String, Object?>{
       'seq': _seq++,
       'at': _nowOffset(),
@@ -29,6 +31,9 @@ class EventMapper {
       'data': <String, Object?>{'entryId': entryId, 'text': text},
     };
   }
+
+  /// 结束本次模型调用的流式正文；下一次增量会开新 entry。
+  void endDelta() => _streamEntryId = null;
 
   int _nowOffset() {
     final int base = epochMs(startedAt) ?? 0;
@@ -59,10 +64,13 @@ class EventMapper {
         });
       case 'assistant/message':
         final Object? id = event['id'];
-        final String entryId =
-            _streamEntryId ??
-            (id is String && id.isNotEmpty ? id : 'assistant-$_seq');
+        final String? streamed = _streamQueue.isNotEmpty
+            ? _streamQueue.removeAt(0)
+            : _streamEntryId;
         _streamEntryId = null;
+        final String entryId =
+            streamed ??
+            (id is String && id.isNotEmpty ? id : 'assistant-$_seq');
         out.add(<String, Object?>{
           'seq': _seq++,
           'at': at,

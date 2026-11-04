@@ -67,6 +67,25 @@ void main() {
     expect(view['currentTurn'], 1);
   });
 
+  test('坏 run.json 不会让 hello 抛异常', () async {
+    final Directory corrupt = Directory('${runsRoot.path}/corrupt')
+      ..createSync();
+    File('${corrupt.path}/run.json').writeAsStringSync('{not json');
+    final List<String> frames = await host.dispatch(
+      jsonEncode(<String, Object?>{'v': 1, 'kind': 'hello'}),
+    );
+    expect(frames, hasLength(2));
+    final Map<String, Object?> event =
+        jsonDecode(frames.last) as Map<String, Object?>;
+    final Map<String, Object?> data =
+        (event['event']! as Map<String, Object?>)['data']!
+            as Map<String, Object?>;
+    final Map<String, Object?> checkpoints =
+        data['checkpoints']! as Map<String, Object?>;
+    expect(checkpoints.keys, contains('organize-v01'));
+    expect(checkpoints.keys, isNot(contains('corrupt')));
+  });
+
   test('config.save 后可读回，且不回传 Key 明文', () async {
     final Map<String, Object?> saved = await call(
       'config.save',

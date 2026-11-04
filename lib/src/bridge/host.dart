@@ -77,10 +77,14 @@ class BridgeHost {
       return <String>[_error(null, 'INTERNAL', '不支持的协议版本：$version')];
     }
     if (decoded['kind'] == 'hello') {
-      return <String>[
-        _frame(<String, Object?>{'v': kProtocolVersion, 'kind': 'welcome'}),
-        _eventFrame(_snapshot()),
-      ];
+      try {
+        return <String>[
+          _frame(<String, Object?>{'v': kProtocolVersion, 'kind': 'welcome'}),
+          _eventFrame(_snapshot()),
+        ];
+      } catch (error) {
+        return <String>[_error(null, 'INTERNAL', '$error')];
+      }
     }
     final Object? id = decoded['id'];
     if (decoded['kind'] != 'command' || id is! String || id.isEmpty) {
@@ -103,6 +107,18 @@ class BridgeHost {
     }
   }
 
+  Map<String, Object?> _checkpointMap() {
+    final Map<String, Object?> views = <String, Object?>{};
+    for (final String runId in bridge.runIds()) {
+      try {
+        views[runId] = bridge.checkpoints(runId);
+      } on Object {
+        // 坏记录跳过，不能让整次握手失败。
+      }
+    }
+    return views;
+  }
+
   Map<String, Object?> _snapshot() => <String, Object?>{
     'seq': -1,
     'at': 0,
@@ -111,10 +127,7 @@ class BridgeHost {
       'runs': <Object?>[
         for (final RunSummary task in bridge.listTasks()) task.toJson(),
       ],
-      'checkpoints': <String, Object?>{
-        for (final String runId in bridge.runIds())
-          runId: bridge.checkpoints(runId),
-      },
+      'checkpoints': _checkpointMap(),
       'activeRunId': null,
     },
   };

@@ -112,6 +112,10 @@ extension RunnerUndo on Runner {
         sessions: sessions,
       ).undo(session, steps ?? available);
       record.forkSessionId = result.stage.forkSessionId;
+      record.endTurn = result.stage.toTurn;
+      record.turnHistory.removeWhere(
+        (TurnCheckpoint turn) => turn.turn > result.stage.toTurn,
+      );
       record.undoCount += 1;
       await RevertStageStore(paths).save(result.stage);
       await store.save(record);
@@ -175,6 +179,16 @@ extension RunnerUndo on Runner {
       ).redo(stage);
       await stages.clear();
       record.forkSessionId = null;
+      record.endTurn = stage.fromTurn;
+      record.turnHistory.add(
+        TurnCheckpoint(
+          turn: stage.fromTurn,
+          at: DateTime.now(),
+          eventCount: record.turnHistory.isEmpty
+              ? 0
+              : record.turnHistory.last.eventCount,
+        ),
+      );
       record.redoCount += 1;
       await store.save(record);
       return RevertOutcome(

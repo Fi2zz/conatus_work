@@ -61,6 +61,8 @@ void main() {
     expect(outcome.ok, isTrue);
     expect(outcome.appliedSteps, 1);
     expect(outcome.failures, isEmpty);
+    expect(outcome.record.endTurn, 0);
+    expect(outcome.record.turnHistory, isEmpty);
     final RunRecord undone = outcome.record;
     expect(File('${tmp.path}/work/inbox/a.txt').existsSync(), isTrue);
     expect(File('${tmp.path}/work/out/a.txt').existsSync(), isFalse);
