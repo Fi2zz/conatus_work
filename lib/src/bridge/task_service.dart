@@ -2,12 +2,14 @@
 library;
 
 import 'dart:async';
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:conatus/conatus.dart';
 import 'package:http/http.dart' as http;
 
 import '../runner/agent_task_body.dart';
+import '../runner/approval_bridge.dart';
 import '../runner/llm_config.dart';
 import '../runner/llm_runtime.dart';
 import '../runner/run_paths.dart';
@@ -84,6 +86,9 @@ class TaskService {
   final http.Client Function()? clientFactory;
   final Map<String, LlmRuntime> _runtimes = <String, LlmRuntime>{};
   final Map<String, RunEventStream> _streams = <String, RunEventStream>{};
+  final Map<String, _PendingApproval> _approvals = <String, _PendingApproval>{};
+  final Set<String> _resolvedApprovals = <String>{};
+  int _extraSeq = 0;
 
   /// 列出任务卡（读不到的文件跳过）。
   List<TaskCard> cards() {
@@ -154,11 +159,100 @@ class TaskService {
 
   /// 请求中断；运行器会轮询 `abort.request`。
   Future<void> cancel(String runId) async {
+    _denyPending(runId);
     _runtimes[runId]?.abortInFlight();
     final RunPaths paths = RunPaths(runsDir: runsDir, runId: runId);
     final File flag = File(paths.abortFlagPath);
     await flag.parent.create(recursive: true);
     await flag.writeAsString('');
+  }
+
+  /// 回应一条待审批请求。[decision] 只接受 `allow` / `deny`。
+  Future<void> respondApproval(String requestId, String decision) async {
+    if (decision != 'allow' && decision != 'deny') {
+      throw ApprovalError('INTERNAL', '未知审批决定：$decision');
+    }
+    final _PendingApproval? pending = _approvals.remove(requestId);
+    if (pending == null) {
+      if (_resolvedApprovals.contains(requestId)) {
+        throw const ApprovalError('DENIED', '该审批请求已处理');
+      }
+      throw ApprovalError('NOT_FOUND', '未知审批请求：$requestId');
+    }
+    _resolvedApprovals.add(requestId);
+    pending.emit(_approvalEvent('approval/resolved', pending.runId, <String, Object?>{
+      'requestId': requestId,
+      'name': pending.name,
+      'decision': decision,
+    }));
+    pending.completer.complete(decision == 'allow');
+  }
+
+  Future<bool> _requestApproval(
+    String runId,
+    ApprovalRequest request,
+    void Function(Map<String, Object?>) emit,
+  ) {
+    final Completer<bool> completer = Completer<bool>();
+    _approvals[request.id] = _PendingApproval(
+      runId: runId,
+      name: request.toolName,
+      emit: emit,
+      completer: completer,
+    );
+    emit(_approvalEvent('approval/requested', runId, <String, Object?>{
+      'requestId': request.id,
+      'callId': request.id,
+      'name': request.toolName,
+      'args': jsonEncode(request.arguments),
+      'riskLevel': 'high',
+    }));
+    return completer.future.timeout(
+      const Duration(minutes: 5),
+      onTimeout: () {
+        final _PendingApproval? pending = _approvals.remove(request.id);
+        if (pending == null) return false;
+        _resolvedApprovals.add(request.id);
+        pending.emit(
+          _approvalEvent('approval/resolved', runId, <String, Object?>{
+            'requestId': request.id,
+            'name': request.toolName,
+            'decision': 'deny',
+          }),
+        );
+        return false;
+      },
+    );
+  }
+
+  Map<String, Object?> _approvalEvent(
+    String type,
+    String runId,
+    Map<String, Object?> data,
+  ) => <String, Object?>{
+    'seq': 1000000 + _extraSeq++,
+    'at': 0,
+    'type': type,
+    'runId': runId,
+    'data': data,
+  };
+
+  void _denyPending(String runId) {
+    final List<String> ids = <String>[
+      for (final MapEntry<String, _PendingApproval> entry in _approvals.entries)
+        if (entry.value.runId == runId) entry.key,
+    ];
+    for (final String id in ids) {
+      final _PendingApproval? pending = _approvals.remove(id);
+      if (pending == null) continue;
+      _resolvedApprovals.add(id);
+      pending.emit(_approvalEvent('approval/resolved', runId, <String, Object?>{
+        'requestId': id,
+        'name': pending.name,
+        'decision': 'deny',
+      }));
+      if (!pending.completer.isCompleted) pending.completer.complete(false);
+    }
   }
 
   Future<void> _execute(
@@ -183,6 +277,10 @@ class TaskService {
     }, interval: pollInterval);
 
     try {
+      final RunnerApproval approval = RunnerApproval(
+        onRequest: (ApprovalRequest request) =>
+            _requestApproval(runId, request, onEvent),
+      );
       final RunRecord record =
           await Runner(
             body: body ?? agentTaskBody,
@@ -200,6 +298,7 @@ class TaskService {
             onStream: (LlmStreamEvent event) {
               if (event is LlmTextDelta) stream.emitDelta(event.text);
             },
+            approval: approval,
           );
       stream.stop();
       for (final Map<String, Object?> event in _tail(
@@ -225,6 +324,7 @@ class TaskService {
         },
       });
     } finally {
+      _denyPending(runId);
       _streams.remove(runId);
       _runtimes.remove(runId)?.abortInFlight();
     }
@@ -327,4 +427,18 @@ class TaskService {
       throw StateError('未配置模型：${error.message}（设置 WORK_LLM_* 后重试）');
     }
   }
+}
+
+class _PendingApproval {
+  _PendingApproval({
+    required this.runId,
+    required this.name,
+    required this.emit,
+    required this.completer,
+  });
+
+  final String runId;
+  final String name;
+  final void Function(Map<String, Object?>) emit;
+  final Completer<bool> completer;
 }

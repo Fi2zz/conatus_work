@@ -66,6 +66,7 @@ class Runner {
     RunRequest request, {
     String? runId,
     void Function(LlmStreamEvent event)? onStream,
+    Approval? approval,
   }) async {
     final TaskSpec task = request.task;
     final String root = resolveWorkspaceRoot(
@@ -111,6 +112,7 @@ class Runner {
       llm: llm,
       confirmed: request.confirmed,
       onStream: onStream,
+      approval: approval,
     ).execute();
   }
 
@@ -118,6 +120,7 @@ class Runner {
   Future<RunRecord> resume(
     String runId, {
     void Function(LlmStreamEvent event)? onStream,
+    Approval? approval,
   }) async {
     final RunPaths paths = RunPaths(runsDir: runsDir, runId: runId);
     final RunStore store = RunStore(paths);
@@ -154,6 +157,7 @@ class Runner {
       sessionId: sessionId,
       accumulateUsage: true,
       onStream: onStream,
+      approval: approval,
     ).execute();
   }
 
@@ -162,6 +166,7 @@ class Runner {
     String runId,
     String text, {
     void Function(LlmStreamEvent event)? onStream,
+    Approval? approval,
   }) async {
     if (text.trim().isEmpty) {
       throw ArgumentError.value(text, 'text', '续写内容不能为空');
@@ -198,6 +203,7 @@ class Runner {
       userText: text,
       accumulateUsage: true,
       onStream: onStream,
+      approval: approval,
     ).execute();
   }
 

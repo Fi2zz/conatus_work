@@ -4,6 +4,7 @@ import 'dart:io';
 import 'package:conatus_work/src/bridge/bridge.dart';
 import 'package:conatus_work/src/bridge/config_store.dart';
 import 'package:conatus_work/src/bridge/host.dart';
+import 'package:conatus_work/src/bridge/task_service.dart';
 import 'package:test/test.dart';
 
 import 'harness.dart';
@@ -117,6 +118,26 @@ void main() {
     final Map<String, Object?> frame =
         jsonDecode(frames.single) as Map<String, Object?>;
     expect((frame['value']! as Map<String, Object?>)['path'], '/tmp/workspace');
+  });
+
+  test('unknown approval request 回 NOT_FOUND', () async {
+    host = BridgeHost(
+      bridge: WorkbenchBridge(runsDir: runsRoot.path),
+      tasks: TaskService(
+        runsDir: runsRoot.path,
+        tasksDir: runsRoot.path,
+        env: <String, String>{
+          'WORK_LLM_BASE_URL': 'http://x',
+          'WORK_LLM_MODEL': 'm',
+        },
+      ),
+    );
+    final Map<String, Object?> frame = await call(
+      'approval.respond',
+      <String, Object?>{'requestId': 'approval-nope', 'decision': 'allow'},
+    );
+    expect(frame['ok'], isFalse);
+    expect((frame['error']! as Map<String, Object?>)['code'], 'NOT_FOUND');
   });
 
   test('task.list 返回任务摘要', () async {

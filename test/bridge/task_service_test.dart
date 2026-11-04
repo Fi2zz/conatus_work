@@ -4,6 +4,7 @@ import 'dart:io';
 
 import 'package:conatus/conatus.dart';
 import 'package:conatus_work/src/bridge/task_service.dart';
+import 'package:conatus_work/src/runner/approval_bridge.dart';
 import 'package:conatus_work/src/runner/assembly.dart';
 import 'package:conatus_work/src/runner/runner.dart';
 import 'package:conatus_work/src/runner/task_spec.dart';
@@ -245,6 +246,66 @@ void main() {
     final Map<String, Object?> doneData =
         done['data']! as Map<String, Object?>;
     expect(doneData['entryId'], deltaData['entryId']);
+  });
+
+  test('审批请求可被拒绝，并留下 resolved 事件', () async {
+    final List<Map<String, Object?>> events = <Map<String, Object?>>[];
+    final TaskService runner = service(
+      body: (RunScope scope, TaskSpec task) async {
+        await scope.ctx.tools.call(
+          const ToolCall(
+            name: 'apply_patch',
+            arguments: <String, Object?>{
+              'patch': '*** Begin Patch\n*** End Patch',
+            },
+          ),
+        );
+        return const TaskOutcome.ok();
+      },
+    );
+    final String runId = await runner.start(
+      cardId: 'move-v01',
+      onEvent: events.add,
+    );
+    final bool requested = await _waitFor(
+      () => events.any(
+        (Map<String, Object?> e) => e['type'] == 'approval/requested',
+      ),
+    );
+    expect(requested, isTrue, reason: 'apply_patch 应进入审批，runId=$runId');
+    final Map<String, Object?> requestedData =
+        events.firstWhere(
+              (Map<String, Object?> e) => e['type'] == 'approval/requested',
+            )['data']!
+            as Map<String, Object?>;
+    final String requestId = requestedData['requestId']! as String;
+    expect(requestedData['name'], 'apply_patch');
+
+    await runner.respondApproval(requestId, 'deny');
+    final bool finished = await _waitFor(
+      () => events.any((Map<String, Object?> e) => e['type'] == 'task/ended'),
+    );
+    expect(finished, isTrue);
+    final Map<String, Object?> resolvedData =
+        events.firstWhere(
+              (Map<String, Object?> e) => e['type'] == 'approval/resolved',
+            )['data']!
+            as Map<String, Object?>;
+    expect(resolvedData['requestId'], requestId);
+    expect(resolvedData['decision'], 'deny');
+  });
+
+  test('未知审批请求给出明确的错误码', () async {
+    await expectLater(
+      service().respondApproval('approval-nope', 'allow'),
+      throwsA(
+        isA<ApprovalError>().having(
+          (ApprovalError error) => error.code,
+          'code',
+          'NOT_FOUND',
+        ),
+      ),
+    );
   });
 
   test('真实执行体拿到模型运行时，不再报「未装配模型」', () async {

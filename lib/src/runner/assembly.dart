@@ -29,6 +29,7 @@ class AssemblyOptions {
     this.sessionId,
     this.userText,
     this.onStream,
+    this.approval,
   });
 
   /// 任务卡。
@@ -57,6 +58,9 @@ class AssemblyOptions {
 
   /// 模型流式增量出口；空表示不用流式。
   final void Function(LlmStreamEvent event)? onStream;
+
+  /// 工具审批端口；空表示不启用审批（CLI）。
+  final Approval? approval;
 }
 
 /// 一次运行持有的框架对象。
@@ -157,6 +161,10 @@ Future<RunScope> assembleRun(AssemblyOptions options) async {
   if (task.allowNetwork) {
     provideSearch(ctx);
     provideWebTools(ctx);
+  }
+  final Approval? approval = options.approval;
+  if (approval != null) {
+    provideApproval(ctx, approval: approval);
   }
 
   final SessionStore sessionStore = provideSessions(

@@ -6,6 +6,7 @@ library;
 import 'dart:convert';
 import 'dart:typed_data';
 
+import '../runner/approval_bridge.dart';
 import '../runner/run_types.dart';
 import 'bridge.dart';
 import 'config_store.dart';
@@ -90,6 +91,8 @@ class BridgeHost {
       return <String>[
         _result(id, await _run(command, _payloadOf(decoded['payload']))),
       ];
+    } on ApprovalError catch (error) {
+      return <String>[_error(id, error.code, error.message)];
     } on StateError catch (error) {
       return <String>[_error(id, 'NOT_FOUND', error.message)];
     } catch (error) {
@@ -205,6 +208,16 @@ class BridgeHost {
       case 'task.cancel':
         await _tasks().cancel(_requireString(payload, 'runId'));
         return <String, Object?>{'status': 'aborted'};
+      case 'approval.respond':
+        final String decision = _requireString(payload, 'decision');
+        if (decision != 'allow' && decision != 'deny') {
+          throw const ApprovalError('INTERNAL', 'decision 必须是 allow 或 deny');
+        }
+        await _tasks().respondApproval(
+          _requireString(payload, 'requestId'),
+          decision,
+        );
+        return null;
       case 'diff.open':
         final Map<String, Object?>? changes = bridge.changes(
           _requireString(payload, 'runId'),

@@ -29,6 +29,7 @@ class RunExecution {
     this.userText,
     this.accumulateUsage = false,
     this.onStream,
+    this.approval,
   });
 
   final TaskBody body;
@@ -59,6 +60,9 @@ class RunExecution {
   /// 模型流式增量出口。
   final void Function(LlmStreamEvent event)? onStream;
 
+  /// 工具审批端口；空表示不启用。
+  final Approval? approval;
+
   Future<RunRecord> execute() async {
     RunScope? scope;
     try {
@@ -73,6 +77,7 @@ class RunExecution {
           sessionId: sessionId,
           userText: userText,
           onStream: onStream,
+          approval: approval,
         ),
       );
       _attach(scope);
