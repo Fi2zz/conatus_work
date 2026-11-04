@@ -221,6 +221,7 @@ export function createWebViewTransport(options: Options = {}): BridgeTransport {
     readConfig: () => request<ModelConfig>('config.read'),
 
     saveConfig: (payload) => request<ModelConfig>('config.save', { ...payload }),
+    clearConfig: () => request<{ configured: boolean }>('config.clear'),
 
     async openTask(runId: string) {
       const result = await request<ReplayFixture>('task.open', { runId })

@@ -1,6 +1,7 @@
-import { lazy, Suspense } from 'react'
+import { lazy, Suspense, useEffect } from 'react'
 import type { JSX, LazyExoticComponent } from 'react'
 
+import { applyTheme } from '@/lib/theme'
 import { useUiStore, type AppModule } from '@/state/ui-state'
 import { PrototypeNav } from './PrototypeNav'
 
@@ -17,6 +18,7 @@ const PAGES: Record<ModulePage, LazyPage> = {
     import('@/features/automation/AutomationPage').then((m) => ({ default: m.AutomationPage })),
   ),
   data: lazy(() => import('@/features/data/DataPage').then((m) => ({ default: m.DataPage }))),
+  settings: lazy(() => import('@/features/settings/SettingsPage').then((m) => ({ default: m.SettingsPage }))),
 }
 
 export function PrototypePage(): JSX.Element {
@@ -35,6 +37,12 @@ export function PrototypePage(): JSX.Element {
 /** 模块导航 + 当前模块内容；工作台模块仍由 Shell 承载。 */
 export function AppFrame({ workbench }: { workbench: JSX.Element }): JSX.Element {
   const module = useUiStore((state) => state.module)
+  const theme = useUiStore((state) => state.theme)
+
+  useEffect(() => {
+    applyTheme(theme)
+  }, [theme])
+
   return (
     <div className="flex h-full min-h-0 bg-canvas text-ink">
       <PrototypeNav />

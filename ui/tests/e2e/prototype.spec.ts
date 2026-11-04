@@ -12,6 +12,8 @@ test('prototype modules are reachable from the nav', async ({ page }) => {
   await expect(page.getByTestId('automation-page')).toBeVisible()
   await page.getByTestId('module-data').click()
   await expect(page.getByTestId('data-page')).toBeVisible()
+  await page.getByTestId('module-settings').click()
+  await expect(page.getByTestId('settings-page')).toBeVisible()
   await page.getByTestId('module-work').click()
   await expect(page.getByTestId('shell')).toBeVisible()
 })

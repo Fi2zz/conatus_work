@@ -10,6 +10,7 @@ const ITEMS: Array<{ id: AppModule; glyph: string; label: string }> = [
   { id: 'connectors', glyph: '⇄', label: '连接器' },
   { id: 'automation', glyph: '◷', label: '自动化' },
   { id: 'data', glyph: '▤', label: '数据' },
+  { id: 'settings', glyph: '⚙', label: '设置' },
 ]
 
 /** 左下角的模块导航；工作台保持现有三栏，其余模块是原型页。 */

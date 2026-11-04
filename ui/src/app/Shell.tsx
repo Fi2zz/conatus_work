@@ -14,11 +14,12 @@ import { UndoDialogHost } from '@/features/changes/UndoDialogHost'
 import { ShortcutsDialog } from '@/features/help/ShortcutsDialog'
 import { UsageDialog } from '@/features/usage/UsageDialog'
 import { cn } from '@/lib/utils'
+import { readRestoreLast } from '@/lib/preferences'
 import { useViewportWidth } from '@/lib/viewport'
 import { undoScope } from '@/state/selectors'
 import { useUiStore } from '@/state/ui-state'
 import { useWorkbench, useWorkbenchStore } from '@/state/workbench-store'
-import { CompareDialog, NewTaskDialog, SettingsDialog } from './dialogs'
+import { CompareDialog, NewTaskDialog } from './dialogs'
 import { RightPane } from './RightPane'
 
 const RAIL_WIDTH = 56
@@ -100,7 +101,6 @@ export function Shell(): JSX.Element {
   const adoptRun = useWorkbenchStore((store) => store.adoptRun)
   const setCommandOpen = useUiStore((state) => state.setCommandOpen)
   const setUndoDialog = useUiStore((state) => state.setUndoDialog)
-  const setSettingsOpen = useUiStore((state) => state.setSettingsOpen)
   const setNewTaskOpen = useUiStore((state) => state.setNewTaskOpen)
   const setCompareOpen = useUiStore((state) => state.setCompareOpen)
   const setUsageOpen = useUiStore((state) => state.setUsageOpen)
@@ -154,6 +154,12 @@ export function Shell(): JSX.Element {
   useEffect(() => {
     if (stoppingRunId !== null && !running) setStoppingRun(null)
   }, [stoppingRunId, running, setStoppingRun])
+
+  const restoreLast = readRestoreLast()
+  useEffect(() => {
+    if (!restoreLast || activeRunId || order.length === 0) return
+    setActive(order[0])
+  }, [restoreLast, activeRunId, order, setActive])
 
   function selectTask(runId: string): void {
     setActive(runId)
@@ -249,9 +255,6 @@ export function Shell(): JSX.Element {
         )}
         <div className="mt-auto flex items-center justify-between border-t border-line/70 px-2.5 py-1.5 text-[10.5px] text-ink-muted">
           <div className="flex items-center gap-2">
-            <button type="button" onClick={() => setSettingsOpen(true)} className="hover:text-ink">
-              设置
-            </button>
             <button
               type="button"
               data-testid="usage-button"
@@ -340,7 +343,6 @@ export function Shell(): JSX.Element {
       <CommandPalette />
       <NewTaskDialog />
       <CompareDialog />
-      <SettingsDialog />
       <UsageDialog />
       <ShortcutsDialog />
       <UndoDialogHost />

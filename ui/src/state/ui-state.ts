@@ -1,11 +1,20 @@
 import { create } from 'zustand'
 
+import { persistTheme, readTheme, type Theme } from '@/lib/theme'
+
 export type RightTab = 'artifacts' | 'changes' | 'checkpoints' | 'files'
 export type TimelineFilter = 'key' | 'all' | 'failed'
 export type TaskStatusFilter = 'all' | 'running' | 'failed'
 export type TaskTimeFilter = 'all' | 'today' | 'week' | 'month'
 export type TaskGrouping = 'date' | 'workspace'
-export type AppModule = 'work' | 'experts' | 'skills' | 'connectors' | 'automation' | 'data'
+export type AppModule =
+  | 'work'
+  | 'experts'
+  | 'skills'
+  | 'connectors'
+  | 'automation'
+  | 'data'
+  | 'settings'
 
 const PIN_KEY = 'conatus.pinnedTasks'
 
@@ -29,6 +38,7 @@ function writePinned(ids: string[]): void {
 
 interface UiState {
   module: AppModule
+  theme: Theme
   filter: TimelineFilter
   leftCollapsed: boolean
   taskQuery: string
@@ -50,7 +60,6 @@ interface UiState {
   undoDialog: boolean
   composerDraft: string
   commandOpen: boolean
-  settingsOpen: boolean
   newTaskOpen: boolean
   compareOpen: boolean
   usageOpen: boolean
@@ -59,6 +68,7 @@ interface UiState {
   undoNotice: { runId: string; targetTurn: number; steps: number } | null
   setFilter: (filter: TimelineFilter) => void
   setModule: (module: AppModule) => void
+  setTheme: (theme: Theme) => void
   toggleLeft: () => void
   setTaskQuery: (query: string) => void
   setTaskStatus: (status: TaskStatusFilter) => void
@@ -82,7 +92,6 @@ interface UiState {
   setUndoDialog: (open: boolean) => void
   setComposerDraft: (text: string) => void
   setCommandOpen: (open: boolean) => void
-  setSettingsOpen: (open: boolean) => void
   setNewTaskOpen: (open: boolean) => void
   setCompareOpen: (open: boolean) => void
   setUsageOpen: (open: boolean) => void
@@ -93,6 +102,7 @@ interface UiState {
 
 export const useUiStore = create<UiState>((set) => ({
   module: 'work',
+  theme: readTheme(),
   filter: 'key',
   leftCollapsed: false,
   taskQuery: '',
@@ -114,7 +124,6 @@ export const useUiStore = create<UiState>((set) => ({
   undoDialog: false,
   composerDraft: '',
   commandOpen: false,
-  settingsOpen: false,
   newTaskOpen: false,
   compareOpen: false,
   usageOpen: false,
@@ -123,6 +132,10 @@ export const useUiStore = create<UiState>((set) => ({
   undoNotice: null,
   setFilter: (filter) => set({ filter }),
   setModule: (module) => set({ module }),
+  setTheme: (theme) => {
+    persistTheme(theme)
+    set({ theme })
+  },
   toggleLeft: () => set((state) => ({ leftCollapsed: !state.leftCollapsed })),
   setTaskQuery: (taskQuery) => set({ taskQuery }),
   setTaskStatus: (taskStatus) => set({ taskStatus }),
@@ -181,7 +194,6 @@ export const useUiStore = create<UiState>((set) => ({
   setUndoDialog: (undoDialog) => set({ undoDialog }),
   setComposerDraft: (composerDraft) => set({ composerDraft }),
   setCommandOpen: (commandOpen) => set({ commandOpen }),
-  setSettingsOpen: (settingsOpen) => set({ settingsOpen }),
   setNewTaskOpen: (newTaskOpen) => set({ newTaskOpen }),
   setCompareOpen: (compareOpen) => set({ compareOpen }),
   setUsageOpen: (usageOpen) => set({ usageOpen }),

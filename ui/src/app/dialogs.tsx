@@ -6,9 +6,9 @@ import type { TaskCard } from '@/bridge/types'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog'
 import { EmptyState } from '@/components/ui/empty-state'
-import { SettingsPage } from '@/features/settings/SettingsPage'
 import { useUiStore } from '@/state/ui-state'
 import { useWorkbench, useWorkbenchStore } from '@/state/workbench-store'
+import { readDefaultWorkspace } from '@/lib/preferences'
 import { compareRuns } from '@/lib/compare'
 import { cn } from '@/lib/utils'
 import type { RunView } from '@/bridge/types'
@@ -19,11 +19,12 @@ export function NewTaskDialog(): JSX.Element {
   const adoptRun = useWorkbenchStore((store) => store.adoptRun)
   const [cards, setCards] = useState<TaskCard[]>([])
   const [error, setError] = useState<string | null>(null)
-  const [workspace, setWorkspace] = useState<string | null>(null)
+  const [workspace, setWorkspace] = useState<string | null>(() => readDefaultWorkspace())
   const [busy, setBusy] = useState(false)
 
   useEffect(() => {
     if (!open || !hasTransport()) return
+    setWorkspace(readDefaultWorkspace())
     void getTransport()
       .listCards()
       .then((result) => {
@@ -294,20 +295,6 @@ export function CompareDialog(): JSX.Element {
             <p className="text-[11.5px] text-ink-muted">选两条运行后显示差异。</p>
           )}
         </div>
-      </DialogContent>
-    </Dialog>
-  )
-}
-
-export function SettingsDialog(): JSX.Element {
-  const open = useUiStore((state) => state.settingsOpen)
-  const setOpen = useUiStore((state) => state.setSettingsOpen)
-  if (!open) return <></>
-  return (
-    <Dialog open onOpenChange={setOpen}>
-      <DialogContent labelledBy="settings-title">
-        <DialogTitle id="settings-title">设置</DialogTitle>
-        <SettingsPage />
       </DialogContent>
     </Dialog>
   )

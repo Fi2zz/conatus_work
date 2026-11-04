@@ -33,7 +33,6 @@ export function seedRun(timeline: TimelineEntry[], over: Partial<RunView> = {}):
     undoDialog: false,
     stoppingRunId: null,
     commandOpen: false,
-    settingsOpen: false,
     newTaskOpen: false,
     compareOpen: false,
     usageOpen: false,

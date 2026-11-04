@@ -29,6 +29,7 @@ export interface BridgeTransport {
     priceInput?: number
     priceOutput?: number
   }): Promise<CommandResult<ModelConfig>>
+  clearConfig?(): Promise<CommandResult<{ configured: boolean }>>
   openTask(runId: string): Promise<CommandResult<RunView>>
   startTask(cardId: string, workspaceRoot?: string): Promise<CommandResult<{ runId: string }>>
   cancelTask(runId: string): Promise<CommandResult<{ status: RunStatus }>>

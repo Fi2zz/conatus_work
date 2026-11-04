@@ -57,6 +57,41 @@
   }
 }
 
+/* 手动主题覆盖：auto 时不写 data-theme，交给上面的系统媒体查询。 */
+:root[data-theme='light'] {
+  --canvas: #f5f6f8;
+  --panel: #ffffff;
+  --panel-muted: #eef0f4;
+  --panel-raised: #fbfcfd;
+  --line: #dcdfe5;
+  --line-strong: #c6cbd4;
+  --ink: #17191d;
+  --ink-muted: #6f7681;
+  --ink-faint: #9aa1ab;
+  --accent: #0b62d6;
+  --accent-soft: #e8f0fd;
+  --success: #128a4a;
+  --warning: #a86400;
+  --danger: #c0392b;
+}
+
+:root[data-theme='dark'] {
+  --canvas: #131519;
+  --panel: #1b1e23;
+  --panel-muted: #22262c;
+  --panel-raised: #202429;
+  --line: #2c3138;
+  --line-strong: #3a4048;
+  --ink: #e8eaee;
+  --ink-muted: #9aa1ab;
+  --ink-faint: #6f7681;
+  --accent: #5b9bff;
+  --accent-soft: #1c2a3f;
+  --success: #45c97c;
+  --warning: #d9a13a;
+  --danger: #ff6b5e;
+}
+
 @theme inline {
   --color-canvas: var(--canvas);
   --color-panel: var(--panel);
