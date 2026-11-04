@@ -1,10 +1,13 @@
 import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
+import * as XLSX from 'xlsx'
 
 import { renderMarkdown } from '@/features/artifacts/markdown'
 import { ArtifactPanel } from '@/features/artifacts/ArtifactPanel'
 
 import { artifact, seedArtifacts } from '../helpers/artifacts'
+
+vi.mock('docx-preview', () => ({ renderAsync: vi.fn(async () => undefined) }))
 
 it('lists artifacts with pass marks', () => {
   seedArtifacts([artifact('out/a.md'), artifact('out/b.json', { check: { exists: true, nonEmpty: true, passed: false } })], {})
@@ -89,10 +92,27 @@ it('renders csv artifacts as a table with quoted fields', async () => {
   expect(table).toHaveTextContent('带,逗号')
 })
 
-it('names office formats in the unsupported fallback', async () => {
+it('renders xlsx artifacts as a table', async () => {
+  const book = XLSX.utils.book_new()
+  XLSX.utils.book_append_sheet(book, XLSX.utils.aoa_to_sheet([['名称', '数量'], ['苹果', 3]]), '数据')
+  const base64 = XLSX.write(book, { type: 'base64', bookType: 'xlsx' }) as string
+  seedArtifacts([artifact('out/report.xlsx')], {}, { 'out/report.xlsx': base64 })
+  render(<ArtifactPanel />)
+  const table = await screen.findByTestId('artifact-table')
+  expect(table).toHaveTextContent('名称')
+  expect(table).toHaveTextContent('苹果')
+})
+
+it('routes docx to the document renderer', async () => {
   seedArtifacts([artifact('out/report.docx')], {}, { 'out/report.docx': 'UEsDBA==' })
   render(<ArtifactPanel />)
-  expect(await screen.findByTestId('artifact-unsupported')).toHaveTextContent('Office')
+  expect(await screen.findByTestId('artifact-docx')).toBeInTheDocument()
+})
+
+it('names pptx in the unsupported fallback', async () => {
+  seedArtifacts([artifact('out/slides.pptx')], {}, { 'out/slides.pptx': 'UEsDBA==' })
+  render(<ArtifactPanel />)
+  expect(await screen.findByTestId('artifact-unsupported')).toHaveTextContent('PPTX')
 })
 
 it('asks the host to reveal the artifact in the file manager', async () => {

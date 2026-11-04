@@ -2,8 +2,11 @@ import { useEffect, useState } from 'react'
 import type { JSX } from 'react'
 
 import type { ArtifactView } from '@/bridge/types'
+import { bytesFromBase64 } from '@/lib/base64'
 import { CsvTable } from './CsvTable'
+import { DocxPreview } from './DocxPreview'
 import { renderMarkdown } from './markdown'
+import { XlsxPreview } from './XlsxPreview'
 
 export type PreviewState =
   | { status: 'loading' }
@@ -11,14 +14,19 @@ export type PreviewState =
   | { status: 'ok'; content: string; truncated: boolean; encoding: 'utf8' | 'base64' }
 
 const IMAGE_EXT = ['.png', '.jpg', '.jpeg', '.gif', '.webp']
-const OFFICE_EXT = ['.doc', '.docx', '.xls', '.xlsx', '.ppt', '.pptx']
+
+function unsupportedLabel(lower: string): string {
+  if (lower.endsWith('.pptx') || lower.endsWith('.ppt')) return 'PPTX 暂不支持内嵌预览'
+  if (lower.endsWith('.doc')) return '旧版 .doc 暂不支持内嵌预览，请另存为 .docx'
+  return '该产物是二进制文件，暂不支持内嵌预览'
+}
 
 /** PDF 走 blob URL：data: 在 WKWebView 里可能被拦。 */
 function PdfFrame({ base64, title }: { base64: string; title: string }): JSX.Element {
   const [url, setUrl] = useState<string | null>(null)
 
   useEffect(() => {
-    const bytes = Uint8Array.from(atob(base64), (char) => char.charCodeAt(0))
+    const bytes = bytesFromBase64(base64)
     const next = URL.createObjectURL(new Blob([bytes], { type: 'application/pdf' }))
     setUrl(next)
     return () => URL.revokeObjectURL(next)
@@ -65,11 +73,11 @@ function binaryBody(artifact: ArtifactView, content: string): JSX.Element {
     )
   }
   if (lower.endsWith('.pdf')) return <PdfFrame base64={content} title={artifact.path} />
-  const office = OFFICE_EXT.some((ext) => lower.endsWith(ext))
+  if (lower.endsWith('.docx')) return <DocxPreview base64={content} />
+  if (lower.endsWith('.xlsx') || lower.endsWith('.xls')) return <XlsxPreview base64={content} />
   return (
     <p data-testid="artifact-unsupported" className="p-4 text-[11.5px] text-ink-muted">
-      {office ? 'Office 文档暂不支持内嵌预览' : '该产物是二进制文件，暂不支持内嵌预览'}：
-      <span className="font-mono">{artifact.path}</span>
+      {unsupportedLabel(lower)}：<span className="font-mono">{artifact.path}</span>
       <span className="mt-1 block text-[10.5px]">用「在 Finder 中显示」打开原文件。</span>
     </p>
   )

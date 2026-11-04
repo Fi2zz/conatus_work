@@ -316,3 +316,13 @@ body {
   content-visibility: auto;
   contain-intrinsic-size: auto 56px;
 }
+
+/* docx-preview 生成的页面容器：去掉默认灰底与投影，贴着面板排。 */
+.docx-preview .docx-wrapper {
+  background: transparent;
+  padding: 0;
+}
+.docx-preview .docx {
+  box-shadow: none;
+  margin: 0 auto;
+}
