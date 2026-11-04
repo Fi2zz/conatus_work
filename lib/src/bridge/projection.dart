@@ -49,15 +49,10 @@ RunFixture projectRunDir(String runDir) {
   );
   final Map<String, Object?>? changes = buildChanges(workspaceRoot, rawEvents);
 
-  final Map<String, Object?> cardCheckpoint =
-      card?['checkpoint'] is Map<String, Object?>
-      ? card!['checkpoint']! as Map<String, Object?>
-      : <String, Object?>{};
   final Map<String, Object?> turns = run['turns'] is Map<String, Object?>
       ? run['turns']! as Map<String, Object?>
       : <String, Object?>{};
 
-  final int keep = (cardCheckpoint['keep'] as num?)?.toInt() ?? 5;
   final int startTurn = (turns['start'] as num?)?.toInt() ?? 0;
   final int currentTurn = (turns['end'] as num?)?.toInt() ?? startTurn;
 
@@ -127,13 +122,7 @@ RunFixture projectRunDir(String runDir) {
     artifacts: payload.views,
     files: payload.files,
     changes: changes,
-    checkpoints: <String, Object?>{
-      'startTurn': startTurn,
-      'currentTurn': currentTurn,
-      'keep': keep,
-      'turns': <Object?>[],
-      'gaps': <Object?>[],
-    },
+    checkpoints: buildCheckpointView(run, card),
   );
 }
 

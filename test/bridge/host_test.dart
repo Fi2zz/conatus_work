@@ -59,6 +59,11 @@ void main() {
     expect(snapshot['type'], 'snapshot');
     final Map<String, Object?> data = snapshot['data']! as Map<String, Object?>;
     expect(data['runs'], hasLength(1));
+    final Map<String, Object?> checkpoints =
+        data['checkpoints']! as Map<String, Object?>;
+    final Map<String, Object?> view =
+        checkpoints['organize-v01']! as Map<String, Object?>;
+    expect(view['currentTurn'], 1);
   });
 
   test('config.save 后可读回，且不回传 Key 明文', () async {

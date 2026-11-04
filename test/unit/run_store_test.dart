@@ -31,11 +31,21 @@ void main() {
       pid: 42,
       startedAt: DateTime.parse('2026-11-02T10:15:00+08:00'),
     );
+    record.turnHistory = <TurnCheckpoint>[
+      TurnCheckpoint(
+        turn: 1,
+        at: DateTime.parse('2026-11-02T10:16:00+08:00'),
+        eventCount: 7,
+      ),
+    ];
     await store.save(record);
     final RunRecord loaded = await store.load();
     expect(loaded.taskId, 'research-v01');
     expect(loaded.chain, 'research');
     expect(loaded.startTurn, isNull);
+    expect(loaded.turnHistory, hasLength(1));
+    expect(loaded.turnHistory.single.turn, 1);
+    expect(loaded.turnHistory.single.eventCount, 7);
     expect(File('${paths.runJsonPath}.tmp').existsSync(), isFalse);
   });
 

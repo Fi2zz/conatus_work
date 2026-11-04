@@ -12,6 +12,36 @@ enum TaskRunStatus { running, succeeded, failed, aborted }
 /// 检查点收口状态。
 enum CheckpointStatus { pending, ok, error }
 
+/// 一次检查点收口留下的轮次记录。
+class TurnCheckpoint {
+  const TurnCheckpoint({
+    required this.turn,
+    required this.at,
+    required this.eventCount,
+  });
+
+  /// 轮次。
+  final int turn;
+
+  /// 收口时间。
+  final DateTime at;
+
+  /// 收口时会话里的事件数。
+  final int eventCount;
+
+  Map<String, Object?> toJson() => <String, Object?>{
+    'turn': turn,
+    'at': isoWithOffset(at),
+    'eventCount': eventCount,
+  };
+
+  static TurnCheckpoint fromJson(Map<String, Object?> json) => TurnCheckpoint(
+    turn: json['turn'] as int? ?? 0,
+    at: DateTime.parse(json['at'] as String? ?? '1970-01-01T00:00:00Z'),
+    eventCount: json['eventCount'] as int? ?? 0,
+  );
+}
+
 /// 一次运行的完整记录（`run.json`）。
 class RunRecord {
   RunRecord({
@@ -48,6 +78,7 @@ class RunRecord {
   List<ArtifactCheck> artifacts = <ArtifactCheck>[];
   List<String> tools = <String>[];
   String? forkSessionId;
+  List<TurnCheckpoint> turnHistory = <TurnCheckpoint>[];
   List<HumanEdit> humanEdits = <HumanEdit>[];
   RunFailure failure = RunFailure();
 
@@ -78,6 +109,9 @@ class RunRecord {
     'artifacts': <Object?>[for (final ArtifactCheck a in artifacts) a.toJson()],
     'tools': tools,
     'forkSessionId': forkSessionId,
+    'turnHistory': <Object?>[
+      for (final TurnCheckpoint turn in turnHistory) turn.toJson(),
+    ],
     'humanEdits': <Object?>[for (final HumanEdit e in humanEdits) e.toJson()],
     'failure': failure.toJson(),
   };
@@ -133,6 +167,10 @@ class RunRecord {
       ..tools = <String>[
         for (final Object? item in asJsonList(json['tools']))
           if (item is String) item,
+      ]
+      ..turnHistory = <TurnCheckpoint>[
+        for (final Object? item in asJsonList(json['turnHistory']))
+          TurnCheckpoint.fromJson(asJsonMap(item)),
       ]
       ..humanEdits = <HumanEdit>[
         for (final Object? item in asJsonList(json['humanEdits']))

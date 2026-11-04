@@ -14,6 +14,25 @@ import 'task_service.dart';
 /// 协议版本。信封里不带版本或版本不符的一律拒绝。
 const int kProtocolVersion = 1;
 
+/// 这些扩展名的产物按字节读取，前端以 base64 渲染（图片 / PDF / Office）。
+bool binaryArtifact(String path) {
+  final String lower = path.toLowerCase();
+  return <String>[
+    '.png',
+    '.jpg',
+    '.jpeg',
+    '.gif',
+    '.webp',
+    '.pdf',
+    '.doc',
+    '.docx',
+    '.xls',
+    '.xlsx',
+    '.ppt',
+    '.pptx',
+  ].any(lower.endsWith);
+}
+
 /// 命令分发器。异常一律收敛成错误帧，不向上抛。
 class BridgeHost {
   BridgeHost({
@@ -86,6 +105,10 @@ class BridgeHost {
       'runs': <Object?>[
         for (final RunSummary task in bridge.listTasks()) task.toJson(),
       ],
+      'checkpoints': <String, Object?>{
+        for (final String runId in bridge.runIds())
+          runId: bridge.checkpoints(runId),
+      },
       'activeRunId': null,
     },
   };
@@ -108,7 +131,7 @@ class BridgeHost {
               (Map<String, Object?> item) =>
                   item['path'] == path && item['truncated'] == true,
             );
-        if (_isBinary(path)) {
+        if (binaryArtifact(path)) {
           final Uint8List bytes = bridge.readArtifactBytes(runId, path);
           return <String, Object?>{
             'content': base64Encode(bytes),
@@ -213,18 +236,6 @@ class BridgeHost {
       default:
         throw ArgumentError('未知命令：$command');
     }
-  }
-
-  bool _isBinary(String path) {
-    final String lower = path.toLowerCase();
-    return <String>[
-      '.png',
-      '.jpg',
-      '.jpeg',
-      '.gif',
-      '.webp',
-      '.pdf',
-    ].any(lower.endsWith);
   }
 
   TaskService _tasks() {

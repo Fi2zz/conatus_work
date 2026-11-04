@@ -134,5 +134,12 @@ class RunExecution {
     );
     applySnapshot(record, scope.baselineError ?? turnError);
     record.endTurn = scope.checkpoint.turn;
+    record.turnHistory.add(
+      TurnCheckpoint(
+        turn: scope.checkpoint.turn,
+        at: DateTime.now(),
+        eventCount: scope.session.events.length,
+      ),
+    );
   }
 }

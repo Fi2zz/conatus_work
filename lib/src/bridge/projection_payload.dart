@@ -157,6 +157,49 @@ final RegExp _movePattern = RegExp(
   r'已移动：(.+?)\s*→\s*(.+?)（[^）]*?sha256=([0-9a-f]{64})',
 );
 
+Map<String, Object?> buildCheckpointView(
+  Map<String, Object?> run,
+  Map<String, Object?>? card,
+) {
+  final Map<String, Object?> turns = _map(run['turns']);
+  final int startTurn = (turns['start'] as num?)?.toInt() ?? 0;
+  final int currentTurn = (turns['end'] as num?)?.toInt() ?? startTurn;
+  final Map<String, Object?> checkpoint = _map(card?['checkpoint']);
+  final int keep = (checkpoint['keep'] as num?)?.toInt() ?? 5;
+  final List<Object?> views = <Object?>[];
+  final List<int> gaps = <int>[];
+  int? previous;
+  for (final Object? item in _list(run['turnHistory'])) {
+    final Map<String, Object?> entry = _map(item);
+    final int? turn = (entry['turn'] as num?)?.toInt();
+    if (turn == null) continue;
+    if (previous != null) {
+      for (int missing = previous + 1; missing < turn; missing += 1) {
+        gaps.add(missing);
+      }
+    }
+    views.add(<String, Object?>{
+      'turn': turn,
+      'at': entry['at'],
+      'eventCount': (entry['eventCount'] as num?)?.toInt() ?? 0,
+    });
+    previous = turn;
+  }
+  return <String, Object?>{
+    'startTurn': startTurn,
+    'currentTurn': currentTurn,
+    'keep': keep,
+    'turns': views,
+    'gaps': gaps,
+  };
+}
+
+Map<String, Object?> _map(Object? value) =>
+    value is Map<String, Object?> ? value : <String, Object?>{};
+
+List<Object?> _list(Object? value) =>
+    value is List<Object?> ? value : <Object?>[];
+
 Map<String, Object?>? _parseMoveText(Object? text) {
   if (text is! String) return null;
   final RegExpMatch? match = _movePattern.firstMatch(text);

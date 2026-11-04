@@ -11,6 +11,7 @@ import '../runner/runner.dart' show Runner, noopTaskBody;
 import '../runner/undo.dart';
 import 'projection.dart';
 import 'projection_io.dart';
+import 'projection_payload.dart';
 
 export 'contract.dart';
 export 'projection.dart' show projectRunDir;
@@ -79,6 +80,14 @@ class WorkbenchBridge {
 
   /// 该运行的变更集；没有记录时为 null。
   Map<String, Object?>? changes(String runId) => openTask(runId).changes;
+
+  /// 该运行的轻量检查点视图（不重放事件，snapshot 用）。
+  Map<String, Object?> checkpoints(String runId) {
+    final String dir = _runDir(runId);
+    final Map<String, Object?>? run = readJsonObject('$dir/run.json');
+    if (run == null) throw StateError('缺少 run.json：$runId');
+    return buildCheckpointView(run, _card(dir, run));
+  }
 
   /// 读产物正文。只放行 `run.artifacts` 里登记过的路径。
   String readArtifact(String runId, String path) {
