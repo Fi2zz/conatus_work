@@ -77,6 +77,24 @@ it('explains binary artifacts it cannot preview', async () => {
   expect(await screen.findByText(/暂不支持内嵌预览/)).toBeInTheDocument()
 })
 
+it('renders csv artifacts as a table with quoted fields', async () => {
+  seedArtifacts(
+    [artifact('out/analysis.csv')],
+    { 'out/analysis.csv': '名称,数量\n苹果,3\n"带,逗号",4' },
+  )
+  render(<ArtifactPanel />)
+  const table = await screen.findByTestId('artifact-table')
+  expect(table).toHaveTextContent('名称')
+  expect(table.querySelectorAll('tbody tr')).toHaveLength(2)
+  expect(table).toHaveTextContent('带,逗号')
+})
+
+it('names office formats in the unsupported fallback', async () => {
+  seedArtifacts([artifact('out/report.docx')], {}, { 'out/report.docx': 'UEsDBA==' })
+  render(<ArtifactPanel />)
+  expect(await screen.findByTestId('artifact-unsupported')).toHaveTextContent('Office')
+})
+
 it('asks the host to reveal the artifact in the file manager', async () => {
   const calls: string[] = []
   seedArtifacts([artifact('out/a.md')], { 'out/a.md': '# 标题' })
@@ -89,4 +107,16 @@ it('asks the host to reveal the artifact in the file manager', async () => {
   render(<ArtifactPanel />)
   await userEvent.click(await screen.findByTestId('reveal-artifact'))
   expect(calls).toEqual(['out/a.md'])
+})
+
+it('explains a failed reveal instead of doing nothing', async () => {
+  seedArtifacts([artifact('out/a.md')], { 'out/a.md': '# 标题' })
+  const module = await import('@/bridge/transport-store')
+  module.getTransport().revealArtifact = async () => ({
+    ok: false,
+    error: { code: 'NOT_FOUND', message: '回放模式没有真实文件' },
+  })
+  render(<ArtifactPanel />)
+  await userEvent.click(await screen.findByTestId('reveal-artifact'))
+  expect(await screen.findByTestId('reveal-artifact-error')).toHaveTextContent('回放模式没有真实文件')
 })
