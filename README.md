@@ -60,9 +60,15 @@ Flutter macOS 应用，不进 workspace（纯 Dart 的 `dart analyze` 解析不�
 已在根 `analysis_options.yaml` 排除 `shell/**`）。
 
 ```bash
-cd ui && npm run build          # 先产出前端构建
-cd ../shell && flutter run -d macos
+make dev            # 推荐：Vite HMR + macOS 壳（直接加载 http://127.0.0.1:5173）
+make dev-dist       # 构建 ui/dist 后再启动壳（验证打包产物）
+make dev-web        # 只开 Vite，浏览器里看 fixture 回放
 ```
+
+- `make dev` 会复用已运行的 Vite；退出 Flutter 后自动关掉它。
+- 改 React 组件自动 HMR，不用重启壳。
+- 改 Dart 壳代码在 `flutter run` 终端按 `r` 热重载、`R` 热重启。
+- 手动指定开发地址：`CONATUS_WORK_UI_URL=http://127.0.0.1:5173 flutter run -d macos`。
 
 前端测试：
 

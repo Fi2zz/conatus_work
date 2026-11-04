@@ -56,40 +56,51 @@ class _ShellAppState extends State<ShellApp> {
       cwd: Directory.current.path,
       executable: Platform.resolvedExecutable,
     );
+    final String? uiUrl = _env('CONATUS_WORK_UI_URL');
     final String? uiDir =
         _env('CONATUS_WORK_UI') ??
         findBundledUiDir(Platform.resolvedExecutable) ??
         findUiDir(roots);
-    if (uiDir == null) {
+    if (uiUrl == null && uiDir == null) {
       if (!mounted) return;
       setState(
-        () =>
-            _error = '找不到前端构建产物（ui/dist/index.html）。已尝试：\n${roots.join('\n')}',
+        () => _error =
+            '找不到前端构建产物（ui/dist/index.html），也没有设置 CONATUS_WORK_UI_URL。\n'
+            '已尝试：\n${roots.join('\n')}',
       );
       return;
     }
+    final String? foundTasksDir = findTasksDir(roots);
+    final String appRoot = uiDir != null
+        ? Directory(uiDir).parent.parent.path
+        : foundTasksDir != null
+        ? Directory(foundTasksDir).parent.path
+        : Directory.current.path;
     final String? dataDir =
         _env('CONATUS_WORK_DATA') ??
         (findBundledResource(Platform.resolvedExecutable, 'ui') != null
             ? userDataDir(Platform.environment['HOME'] ?? '.', 'Conatus Work')
             : null);
-    final String fallbackRoot =
-        dataDir ?? '${Directory(uiDir).parent.parent.path}/var';
+    final String fallbackRoot = dataDir ?? '$appRoot/var';
     final String runsDir =
         _env('CONATUS_WORK_RUNS') ?? findRunsDir(roots) ?? '$fallbackRoot/runs';
     Directory(runsDir).createSync(recursive: true);
     final String tasksDir =
         _env('CONATUS_WORK_TASKS') ??
         findBundledResource(Platform.resolvedExecutable, 'tasks') ??
-        findTasksDir(roots) ??
-        '${dataDir ?? Directory(uiDir).parent.parent.path}/tasks';
+        foundTasksDir ??
+        '${dataDir ?? appRoot}/tasks';
     final String modelLabel = env['WORK_LLM_MODEL'] ?? '(未配置)';
     debugPrint(
-      'conatus shell: ui=$uiDir runs=$runsDir tasks=$tasksDir model=$modelLabel',
+      'conatus shell: ui=${uiUrl ?? uiDir} runs=$runsDir tasks=$tasksDir model=$modelLabel',
     );
     try {
-      final AssetServer server = AssetServer(root: Directory(uiDir));
-      await server.start();
+      AssetServer? server;
+      if (uiUrl == null) {
+        server = AssetServer(root: Directory(uiDir!));
+        await server.start();
+      }
+      final Uri url = uiUrl != null ? Uri.parse(uiUrl) : server!.uri!;
       late final WebViewController controller;
       controller = WebViewController()
         ..setJavaScriptMode(JavaScriptMode.unrestricted)
@@ -122,8 +133,7 @@ class _ShellAppState extends State<ShellApp> {
             runsDir: runsDir,
             tasksDir: tasksDir,
             env: env,
-            workspacesDir:
-                '${dataDir ?? '${Directory(uiDir).parent.parent.path}/var'}/workspaces',
+            workspacesDir: '$fallbackRoot/workspaces',
           ),
           configStore: configStore,
           push: push,
@@ -139,7 +149,7 @@ class _ShellAppState extends State<ShellApp> {
         onMessageReceived: (JavaScriptMessage message) =>
             unawaited(channel.receive(message.message)),
       );
-      await controller.loadRequest(server.uri!);
+      await controller.loadRequest(url);
       if (!mounted) return;
       setState(() {
         _server = server;
@@ -211,7 +221,7 @@ class _StartupError extends StatelessWidget {
           SelectableText(message),
           const SizedBox(height: 12),
           const Text(
-            '先在 ui/ 下跑 npm run build，并用 CONATUS_WORK_UI / CONATUS_WORK_RUNS 指定路径。',
+            '先在 ui/ 下跑 npm run build，或设置 CONATUS_WORK_UI_URL=http://127.0.0.1:5173 加载 Vite 开发服务器。',
           ),
         ],
       ),
