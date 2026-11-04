@@ -21,7 +21,13 @@ List<Map<String, Object?>> readJsonLines(String path) {
   final File file = File(path);
   if (!file.existsSync()) return <Map<String, Object?>>[];
   final List<Map<String, Object?>> events = <Map<String, Object?>>[];
-  for (final String line in file.readAsLinesSync()) {
+  final List<String> lines;
+  try {
+    lines = file.readAsLinesSync();
+  } on FileSystemException {
+    return events;
+  }
+  for (final String line in lines) {
     final String trimmed = line.trim();
     if (trimmed.isEmpty) continue;
     try {

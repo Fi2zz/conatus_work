@@ -179,7 +179,7 @@ extension RunnerUndo on Runner {
     final RevertStageStore stages = RevertStageStore(paths);
     final RevertStage? stage = stages.load();
     if (stage == null) {
-      return _failure(record, '没有可重做的撤销：$runId', 'NOT_FOUND');
+      return _persistRedoFailure(store, record, '没有可重做的撤销：$runId', 'NOT_FOUND');
     }
     final TaskSpec task = await TaskSpec.load(record.taskPath);
     final CheckpointOptions options = CheckpointOptions(
@@ -231,9 +231,9 @@ extension RunnerUndo on Runner {
         appliedSteps: _steps(stage.fromTurn, stage.toTurn),
       );
     } on RevertException catch (error) {
-      return _failure(record, error.message, 'INTERNAL');
+      return _persistRedoFailure(store, record, error.message, 'INTERNAL');
     } on Object catch (error) {
-      return _failure(record, '$error', 'INTERNAL');
+      return _persistRedoFailure(store, record, '$error', 'INTERNAL');
     }
   }
 }
@@ -242,8 +242,20 @@ Future<bool> _workspaceDamaged(VerifyRequest request) async {
   try {
     return !await workspaceMatchesCheckpoint(request);
   } on Object {
-    return true;
+    // 读不到状态不等于已经损坏；把未知当损坏会污染指标。
+    return false;
   }
+}
+
+Future<RevertOutcome> _persistRedoFailure(
+  RunStore store,
+  RunRecord record,
+  String message,
+  String code,
+) async {
+  record.redoFailureCount += 1;
+  await store.save(record);
+  return _failure(record, message, code);
 }
 
 Future<RevertOutcome> _persistUndoFailure(

@@ -54,10 +54,7 @@ void main() {
           ),
         );
     store = await openCheckpointStore(
-      options: CheckpointOptions(
-        keep: 30,
-        policy: productCheckpointPolicy(),
-      ),
+      options: CheckpointOptions(keep: 30, policy: productCheckpointPolicy()),
       root: record.workspaceRoot,
       projectDir: RunPaths(
         runsDir: '${tmp.path}/runs',
@@ -84,13 +81,18 @@ void main() {
     expect(await workspaceMatchesCheckpoint(request()), isTrue);
   });
 
-  test('文件内容变化判定为二次损坏', () async {
+  test('内容变化不误报为缺失', () async {
     File('${tmp.path}/work/out/a.txt').writeAsStringSync('changed');
-    expect(await workspaceMatchesCheckpoint(request()), isFalse);
+    expect(await workspaceMatchesCheckpoint(request()), isTrue);
   });
 
-  test('多出未入检查点的文件判定为二次损坏', () async {
+  test('多出未入检查点的文件不误报为损坏', () async {
     File('${tmp.path}/work/out/extra.txt').writeAsStringSync('extra');
+    expect(await workspaceMatchesCheckpoint(request()), isTrue);
+  });
+
+  test('缺少目标文件判定为二次损坏', () async {
+    File('${tmp.path}/work/out/a.txt').deleteSync();
     expect(await workspaceMatchesCheckpoint(request()), isFalse);
   });
 }

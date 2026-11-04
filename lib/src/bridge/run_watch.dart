@@ -102,6 +102,7 @@ class RunEventStream {
   JsonlTail? _tail;
   void Function(Map<String, Object?>)? _sink;
   final List<String> _pendingDeltas = <String>[];
+  bool _closed = false;
 
   /// 已发出的桥接事件条数（供尾随结束后继续编号）。
   int get seq => _mapper.seq;
@@ -113,6 +114,7 @@ class RunEventStream {
     bool startAtEnd = false,
   }) async {
     _sink = onEvent;
+    _closed = false;
     for (final String text in _pendingDeltas) {
       onEvent(_mapper.emitDelta(text));
     }
@@ -135,6 +137,7 @@ class RunEventStream {
 
   /// 推一条流式正文增量。
   void emitDelta(String text) {
+    if (_closed) return;
     final void Function(Map<String, Object?>)? sink = _sink;
     if (sink == null) {
       _pendingDeltas.add(text);
@@ -149,6 +152,10 @@ class RunEventStream {
     if (tail != null) await tail.flush();
   }
 
-  /// 停止尾随。
-  void stop() => _tail?.stop();
+  /// 停止尾随；之后的增量丢弃，避免事件跑到 `task/ended` 之后。
+  void stop() {
+    _closed = true;
+    _sink = null;
+    _tail?.stop();
+  }
 }

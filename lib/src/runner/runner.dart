@@ -50,7 +50,12 @@ class RunRequest {
 
 /// 串行运行器：一次一个任务，一任务一轮检查点。
 class Runner {
-  Runner({required this.body, this.runsDir = 'var/runs', this.llm});
+  Runner({
+    required this.body,
+    this.runsDir = 'var/runs',
+    this.llm,
+    this.checkpointBudgetBytes,
+  });
 
   /// 任务执行体。
   final TaskBody body;
@@ -60,6 +65,9 @@ class Runner {
 
   /// 模型运行时；为空时不装配 Agent Loop。
   final LlmRuntime? llm;
+
+  /// 检查点磁盘预算（字节）；空表示读环境变量或默认值。
+  final int? checkpointBudgetBytes;
 
   /// 跑一张任务卡，返回落盘后的运行记录。
   Future<RunRecord> run(
@@ -111,6 +119,7 @@ class Runner {
       store: store,
       llm: llm,
       confirmed: request.confirmed,
+      checkpointBudgetBytes: checkpointBudgetBytes,
       onStream: onStream,
       approval: approval,
     ).execute();
@@ -156,6 +165,7 @@ class Runner {
       fresh: false,
       llm: llm,
       confirmed: confirmed,
+      checkpointBudgetBytes: checkpointBudgetBytes,
       sessionId: sessionId,
       accumulateUsage: true,
       onStream: onStream,
@@ -201,6 +211,7 @@ class Runner {
       fresh: false,
       llm: llm,
       sessionId: sessionId,
+      checkpointBudgetBytes: checkpointBudgetBytes,
       userText: text,
       accumulateUsage: true,
       onStream: onStream,

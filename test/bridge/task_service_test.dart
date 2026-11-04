@@ -771,6 +771,7 @@ void main() {
     File('$tasksDir/live-v01.json').writeAsStringSync(jsonEncode(card));
 
     final List<Map<String, Object?>> events = <Map<String, Object?>>[];
+    int bodyReturnedAt = -1;
     final TaskService runner = TaskService(
       runsDir: '${tmp.path}/runs',
       tasksDir: tasksDir,
@@ -795,6 +796,7 @@ void main() {
           }),
         );
         await Future<void>.delayed(const Duration(milliseconds: 120));
+        bodyReturnedAt = events.length;
         return const TaskOutcome.ok();
       },
     );
@@ -817,13 +819,18 @@ void main() {
     final int changesIndex = events.indexWhere(
       (Map<String, Object?> e) => e['type'] == 'changes/updated',
     );
-    final int endedIndex = events.indexWhere(
-      (Map<String, Object?> e) => e['type'] == 'task/ended',
-    );
     expect(artifactIndex, isNonNegative);
     expect(changesIndex, isNonNegative);
-    expect(artifactIndex, lessThan(endedIndex));
-    expect(changesIndex, lessThan(endedIndex));
+    expect(artifactIndex, lessThan(bodyReturnedAt));
+    expect(changesIndex, lessThan(bodyReturnedAt));
+    expect(
+      (events[artifactIndex]['seq']! as int),
+      greaterThanOrEqualTo(1000000),
+    );
+    expect(
+      (events[changesIndex]['seq']! as int),
+      greaterThanOrEqualTo(1000000),
+    );
   });
 
   test('cleanupWorkspaces 只保留最近 N 个', () async {
@@ -839,10 +846,30 @@ void main() {
       workspacesDir: base.path,
       env: <String, String>{},
     );
-    await runner.cleanupWorkspaces(keep: 2);
+    await runner.cleanupWorkspaces(keep: 2, maxAge: Duration.zero);
     expect(oldest.existsSync(), isFalse);
     expect(middle.existsSync(), isTrue);
     expect(newest.existsSync(), isTrue);
+  });
+
+  test('cleanupWorkspaces 不删被 run.json 引用的工作区', () async {
+    final Directory base = Directory('${tmp.path}/ws2')..createSync();
+    final Directory referenced = Directory('${base.path}/keep')..createSync();
+    final Directory spare = Directory('${base.path}/spare')..createSync();
+    final Directory runs = Directory('${tmp.path}/runs2')..createSync();
+    final Directory runDir = Directory('${runs.path}/run_x')..createSync();
+    File('${runDir.path}/run.json').writeAsStringSync(
+      jsonEncode(<String, Object?>{'workspaceRoot': referenced.path}),
+    );
+    final TaskService runner = TaskService(
+      runsDir: runs.path,
+      tasksDir: tasksDir,
+      workspacesDir: base.path,
+      env: <String, String>{},
+    );
+    await runner.cleanupWorkspaces(keep: 0, maxAge: Duration.zero);
+    expect(referenced.existsSync(), isTrue);
+    expect(spare.existsSync(), isFalse);
   });
 
   test('非法任务卡 id 被拒绝', () async {

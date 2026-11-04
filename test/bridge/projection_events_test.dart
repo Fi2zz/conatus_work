@@ -28,7 +28,7 @@ void main() {
     ]);
   });
 
-  test('未知计划状态回落为 todo', () {
+  test('计划状态别名归一', () {
     final EventMapper mapper = EventMapper(_startedAt);
     final List<Map<String, Object?>> out = mapper.map(<String, Object?>{
       'type': 'plan/updated',

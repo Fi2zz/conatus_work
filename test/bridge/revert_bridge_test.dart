@@ -41,20 +41,21 @@ void main() {
     Directory('${tmp.path}/work/inbox').createSync(recursive: true);
     File('${tmp.path}/work/inbox/a.txt').writeAsStringSync('a');
     runsDir = '${tmp.path}/runs';
-    record = await Runner(
-      runsDir: runsDir,
-      body: (RunScope scope, TaskSpec task) async {
-        await scope.fs.mkdir('out');
-        await scope.fs.move('inbox/a.txt', 'out/a.txt');
-        return const TaskOutcome.ok();
-      },
-    ).run(
-      RunRequest(
-        task: TaskSpec.parse(cardJson()),
-        taskPath: cardPath,
-        workspaceRoot: '${tmp.path}/work',
-      ),
-    );
+    record =
+        await Runner(
+          runsDir: runsDir,
+          body: (RunScope scope, TaskSpec task) async {
+            await scope.fs.mkdir('out');
+            await scope.fs.move('inbox/a.txt', 'out/a.txt');
+            return const TaskOutcome.ok();
+          },
+        ).run(
+          RunRequest(
+            task: TaskSpec.parse(cardJson()),
+            taskPath: cardPath,
+            workspaceRoot: '${tmp.path}/work',
+          ),
+        );
   });
 
   tearDown(() => tmp.deleteSync(recursive: true));
@@ -86,10 +87,11 @@ void main() {
       push: pushed.add,
     );
 
-    final List<Map<String, Object?>> frames = await call(host, 'undo', <String, Object?>{
-      'runId': record.runId,
-      'steps': 1,
-    });
+    final List<Map<String, Object?>> frames = await call(
+      host,
+      'undo',
+      <String, Object?>{'runId': record.runId, 'steps': 1},
+    );
     final Map<String, Object?> result = frames.single;
     expect(result['ok'], isTrue);
     final Map<String, Object?> value = result['value']! as Map<String, Object?>;

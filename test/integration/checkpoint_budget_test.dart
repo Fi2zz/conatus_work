@@ -32,58 +32,58 @@ Map<String, Object?> cardJson() => <String, Object?>{
 void main() {
   late Directory tmp;
   late String cardPath;
-  late TaskSpec task;
 
   setUp(() {
     tmp = Directory.systemTemp.createTempSync('budget_');
     cardPath = '${tmp.path}/card.json';
     File(cardPath).writeAsStringSync(jsonEncode(cardJson()));
-    task = TaskSpec.parse(cardJson());
   });
 
   tearDown(() => tmp.deleteSync(recursive: true));
 
-  test('超预算时收紧 keep 并裁掉最旧差量', () async {
+  Future<RunRecord> runThreeTurns({int? budgetBytes}) async {
     final Runner runner = Runner(
       runsDir: '${tmp.path}/runs',
+      checkpointBudgetBytes: budgetBytes,
       body: (RunScope scope, TaskSpec task) async => const TaskOutcome.ok(),
     );
     final RunRecord first = await runner.run(
       RunRequest(
-        task: task,
+        task: TaskSpec.parse(cardJson()),
         taskPath: cardPath,
         workspaceRoot: '${tmp.path}/work',
       ),
     );
     await runner.continueRun(first.runId, '第二轮');
-    final RunRecord last = await runner.continueRun(first.runId, '第三轮');
-    final RunPaths paths = RunPaths(
-      runsDir: runner.runsDir,
-      runId: first.runId,
-    );
+    return runner.continueRun(first.runId, '第三轮');
+  }
 
+  Future<List<int>> turnsOf(RunRecord record) async {
     final CheckpointStore store = await openCheckpointStore(
-      options: CheckpointOptions(
-        keep: 30,
-        policy: productCheckpointPolicy(),
-      ),
-      root: last.workspaceRoot,
-      projectDir: paths.runDir,
+      options: CheckpointOptions(keep: 30, policy: productCheckpointPolicy()),
+      root: record.workspaceRoot,
+      projectDir: RunPaths(
+        runsDir: '${tmp.path}/runs',
+        runId: record.runId,
+      ).runDir,
     );
-    expect(store.list(last.sessionId).length, greaterThan(2));
-    expect(
-      directorySizeBytes(Directory('${paths.runDir}/checkpoints')),
-      greaterThan(0),
-    );
+    return <int>[
+      for (final CheckpointInfo info in store.list(record.sessionId)) info.turn,
+    ];
+  }
 
-    final int keep = await enforceCheckpointBudget(
-      task: task,
-      root: last.workspaceRoot,
-      projectDir: paths.runDir,
-      sessionId: last.sessionId,
-      budgetBytes: 1,
+  test('预算充足时不裁剪历史', () async {
+    final RunRecord record = await runThreeTurns();
+    expect(await turnsOf(record), hasLength(4));
+  });
+
+  test('超预算时收紧 keep 并实际回收字节', () async {
+    final RunRecord record = await runThreeTurns(budgetBytes: 1);
+    final Directory checkpoints = Directory(
+      '${RunPaths(runsDir: '${tmp.path}/runs', runId: record.runId).runDir}'
+      '/checkpoints',
     );
-    expect(keep, 2);
-    expect(store.list(last.sessionId), hasLength(2));
+    expect(directorySizeBytes(checkpoints), greaterThan(0));
+    expect(await turnsOf(record), hasLength(2));
   });
 }

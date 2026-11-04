@@ -33,6 +33,7 @@ class RunExecution {
     this.accumulateUsage = false,
     this.onStream,
     this.approval,
+    this.checkpointBudgetBytes,
   });
 
   final TaskBody body;
@@ -65,6 +66,9 @@ class RunExecution {
 
   /// 工具审批端口；空表示不启用。
   final Approval? approval;
+
+  /// 检查点磁盘预算（字节）；空表示读环境变量或默认值。
+  final int? checkpointBudgetBytes;
 
   Future<RunRecord> execute() async {
     RunScope? scope;
@@ -111,11 +115,15 @@ class RunExecution {
       await scope?.dispose();
       try {
         await enforceCheckpointBudget(
-          task: task,
-          root: workspace.rootAbsolute,
-          projectDir: paths.runDir,
-          sessionId: sessionId,
-          budgetBytes: checkpointBudgetFromEnv(Platform.environment),
+          BudgetRequest(
+            task: task,
+            root: workspace.rootAbsolute,
+            projectDir: paths.runDir,
+            sessionId: sessionId,
+            budgetBytes:
+                checkpointBudgetBytes ??
+                checkpointBudgetFromEnv(Platform.environment),
+          ),
         );
       } on Object {
         // 预算清理是尽力而为，不能反过来让运行失败。

@@ -79,6 +79,6 @@ void main() {
     expect(text, contains('tokensIn=1200'));
     expect(text, contains('tokensOut=300'));
     expect(text, contains('costUsd=0.0120'));
-    expect(text, contains('undo=ok:1,failed:0,damage:1,redo:1'));
+    expect(text, contains('undo=ok:1,failed:0,damage:1,redo:1,redoFailed:0'));
   });
 }

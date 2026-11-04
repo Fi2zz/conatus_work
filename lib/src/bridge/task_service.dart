@@ -2,6 +2,7 @@
 library;
 
 import 'dart:async';
+import 'dart:collection';
 import 'dart:convert';
 import 'dart:io';
 
@@ -91,9 +92,10 @@ class TaskService {
   final Map<String, RunEventStream> _streams = <String, RunEventStream>{};
   final Map<String, _PendingApproval> _approvals = <String, _PendingApproval>{};
   final Set<String> _resolvedApprovals = <String>{};
-  final List<String> _resolvedOrder = <String>[];
+  final Queue<String> _resolvedOrder = Queue<String>();
   int _extraSeq = 0;
   int _seqFloor = 0;
+  final Set<String> _activeWorkspaces = <String>{};
 
   /// 列出任务卡（读不到的文件跳过）。
   List<TaskCard> cards() {
@@ -301,6 +303,7 @@ class TaskService {
             },
             approval: approval,
           );
+      await watcher.stop();
       await stream.flush();
       stream.stop();
       for (final Map<String, Object?> event in _tail(
@@ -326,7 +329,7 @@ class TaskService {
         },
       });
     } finally {
-      watcher?.stop();
+      await watcher?.stop();
       _denyPending(record.runId);
       _streams.remove(record.runId);
       _runtimes.remove(record.runId)?.abortInFlight();
@@ -407,9 +410,9 @@ class TaskService {
 
   void _rememberResolved(String requestId) {
     if (!_resolvedApprovals.add(requestId)) return;
-    _resolvedOrder.add(requestId);
-    while (_resolvedOrder.length > 512) {
-      _resolvedApprovals.remove(_resolvedOrder.removeAt(0));
+    _resolvedOrder.addLast(requestId);
+    while (_resolvedOrder.length > 1024) {
+      _resolvedApprovals.remove(_resolvedOrder.removeFirst());
     }
   }
 
@@ -488,6 +491,7 @@ class TaskService {
             },
             approval: approval,
           );
+      await watcher.stop();
       await stream.flush();
       stream.stop();
       for (final Map<String, Object?> event in _tail(
@@ -513,7 +517,10 @@ class TaskService {
         },
       });
     } finally {
-      watcher?.stop();
+      await watcher?.stop();
+      if (workspaceRoot != null) {
+        _activeWorkspaces.remove(Directory(workspaceRoot).absolute.path);
+      }
       _denyPending(runId);
       _streams.remove(runId);
       _runtimes.remove(runId)?.abortInFlight();
@@ -532,7 +539,10 @@ class TaskService {
       });
     }
     final List<Map<String, Object?>> rawEvents = readJsonLines(
-      paths.sessionPath(record.sessionId.isEmpty ? 'events' : record.sessionId),
+      paths.sessionPath(
+        record.forkSessionId ??
+            (record.sessionId.isEmpty ? 'events' : record.sessionId),
+      ),
     );
     final Map<String, Object?>? changes = buildChanges(
       record.workspaceRoot,
@@ -582,42 +592,77 @@ class TaskService {
     return events;
   }
 
-  /// 清掉自动新建的工作区，只保留最近 [keep] 个（按修改时间）。
-  Future<void> cleanupWorkspaces({int keep = 20}) async {
+  /// 清掉自动新建且不再被引用的工作区。
+  ///
+  /// 只删「不在运行中、没有 run.json 引用、且超过 [maxAge]」的目录；数量上限
+  /// [keep] 只对这批候选生效。旧 run.json 仍引用自己的工作区，因此历史产物的
+  /// `artifact.read` / `undo` 不受影响。
+  Future<void> cleanupWorkspaces({
+    int keep = 20,
+    Duration maxAge = const Duration(days: 7),
+  }) async {
     final String? base = workspacesDir;
     if (base == null) return;
     final Directory dir = Directory(base);
     if (!dir.existsSync()) return;
-    final List<Directory> workspaces = <Directory>[
-      for (final FileSystemEntity entity in dir.listSync())
-        if (entity is Directory) entity,
-    ];
-    workspaces.sort((Directory a, Directory b) {
-      DateTime left;
-      DateTime right;
+    final Set<String> referenced = await _referencedWorkspaces();
+    final DateTime cutoff = DateTime.now().subtract(maxAge);
+    final List<Directory> candidates = <Directory>[];
+    for (final FileSystemEntity entity in dir.listSync(followLinks: false)) {
+      if (entity is! Directory || entity is Link) continue;
+      final String path = entity.absolute.path;
+      if (_activeWorkspaces.contains(path)) continue;
+      if (referenced.contains(path)) continue;
       try {
-        left = a.statSync().modified;
-        right = b.statSync().modified;
+        if (maxAge > Duration.zero &&
+            entity.statSync().modified.isAfter(cutoff)) {
+          continue;
+        }
       } on FileSystemException {
-        return 0;
+        continue;
       }
-      return right.compareTo(left);
-    });
-    for (int i = keep; i < workspaces.length; i += 1) {
+      candidates.add(entity);
+    }
+    candidates.sort((Directory a, Directory b) {
       try {
-        await workspaces[i].delete(recursive: true);
+        return b.statSync().modified.compareTo(a.statSync().modified);
+      } on FileSystemException {
+        return a.path.compareTo(b.path);
+      }
+    });
+    for (int i = keep; i < candidates.length; i += 1) {
+      try {
+        await candidates[i].delete(recursive: true);
       } on FileSystemException {
         // 被占用 / 已删除：下一轮再清。
       }
     }
   }
 
+  Future<Set<String>> _referencedWorkspaces() async {
+    final Set<String> referenced = <String>{};
+    final Directory runs = Directory(runsDir);
+    if (!runs.existsSync()) return referenced;
+    for (final FileSystemEntity entity in runs.listSync()) {
+      if (entity is! Directory) continue;
+      final Map<String, Object?>? run = readJsonObject(
+        '${entity.path}${Platform.pathSeparator}run.json',
+      );
+      final Object? root = run?['workspaceRoot'];
+      if (root is String && root.isNotEmpty) {
+        referenced.add(Directory(root).absolute.path);
+      }
+    }
+    return referenced;
+  }
+
   /// 没选工作区时给一个干净目录，避免任务卡输入缺失导致预检失败。
   String? _freshWorkspace(String taskId, String runId) {
     final String? base = workspacesDir;
     if (base == null) return null;
-    final String dir = '$base/$taskId-$runId';
+    final String dir = Directory('$base/$taskId-$runId').absolute.path;
     Directory(dir).createSync(recursive: true);
+    _activeWorkspaces.add(dir);
     return dir;
   }
 

@@ -67,6 +67,8 @@ void main() {
 
     expect(events, hasLength(1));
     expect(events.single['type'], 'message/assistant/delta');
+    expect((events.single['data']! as Map<String, Object?>)['text'], '早到');
+    expect(events.single['seq'], 0);
   });
 
   test('RunEventStream 把会话事件映射成桥接事件并连续编号', () async {

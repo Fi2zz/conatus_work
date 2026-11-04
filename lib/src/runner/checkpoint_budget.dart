@@ -38,34 +38,79 @@ int directorySizeBytes(Directory dir) {
   return total;
 }
 
-/// 把 [sessionId] 的检查点裁到预算内；低到 2 轮（base + 1 个差量）为止。
+/// 一次预算清理的输入。
+class BudgetRequest {
+  const BudgetRequest({
+    required this.task,
+    required this.root,
+    required this.projectDir,
+    required this.sessionId,
+    required this.budgetBytes,
+  });
+
+  final TaskSpec task;
+  final String root;
+  final String projectDir;
+  final String sessionId;
+  final int budgetBytes;
+}
+
+/// 把 [BudgetRequest.sessionId] 的检查点裁到预算内；返回最终 keep。
 ///
-/// 打开第二个存储实例只做 `prune`，不写快照；调用方应在运行收口、会话关闭后
-/// 再执行，避免与在途快照竞争。
-Future<int> enforceCheckpointBudget({
-  required TaskSpec task,
-  required String root,
-  required String projectDir,
-  required String sessionId,
-  required int budgetBytes,
-}) async {
+/// 影子 git 后端 `prune` 只删 ref，字节要等 `git gc` 才回收；每次裁剪后测一次
+/// 实际回收量，没有进展就停止，避免把撤销历史白白裁到底。
+Future<int> enforceCheckpointBudget(BudgetRequest request) async {
+  final TaskSpec task = request.task;
   if (!task.checkpointEnabled) return task.checkpointKeep;
   final Directory checkpoints = Directory(
-    '$projectDir${Platform.pathSeparator}checkpoints',
+    '${request.projectDir}${Platform.pathSeparator}checkpoints',
   );
   if (!checkpoints.existsSync()) return task.checkpointKeep;
   int keep = task.checkpointKeep;
-  while (keep > 2 && directorySizeBytes(checkpoints) > budgetBytes) {
-    keep = keep > 3 ? keep ~/ 2 : 2;
-    final CheckpointStore store = await openCheckpointStore(
-      options: CheckpointOptions(
-        keep: keep,
-        policy: productCheckpointPolicy(),
-      ),
-      root: root,
-      projectDir: projectDir,
+  int current = directorySizeBytes(checkpoints);
+  while (keep > 2 && current > request.budgetBytes) {
+    final CheckpointStore source = await openCheckpointStore(
+      options: CheckpointOptions(keep: keep, policy: productCheckpointPolicy()),
+      root: request.root,
+      projectDir: request.projectDir,
     );
-    store.prune(sessionId);
+    final int turnCount = source.list(request.sessionId).length;
+    if (turnCount <= 2) break;
+    int next = keep > 3 ? keep ~/ 2 : 2;
+    if (next >= turnCount) next = turnCount - 1;
+    if (next < 2) next = 2;
+    final CheckpointStore store = await openCheckpointStore(
+      options: CheckpointOptions(keep: next, policy: productCheckpointPolicy()),
+      root: request.root,
+      projectDir: request.projectDir,
+    );
+    store.prune(request.sessionId);
+    int after = directorySizeBytes(checkpoints);
+    if (after > request.budgetBytes && after >= current) {
+      await _collectGarbage(request.projectDir);
+      after = directorySizeBytes(checkpoints);
+    }
+    if (after >= current) break;
+    keep = next;
+    current = after;
   }
   return keep;
+}
+
+Future<void> _collectGarbage(String projectDir) async {
+  final Directory shadow = Directory(
+    '$projectDir${Platform.pathSeparator}checkpoints'
+    '${Platform.pathSeparator}shadow.git',
+  );
+  if (!shadow.existsSync()) return;
+  try {
+    await Process.run('git', <String>[
+      '--git-dir',
+      shadow.path,
+      'gc',
+      '--prune=now',
+    ]);
+  } on ProcessException {
+    // git 不可用时只能接受 ref 已裁、字节未回收。
+  }
 }
