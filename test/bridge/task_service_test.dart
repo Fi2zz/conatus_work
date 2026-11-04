@@ -73,6 +73,36 @@ class OneShotLlm implements LlmProvider {
   void close() {}
 }
 
+/// 分两段吐正文的流式模型。
+class StreamingLlm implements LlmProvider {
+  @override
+  String get name => 'streaming';
+
+  @override
+  Future<LlmResult> chat(
+    List<LlmMessage> messages, {
+    Map<String, dynamic>? options,
+    List<Map<String, dynamic>>? tools,
+  }) async => throw StateError('流式用例不应走 chat()');
+
+  @override
+  Stream<LlmStreamEvent> chatStream(
+    List<LlmMessage> messages, {
+    Map<String, dynamic>? options,
+    List<Map<String, dynamic>>? tools,
+  }) async* {
+    yield const LlmTextDelta('你');
+    yield const LlmTextDelta('好');
+    yield const LlmStreamDone(
+      usage: <String, dynamic>{'prompt_tokens': 10, 'completion_tokens': 5},
+      model: 'streaming',
+    );
+  }
+
+  @override
+  void close() {}
+}
+
 void main() {
   late Directory tmp;
   late String tasksDir;
@@ -171,6 +201,50 @@ void main() {
         jsonDecode(File('${tmp.path}/runs/$runId/run.json').readAsStringSync())
             as Map<String, Object?>;
     expect(run['workspaceRoot'], other.path);
+  });
+
+  test('流式增量与最终消息共用 entryId，并推 task/status running', () async {
+    final List<Map<String, Object?>> events = <Map<String, Object?>>[];
+    final TaskService runner = TaskService(
+      runsDir: '${tmp.path}/runs',
+      tasksDir: tasksDir,
+      pollInterval: const Duration(milliseconds: 20),
+      env: <String, String>{
+        'WORK_LLM_BASE_URL': 'http://fake',
+        'WORK_LLM_MODEL': 'fake',
+      },
+      provider: StreamingLlm(),
+    );
+    final String runId = await runner.start(
+      cardId: 'move-v01',
+      onEvent: events.add,
+    );
+    final bool finished = await _waitFor(
+      () => events.any((Map<String, Object?> e) => e['type'] == 'task/ended'),
+    );
+    expect(finished, isTrue);
+    expect(
+      events.any(
+        (Map<String, Object?> e) =>
+            e['type'] == 'task/status' &&
+            (e['data']! as Map<String, Object?>)['status'] == 'running',
+      ),
+      isTrue,
+      reason: '开始执行应推 task/status running，runId=$runId',
+    );
+
+    final List<Map<String, Object?>> deltas = events
+        .where((Map<String, Object?> e) => e['type'] == 'message/assistant/delta')
+        .toList();
+    expect(deltas, hasLength(2));
+    final Map<String, Object?> done = events.firstWhere(
+      (Map<String, Object?> e) => e['type'] == 'message/assistant/done',
+    );
+    final Map<String, Object?> deltaData =
+        deltas.first['data']! as Map<String, Object?>;
+    final Map<String, Object?> doneData =
+        done['data']! as Map<String, Object?>;
+    expect(doneData['entryId'], deltaData['entryId']);
   });
 
   test('真实执行体拿到模型运行时，不再报「未装配模型」', () async {

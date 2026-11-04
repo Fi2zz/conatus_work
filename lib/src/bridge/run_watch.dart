@@ -22,11 +22,18 @@ class JsonlTail {
   Timer? _timer;
 
   /// 每 [interval] 读一次新增内容，把解析出的条目交给 [onEvent]。
+  ///
+  /// [startAtEnd] 为 true 时从当前文件末尾开始，只处理之后追加的内容。
   Future<void> start({
     required void Function(Map<String, Object?>) onEvent,
     Duration interval = const Duration(milliseconds: 250),
+    bool startAtEnd = false,
   }) async {
     _running = true;
+    if (startAtEnd) {
+      final File file = File(path);
+      if (file.existsSync()) _offset = await file.length();
+    }
     await _pump(onEvent);
     _timer = Timer.periodic(interval, (_) => unawaited(_pump(onEvent)));
   }
@@ -70,7 +77,11 @@ class JsonlTail {
 
 /// 把 [JsonlTail] 的原始事件映射成桥接事件。
 class RunEventStream {
-  RunEventStream({required this.path, required this.startedAt});
+  RunEventStream({
+    required this.path,
+    required this.startedAt,
+    int startSeq = 0,
+  }) : _startSeq = startSeq;
 
   /// `events.jsonl` 的路径。
   final String path;
@@ -78,8 +89,13 @@ class RunEventStream {
   /// 运行开始时间。
   final String startedAt;
 
-  late final EventMapper _mapper = EventMapper(startedAt);
+  final int _startSeq;
+  late final EventMapper _mapper = EventMapper(
+    startedAt,
+    startSeq: _startSeq,
+  );
   JsonlTail? _tail;
+  void Function(Map<String, Object?>)? _sink;
 
   /// 已发出的桥接事件条数（供尾随结束后继续编号）。
   int get seq => _mapper.seq;
@@ -88,7 +104,9 @@ class RunEventStream {
   Future<void> start(
     void Function(Map<String, Object?>) onEvent, {
     Duration interval = const Duration(milliseconds: 250),
+    bool startAtEnd = false,
   }) async {
+    _sink = onEvent;
     final JsonlTail tail = JsonlTail(path);
     _tail = tail;
     await tail.start(
@@ -98,7 +116,15 @@ class RunEventStream {
         }
       },
       interval: interval,
+      startAtEnd: startAtEnd,
     );
+  }
+
+  /// 推一条流式正文增量。
+  void emitDelta(String text) {
+    final void Function(Map<String, Object?>)? sink = _sink;
+    if (sink == null) return;
+    sink(_mapper.emitDelta(text));
   }
 
   /// 停止尾随。

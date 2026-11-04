@@ -62,7 +62,11 @@ class Runner {
   final LlmRuntime? llm;
 
   /// 跑一张任务卡，返回落盘后的运行记录。
-  Future<RunRecord> run(RunRequest request, {String? runId}) async {
+  Future<RunRecord> run(
+    RunRequest request, {
+    String? runId,
+    void Function(LlmStreamEvent event)? onStream,
+  }) async {
     final TaskSpec task = request.task;
     final String root = resolveWorkspaceRoot(
       task: task,
@@ -106,11 +110,15 @@ class Runner {
       store: store,
       llm: llm,
       confirmed: request.confirmed,
+      onStream: onStream,
     ).execute();
   }
 
   /// 恢复一次未完成的运行：接回同一会话与检查点时间线。
-  Future<RunRecord> resume(String runId) async {
+  Future<RunRecord> resume(
+    String runId, {
+    void Function(LlmStreamEvent event)? onStream,
+  }) async {
     final RunPaths paths = RunPaths(runsDir: runsDir, runId: runId);
     final RunStore store = RunStore(paths);
     final RunRecord record = await store.load();
@@ -145,11 +153,16 @@ class Runner {
       llm: llm,
       sessionId: sessionId,
       accumulateUsage: true,
+      onStream: onStream,
     ).execute();
   }
 
   /// 在已结束的 run 上追加一条用户消息并继续执行；不新建 run。
-  Future<RunRecord> continueRun(String runId, String text) async {
+  Future<RunRecord> continueRun(
+    String runId,
+    String text, {
+    void Function(LlmStreamEvent event)? onStream,
+  }) async {
     if (text.trim().isEmpty) {
       throw ArgumentError.value(text, 'text', '续写内容不能为空');
     }
@@ -184,6 +197,7 @@ class Runner {
       sessionId: sessionId,
       userText: text,
       accumulateUsage: true,
+      onStream: onStream,
     ).execute();
   }
 

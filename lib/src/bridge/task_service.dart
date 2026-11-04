@@ -141,6 +141,13 @@ class TaskService {
       },
     });
 
+    emit(<String, Object?>{
+      'seq': -2,
+      'at': 0,
+      'type': 'task/status',
+      'data': <String, Object?>{'status': 'running'},
+    });
+
     unawaited(_execute(task, path, runId, paths, emit, root, runtime, fixture));
     return runId;
   }
@@ -190,6 +197,9 @@ class TaskService {
               confirmed: true,
             ),
             runId: runId,
+            onStream: (LlmStreamEvent event) {
+              if (event is LlmTextDelta) stream.emitDelta(event.text);
+            },
           );
       stream.stop();
       for (final Map<String, Object?> event in _tail(

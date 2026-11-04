@@ -8,15 +8,35 @@ import 'projection_io.dart';
 /// 有状态：记录每个工具调用的开始时间与自增 `seq`，所以同一个实例要按顺序喂事件。
 /// 投影（一次性读全量）与运行期尾随（增量读）共用它，避免两套映射漂移。
 class EventMapper {
-  EventMapper(this.startedAt);
+  EventMapper(this.startedAt, {int startSeq = 0}) : _seq = startSeq;
 
   /// 运行开始时间（ISO 字符串），用来算毫秒偏移。
   final String startedAt;
 
-  int _seq = 0;
+  int _seq;
+  String? _streamEntryId;
+  int _streamCount = 0;
   final Map<String, int> _startedCallAt = <String, int>{};
 
   int get seq => _seq;
+
+  /// 产出一条流式正文增量；同一轮内复用 entryId，最终消息会沿用。
+  Map<String, Object?> emitDelta(String text) {
+    final String entryId =
+        _streamEntryId ??= 'assistant-stream-${_streamCount++}';
+    return <String, Object?>{
+      'seq': _seq++,
+      'at': _nowOffset(),
+      'type': 'message/assistant/delta',
+      'data': <String, Object?>{'entryId': entryId, 'text': text},
+    };
+  }
+
+  int _nowOffset() {
+    final int base = epochMs(startedAt) ?? 0;
+    final int delta = DateTime.now().millisecondsSinceEpoch - base;
+    return delta < 0 ? 0 : delta;
+  }
 
   /// 映射一条原始事件；返回零或多条桥接事件（assistant 消息会展开成多条）。
   List<Map<String, Object?>> map(Map<String, Object?> event) {
@@ -32,14 +52,27 @@ class EventMapper {
           'type': 'message/user',
           'data': <String, Object?>{'text': _text(event['data'], 'text')},
         });
+      case 'plan/updated':
+        out.add(<String, Object?>{
+          'seq': _seq++,
+          'at': at,
+          'type': 'plan/updated',
+          'data': <String, Object?>{
+            'items': _planItems(_mapOf(event['data'])),
+          },
+        });
       case 'assistant/message':
         final Object? id = event['id'];
+        final String entryId =
+            _streamEntryId ??
+            (id is String && id.isNotEmpty ? id : 'assistant-$_seq');
+        _streamEntryId = null;
         out.add(<String, Object?>{
           'seq': _seq++,
           'at': at,
           'type': 'message/assistant/done',
           'data': <String, Object?>{
-            'entryId': id is String && id.isNotEmpty ? id : 'assistant-$_seq',
+            'entryId': entryId,
             'text': _text(event['data'], 'text'),
             if (_hasText(event['data'], 'reasoning'))
               'reasoning': _text(event['data'], 'reasoning'),
@@ -143,6 +176,23 @@ int _offsetOf(Object? time, int base) {
 
 Map<String, Object?> _mapOf(Object? value) =>
     value is Map<String, Object?> ? value : <String, Object?>{};
+
+List<Map<String, Object?>> _planItems(Map<String, Object?> data) =>
+    <Map<String, Object?>>[
+      for (final Object? item in _listOf(data['steps']))
+        if (item is Map<String, Object?>)
+          <String, Object?>{
+            'id': '${item['id'] ?? ''}',
+            'title': '${item['text'] ?? item['title'] ?? ''}',
+            'status': _planStatus(item),
+          },
+    ];
+
+String _planStatus(Map<String, Object?> item) {
+  final Object? raw = item['status'];
+  if (raw is String && raw.isNotEmpty) return raw;
+  return item['done'] == true ? 'done' : 'todo';
+}
 
 List<Object?> _listOf(Object? value) =>
     value is List<Object?> ? value : <Object?>[];

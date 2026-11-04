@@ -1,6 +1,8 @@
 /// 一次运行的实际执行：装配、执行体、产物判定、检查点收口。
 library;
 
+import 'package:conatus/conatus.dart';
+
 import 'abort_signal.dart';
 import 'artifacts.dart';
 import 'assembly.dart';
@@ -26,6 +28,7 @@ class RunExecution {
     this.sessionId,
     this.userText,
     this.accumulateUsage = false,
+    this.onStream,
   });
 
   final TaskBody body;
@@ -53,6 +56,9 @@ class RunExecution {
   /// 是否在已有用量上继续累加（resume / continue）。
   final bool accumulateUsage;
 
+  /// 模型流式增量出口。
+  final void Function(LlmStreamEvent event)? onStream;
+
   Future<RunRecord> execute() async {
     RunScope? scope;
     try {
@@ -66,6 +72,7 @@ class RunExecution {
           confirmed: confirmed,
           sessionId: sessionId,
           userText: userText,
+          onStream: onStream,
         ),
       );
       _attach(scope);

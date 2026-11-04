@@ -28,6 +28,7 @@ class AssemblyOptions {
     this.confirmed = false,
     this.sessionId,
     this.userText,
+    this.onStream,
   });
 
   /// 任务卡。
@@ -53,6 +54,9 @@ class AssemblyOptions {
 
   /// 续写时替代任务卡 prompt 的用户文本。
   final String? userText;
+
+  /// 模型流式增量出口；空表示不用流式。
+  final void Function(LlmStreamEvent event)? onStream;
 }
 
 /// 一次运行持有的框架对象。
@@ -195,7 +199,12 @@ Future<RunScope> assembleRun(AssemblyOptions options) async {
         options.confirmed,
       );
   final AgentLoop? agent = hasLlm
-      ? provideAgentLoop(ctx, session: session, maxSteps: 40)
+      ? provideAgentLoop(
+          ctx,
+          session: session,
+          maxSteps: 40,
+          onStream: options.onStream,
+        )
       : null;
 
   return RunScope(
