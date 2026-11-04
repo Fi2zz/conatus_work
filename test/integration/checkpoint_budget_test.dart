@@ -78,6 +78,30 @@ void main() {
     expect(record.checkpointKeep, 30);
   });
 
+  test('直接清理会回收磁盘字节', () async {
+    final RunRecord record = await runThreeTurns();
+    final Directory checkpoints = Directory(
+      '${RunPaths(runsDir: '${tmp.path}/runs', runId: record.runId).runDir}'
+      '/checkpoints',
+    );
+    final int before = directorySizeBytes(checkpoints);
+    final int keep = await enforceCheckpointBudget(
+      BudgetRequest(
+        task: TaskSpec.parse(cardJson()),
+        root: record.workspaceRoot,
+        projectDir: RunPaths(
+          runsDir: '${tmp.path}/runs',
+          runId: record.runId,
+        ).runDir,
+        sessionId: record.sessionId,
+        budgetBytes: 1,
+      ),
+    );
+    expect(keep, 2);
+    expect(directorySizeBytes(checkpoints), lessThan(before));
+    expect(await turnsOf(record), hasLength(2));
+  });
+
   test('超预算时收紧 keep 并实际回收字节', () async {
     final RunRecord record = await runThreeTurns(budgetBytes: 1);
     final Directory checkpoints = Directory(
