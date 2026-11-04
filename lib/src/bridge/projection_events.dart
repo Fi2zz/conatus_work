@@ -15,15 +15,13 @@ class EventMapper {
 
   int _seq;
   String? _streamEntryId;
-  int _streamCount = 0;
   final Map<String, int> _startedCallAt = <String, int>{};
 
   int get seq => _seq;
 
   /// 产出一条流式正文增量；同一轮内复用 entryId，最终消息会沿用。
   Map<String, Object?> emitDelta(String text) {
-    final String entryId =
-        _streamEntryId ??= 'assistant-stream-${_streamCount++}';
+    final String entryId = _streamEntryId ??= 'assistant-stream-$_seq';
     return <String, Object?>{
       'seq': _seq++,
       'at': _nowOffset(),
@@ -57,9 +55,7 @@ class EventMapper {
           'seq': _seq++,
           'at': at,
           'type': 'plan/updated',
-          'data': <String, Object?>{
-            'items': _planItems(_mapOf(event['data'])),
-          },
+          'data': <String, Object?>{'items': _planItems(_mapOf(event['data']))},
         });
       case 'assistant/message':
         final Object? id = event['id'];

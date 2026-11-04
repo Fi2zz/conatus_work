@@ -223,6 +223,11 @@ class TaskService {
       throw const BridgeError('INTERNAL', '发送内容不能为空');
     }
     final RunRecord record = await _loadRecord(runId);
+    try {
+      await TaskSpec.load(record.taskPath);
+    } on Object catch (error) {
+      throw BridgeError('INTERNAL', '任务卡不可用：$error');
+    }
     if (_streams.containsKey(runId) ||
         (record.status == TaskRunStatus.running && pidAlive(record.pid))) {
       throw const BridgeError('DENIED', '该运行仍在执行，先停止再发送');

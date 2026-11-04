@@ -34,10 +34,7 @@ void main() {
     final Map<String, Object?> second = mapper.emitDelta('好');
     final String entryId =
         (first['data']! as Map<String, Object?>)['entryId']! as String;
-    expect(
-      (second['data']! as Map<String, Object?>)['entryId'],
-      entryId,
-    );
+    expect((second['data']! as Map<String, Object?>)['entryId'], entryId);
 
     final List<Map<String, Object?>> done = mapper.map(<String, Object?>{
       'type': 'assistant/message',
@@ -51,9 +48,19 @@ void main() {
     expect(data['entryId'], entryId);
 
     final Map<String, Object?> next = mapper.emitDelta('下一轮');
-    expect(
-      (next['data']! as Map<String, Object?>)['entryId'],
-      isNot(entryId),
-    );
+    expect((next['data']! as Map<String, Object?>)['entryId'], isNot(entryId));
+  });
+
+  test('不同 seq 基数的增量不共用 entryId', () {
+    final Map<String, Object?> first = EventMapper(_startedAt).emitDelta('a');
+    final Map<String, Object?> second = EventMapper(
+      _startedAt,
+      startSeq: 10,
+    ).emitDelta('b');
+    final String firstId =
+        (first['data']! as Map<String, Object?>)['entryId']! as String;
+    final String secondId =
+        (second['data']! as Map<String, Object?>)['entryId']! as String;
+    expect(secondId, isNot(firstId));
   });
 }

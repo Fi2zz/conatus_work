@@ -592,6 +592,26 @@ void main() {
     expect(File('${other.path}/inbox/a.txt').existsSync(), isTrue);
   });
 
+  test('send 在任务卡不可用时明确报错', () async {
+    final TaskService runner = service(body: noopTaskBody);
+    final String runId = await runner.start(
+      cardId: 'move-v01',
+      onEvent: (_) {},
+    );
+    await _waitFor(() => File('${tmp.path}/runs/$runId/run.json').existsSync());
+    File('$tasksDir/move-v01.json').deleteSync();
+    await expectLater(
+      runner.send(runId, '继续', onEvent: (_) {}),
+      throwsA(
+        isA<BridgeError>().having(
+          (BridgeError error) => error.code,
+          'code',
+          'INTERNAL',
+        ),
+      ),
+    );
+  });
+
   test('非法任务卡 id 被拒绝', () async {
     await expectLater(
       service().start(cardId: '../etc/passwd', onEvent: (_) {}),
