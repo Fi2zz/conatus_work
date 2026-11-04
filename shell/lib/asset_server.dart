@@ -5,6 +5,22 @@ import 'dart:math';
 ///
 /// 首次带 token 的请求会换成 cookie 并重定向到 `/`，避免 token 留在地址栏；
 /// 之后的静态资源请求凭 cookie 放行。路径一律规范化后校验是否仍在根目录内。
+/// 本地资源只允许同源加载；`unsafe-inline` 仅用于产物 HTML 的 `srcdoc`（沙箱 iframe
+/// 不带 `allow-same-origin`，脚本读不到宿主存储）。两处都不出现在应用自身的构建产物里。
+const String _contentSecurityPolicy =
+    "default-src 'self'; "
+    "script-src 'self' 'unsafe-inline'; "
+    "style-src 'self' 'unsafe-inline'; "
+    "img-src 'self' data: blob:; "
+    "media-src 'self' data: blob:; "
+    "font-src 'self' data:; "
+    "frame-src 'self' data: blob:; "
+    "connect-src 'self'; "
+    "object-src 'none'; "
+    "base-uri 'none'; "
+    "form-action 'none'; "
+    "frame-ancestors 'none'";
+
 class AssetServer {
   AssetServer({required this.root, String? token})
     : _token = token ?? _newToken();
@@ -47,6 +63,7 @@ class AssetServer {
 
   Future<void> _handle(HttpRequest request) async {
     final HttpResponse response = request.response;
+    _harden(response);
     if (_acceptToken(request)) {
       response.headers.add(
         HttpHeaders.setCookieHeader,
@@ -79,6 +96,12 @@ class AssetServer {
   bool _acceptToken(HttpRequest request) =>
       request.uri.queryParameters['token'] == _token;
 
+  /// 所有响应（含 403 / 404 与重定向）都带同一组安全头。
+  void _harden(HttpResponse response) {
+    response.headers.set('content-security-policy', _contentSecurityPolicy);
+    response.headers.set('x-content-type-options', 'nosniff');
+    response.headers.set('referrer-policy', 'no-referrer');
+  }
   bool _hasCookie(HttpRequest request) => request.cookies.any(
     (Cookie cookie) =>
         cookie.name == 'conatus_token' && cookie.value == _token,

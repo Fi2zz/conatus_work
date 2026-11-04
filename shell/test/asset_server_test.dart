@@ -79,6 +79,26 @@ void main() {
     await assetResponse.drain<void>();
   });
 
+  test('响应带 CSP 与基础安全头', () async {
+    final HttpClientRequest page = await client.getUrl(
+      Uri.parse('http://127.0.0.1:${server.uri!.port}/'),
+    );
+    page.cookies.add(Cookie('conatus_token', 'tok'));
+    final HttpClientResponse response = await page.close();
+    final String? csp = response.headers.value('content-security-policy');
+    expect(csp, contains("default-src 'self'"));
+    expect(csp, contains("object-src 'none'"));
+    expect(csp, contains("frame-ancestors 'none'"));
+    expect(response.headers.value('x-content-type-options'), 'nosniff');
+    expect(response.headers.value('referrer-policy'), 'no-referrer');
+    await response.drain<void>();
+
+    final HttpClientResponse denied = await get('/');
+    expect(denied.statusCode, HttpStatus.forbidden);
+    expect(denied.headers.value('content-security-policy'), contains("default-src 'self'"));
+    await denied.drain<void>();
+  });
+
   test('越界路径不会穿透到根目录之外', () async {
     final HttpClientRequest request = await client.getUrl(
       Uri.parse('http://127.0.0.1:${server.uri!.port}/../pubspec.yaml'),
