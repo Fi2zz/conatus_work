@@ -64,7 +64,17 @@ cd ui && npm run build          # 先产出前端构建
 cd ../shell && flutter run -d macos
 ```
 
-- 壳用 loopback HTTP + 一次性 token 提供 `ui/dist`，不用 `file://`（ES module 与 CORS 更稳）
+前端测试：
+
+```bash
+cd ui
+npm run lint && npm test        # tsc + Vitest
+npm run build && npm run e2e    # Playwright
+```
+
+- 壳用 loopback HTTP + 一次性 token 提供 `ui/dist`，不用 `file://`（ES module 与 CORS 更稳）；
+  所有响应带 CSP（`default-src 'self'`、`object-src 'none'`、`frame-ancestors 'none'`）、
+  `nosniff` 与 `no-referrer`
 - 消息通道：WKWebView `JavaScriptChannel('conatus')` 上行、`window.__conatusReceive` 下行
 - 路径不依赖 cwd：优先 `.app/Contents/Resources/ui`（打包后），其次从当前目录与可执行文件
   位置向上找含 `ui/dist` 的仓库根（开发期）；`CONATUS_WORK_UI` / `CONATUS_WORK_RUNS` /

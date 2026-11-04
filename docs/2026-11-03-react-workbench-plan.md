@@ -1,5 +1,9 @@
 # React 工作台实现计划
 
+> **状态（2026-11-04）：Task 1–15 已全部落地，并新增任务卡、工作区选择、模型配置、
+> 运行对比、停止 / 重试、流式消息、PDF 预览等计划外能力。下方复选框保留为原始计划，
+> 不再逐项回填；本轮 UI / 壳侧增补见 `2026-11-04-ui-shell-handoff.md`。**
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** 在 `products/conatus_work/ui/` 交付一个可运行的 React 三栏工作台，数据来自可确定性回放的桥接事件流，组件与回放均可脱离 Flutter 独立测试。

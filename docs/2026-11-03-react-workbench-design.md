@@ -1,7 +1,7 @@
 # React 工作台设计与可测性基线
 
 - 日期：2026-11-03
-- 状态：设计定稿，未写实现代码
+- 状态：已实现（2026-11-04 回填；本轮 UI/壳侧增补见 `2026-11-04-ui-shell-handoff.md`）
 - 上游文档（唯一事实来源，冲突时以上游为准）：
   1. `2026-10-30-desktop-workbench-feasibility.md`（决策稿，7.1 / 7.2 / 7.4）
   2. `2026-11-03-phase0-acceptance-report.md`（阶段 0 结论）
@@ -332,12 +332,25 @@ npm run build                        # 产物可被 WebView 加载
 
 ## 十、明确不做
 
-- 真实 WebView 桥接、Flutter 桌面壳、安装与升级。
-- 真实任务执行（发消息、跑模型的命令只有 mock 实现）。
-- PDF / DOCX / XLSX / PPTX 预览与产物管线。
-- 多任务并行、虚拟滚动（时间线条目超 200 条再上）。
+**2026-11-04 回填：以下各项中已完成的部分已标注。**
+
+已落地：
+
+- 真实 WebView 桥接（`ui/src/bridge/webview-transport.ts` + `lib/src/bridge/host.dart`）
+  与 Flutter 桌面壳（`shell/`）。
+- 真实任务执行：`task.start` / `task.cancel`（未配置模型时明确报错）。
+- PDF 预览（blob URL）与图片 / CSV / TSV 预览。
+- 时间线零依赖虚拟化（`content-visibility`）。
+- UI CI：Vitest + Playwright 已进 `.github/workflows/test.yml`。
+
+仍未做：
+
+- `message.send` / `approval.respond` 的宿主实现；UI 侧已接线并有失败反馈，契约见
+  `2026-11-04-ui-shell-handoff.md`。
+- DOCX / XLSX / PPTX 内嵌预览与 Office 产物管线。
+- 多任务并行执行与并行撤销（首版保持「一任务 = 一轮」）。
+- 安装升级、macOS 签名与公证、Windows 适配。
 - 品牌化视觉、动效、i18n（文案直接写中文）。
-- CI 接线（先在本地跑通，接入 CI 另开一轮）。
 
 ## 十一、风险
 

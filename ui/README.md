@@ -32,6 +32,14 @@ npm run dev
 | `edge-redo-pruned` | 合成 | 重做目标已被裁剪（`PRUNED`） |
 | `edge-checkpoint-gap` | 合成 | 检查点轮次洞 |
 | `edge-approval-denied` | 合成 | 审批拒绝后的事件记录 |
+| `edge-failure-run` | 合成 | 失败运行的错误视图与重试入口 |
+
+回放模式下发送框禁用并标注原因；真实宿主（`mode: 'host'`）发送失败时保留草稿并在
+输入框上方显示错误，审批提交失败时保留审批条并显示错误。
+
+产物预览：Markdown / HTML（sandbox iframe）/ 图片 / PDF / JSON / 纯文本，CSV 与 TSV
+渲染为表格；DOCX / XLSX / PPTX 等二进制给出明确说明，并提供「在 Finder 中显示」。
+时间线用 `content-visibility` 跳过视口外的行，长任务不会一次性绘制全部条目。
 
 ## 测试
 
@@ -64,7 +72,8 @@ const transport = createWebViewTransport()   // 走 window.parent / WebView2 通
 - 信封：`{v:1, kind:'hello'|'command'|'result'|'event', id, command, payload}`
 - 只接收来自 parent 的消息；坏帧丢弃；请求按 `id` 配对，10s 超时回错误
 - `openTask` 拿到 fixture 后用 `applyEvent` 折叠成 `RunView`，不重写投影
-- `task.start` / `task.cancel` / `message.send` / `approval.respond` 未接线，明确回 `INTERNAL`
+- `message.send` / `approval.respond` 已按契约发送；逻辑侧要补的两条命令见
+  `../docs/2026-11-04-ui-shell-handoff.md`
 
 ## 结构
 
