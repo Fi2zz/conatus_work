@@ -51,6 +51,34 @@ export function filterTimeline(
   })
 }
 
+/** 时间线条目的可搜索文本；工具条目把参数、摘要和结果都算进去。 */
+export function entryText(entry: TimelineEntry): string {
+  switch (entry.kind) {
+    case 'user':
+      return entry.text
+    case 'assistant':
+      return `${entry.text}\n${entry.reasoning ?? ''}`
+    case 'tool':
+      return [entry.name, entry.count ? `×${entry.count}` : '', entry.args, entry.summary ?? '', entry.content ?? '']
+        .filter(Boolean)
+        .join(' ')
+    case 'approval':
+      return `${entry.name} ${entry.decision ?? ''}`
+    case 'undo':
+      return `${entry.steps} ${entry.failures.map((failure) => `${failure.path} ${failure.error}`).join(' ')}`
+    case 'redo':
+      return `${entry.steps} ${entry.code ?? ''}`
+    case 'status':
+      return `${entry.status} ${entry.text ?? ''}`
+  }
+}
+
+export function filterByText(entries: TimelineEntry[], query: string): TimelineEntry[] {
+  const needle = query.trim().toLowerCase()
+  if (needle === '') return entries
+  return entries.filter((entry) => entryText(entry).toLowerCase().includes(needle))
+}
+
 export interface UndoScope {
   steps: number
   targetTurn: number | null

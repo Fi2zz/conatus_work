@@ -6,6 +6,7 @@ import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { ApprovalBar } from '@/features/approval/ApprovalBar'
 import { Composer } from '@/features/conversation/Composer'
+import { PlanStrip } from '@/features/conversation/PlanStrip'
 import { Timeline } from '@/features/conversation/Timeline'
 import { CommandPalette } from '@/features/tasks/CommandPalette'
 import { TaskList } from '@/features/tasks/TaskList'
@@ -289,6 +290,7 @@ export function Shell(): JSX.Element {
             ) : null}
           </div>
         </header>
+        {active?.plan && active.plan.length > 0 ? <PlanStrip plan={active.plan} /> : null}
         <section data-testid="timeline" className="min-h-0 flex-1">
           <Timeline />
         </section>

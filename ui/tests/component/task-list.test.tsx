@@ -7,7 +7,8 @@ import { useUiStore } from '@/state/ui-state'
 import { summaryOf } from '../helpers/transport'
 
 function seed(): void {
-  useUiStore.setState({ taskQuery: '', taskStatus: 'all' })
+  globalThis.localStorage?.clear()
+  useUiStore.setState({ taskQuery: '', taskStatus: 'all', taskTime: 'all', pinnedTaskIds: [] })
 }
 
 const runs = [
@@ -19,8 +20,8 @@ const runs = [
 it('groups the newest day as 今天 and older ones separately', () => {
   seed()
   render(<TaskList runs={runs} activeId={null} onSelect={() => {}} />)
-  expect(screen.getByText('今天')).toBeInTheDocument()
-  expect(screen.getByText('更早')).toBeInTheDocument()
+  expect(screen.getByTestId('task-group-今天')).toBeInTheDocument()
+  expect(screen.getByTestId('task-group-更早')).toBeInTheDocument()
 })
 
 it('filters by status', async () => {
@@ -46,4 +47,36 @@ it('explains when nothing matches and resets', async () => {
   expect(screen.getByTestId('task-list-filtered-empty')).toBeInTheDocument()
   await userEvent.click(screen.getByRole('button', { name: '清除筛选' }))
   expect(screen.getByText('整理收件箱')).toBeInTheDocument()
+})
+
+it('filters by time window', async () => {
+  seed()
+  const now = Date.now()
+  const daysAgo = (days: number): string => new Date(now - days * 86_400_000).toISOString()
+  const recent = [
+    summaryOf({ id: 'run-now', title: '刚刚的任务', startedAt: daysAgo(0) }),
+    summaryOf({ id: 'run-old', title: '十天前的任务', startedAt: daysAgo(10) }),
+    summaryOf({ id: 'run-ancient', title: '四十天前的任务', startedAt: daysAgo(40) }),
+  ]
+  render(<TaskList runs={recent} activeId={null} onSelect={() => {}} />)
+
+  await userEvent.click(screen.getByTestId('task-time-today'))
+  expect(screen.getByText('刚刚的任务')).toBeInTheDocument()
+  expect(screen.queryByText('十天前的任务')).not.toBeInTheDocument()
+
+  await userEvent.click(screen.getByTestId('task-time-week'))
+  expect(screen.queryByText('十天前的任务')).not.toBeInTheDocument()
+
+  await userEvent.click(screen.getByTestId('task-time-month'))
+  expect(screen.getByText('十天前的任务')).toBeInTheDocument()
+  expect(screen.queryByText('四十天前的任务')).not.toBeInTheDocument()
+})
+
+it('pins a task to the top and remembers it', async () => {
+  seed()
+  render(<TaskList runs={runs} activeId={null} onSelect={() => {}} />)
+  await userEvent.click(screen.getAllByTestId('pin-task')[0])
+  expect(screen.getByText('置顶')).toBeInTheDocument()
+  expect(globalThis.localStorage?.getItem('conatus.pinnedTasks')).toContain('run-a')
+  expect(useUiStore.getState().pinnedTaskIds).toEqual(['run-a'])
 })

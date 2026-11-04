@@ -173,3 +173,14 @@ it('disables sending in replay mode and says why', () => {
   expect(screen.getByTestId('composer-ended')).toHaveTextContent('回放模式')
   expect(screen.queryByTestId('composer-send')).not.toBeInTheDocument()
 })
+
+it('expands the result pane and exits with escape', async () => {
+  seedRun([])
+  render(<Shell />)
+  const pane = screen.getByTestId('right-pane')
+  expect(pane).toHaveAttribute('data-expanded', 'false')
+  await userEvent.click(screen.getByTestId('right-expand'))
+  expect(pane).toHaveAttribute('data-expanded', 'true')
+  fireEvent.keyDown(window, { key: 'Escape' })
+  expect(pane).toHaveAttribute('data-expanded', 'false')
+})

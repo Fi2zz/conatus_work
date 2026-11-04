@@ -82,5 +82,5 @@ it('marks synthetic fixtures in the run header', () => {
 
 it('groups the newest day under 今天', () => {
   render(<TaskList runs={[summaryOf()]} activeId="run-a" onSelect={() => {}} />)
-  expect(screen.getByText('今天')).toBeInTheDocument()
+  expect(screen.getByTestId('task-group-今天')).toBeInTheDocument()
 })

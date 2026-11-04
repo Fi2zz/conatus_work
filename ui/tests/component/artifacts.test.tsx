@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react'
+import { render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import * as XLSX from 'xlsx'
 
@@ -139,4 +139,21 @@ it('explains a failed reveal instead of doing nothing', async () => {
   render(<ArtifactPanel />)
   await userEvent.click(await screen.findByTestId('reveal-artifact'))
   expect(await screen.findByTestId('reveal-artifact-error')).toHaveTextContent('回放模式没有真实文件')
+})
+
+it('refreshes the preview on demand', async () => {
+  seedArtifacts([artifact('out/report.md')], { 'out/report.md': '# 结论\n\n数据可用。' })
+  const module = await import('@/bridge/transport-store')
+  const transport = module.getTransport()
+  const original = transport.readArtifact
+  let calls = 0
+  transport.readArtifact = async (runId, path) => {
+    calls += 1
+    return original(runId, path)
+  }
+  render(<ArtifactPanel />)
+  await screen.findByRole('heading', { name: '结论' })
+  expect(calls).toBe(1)
+  await userEvent.click(screen.getByTestId('refresh-artifact'))
+  await waitFor(() => expect(calls).toBe(2))
 })
