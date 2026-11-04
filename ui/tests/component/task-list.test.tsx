@@ -8,7 +8,14 @@ import { summaryOf } from '../helpers/transport'
 
 function seed(): void {
   globalThis.localStorage?.clear()
-  useUiStore.setState({ taskQuery: '', taskStatus: 'all', taskTime: 'all', pinnedTaskIds: [] })
+  useUiStore.setState({
+    taskQuery: '',
+    taskStatus: 'all',
+    taskTime: 'all',
+    pinnedTaskIds: [],
+    taskTitles: {},
+    archivedTaskIds: [],
+  })
 }
 
 const runs = [
@@ -79,4 +86,25 @@ it('pins a task to the top and remembers it', async () => {
   expect(screen.getByText('置顶')).toBeInTheDocument()
   expect(globalThis.localStorage?.getItem('conatus.pinnedTasks')).toContain('run-a')
   expect(useUiStore.getState().pinnedTaskIds).toEqual(['run-a'])
+})
+
+it('renames a task inline', async () => {
+  seed()
+  render(<TaskList runs={runs} activeId={null} onSelect={() => {}} />)
+  await userEvent.click(screen.getAllByTestId('task-menu')[0])
+  await userEvent.click(screen.getByTestId('task-rename'))
+  const input = screen.getByTestId('task-rename-input')
+  await userEvent.clear(input)
+  await userEvent.type(input, '整理收件箱（第二轮）{Enter}')
+  expect(screen.getByText('整理收件箱（第二轮）')).toBeInTheDocument()
+  expect(useUiStore.getState().taskTitles['run-a']).toBe('整理收件箱（第二轮）')
+})
+
+it('archives a task from the row menu', async () => {
+  seed()
+  render(<TaskList runs={runs} activeId={null} onSelect={() => {}} />)
+  await userEvent.click(screen.getAllByTestId('task-menu')[1])
+  await userEvent.click(screen.getByTestId('task-archive'))
+  expect(screen.queryByText('分析销售 CSV')).not.toBeInTheDocument()
+  expect(useUiStore.getState().archivedTaskIds).toContain('run-b')
 })

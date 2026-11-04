@@ -201,3 +201,23 @@ it('expands the result pane and exits with escape', async () => {
   fireEvent.keyDown(window, { key: 'Escape' })
   expect(pane).toHaveAttribute('data-expanded', 'false')
 })
+
+it('adds and removes a mock attachment', async () => {
+  seedRun([], { status: 'succeeded' })
+  transportWith({ mode: 'host' })
+  render(<Shell />)
+  await userEvent.click(screen.getByTestId('composer-attach'))
+  await userEvent.click(screen.getAllByTestId('composer-option')[0])
+  expect(screen.getByTestId('composer-attachment')).toHaveTextContent('会议纪要.docx')
+  await userEvent.click(screen.getByTestId('remove-attachment'))
+  expect(screen.queryByTestId('composer-attachment')).not.toBeInTheDocument()
+})
+
+it('inserts a context reference from the toolbar', async () => {
+  seedRun([], { status: 'succeeded' })
+  transportWith({ mode: 'host' })
+  render(<Shell />)
+  await userEvent.click(screen.getByTestId('composer-mention'))
+  await userEvent.click(screen.getAllByTestId('composer-option')[0])
+  expect(useUiStore.getState().composerDraft).toContain('@当前工作区')
+})

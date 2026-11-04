@@ -5,12 +5,14 @@ import { Tabs } from '@/components/ui/tabs'
 import { ArtifactPanel } from '@/features/artifacts/ArtifactPanel'
 import { ChangePanel } from '@/features/changes/ChangePanel'
 import { CheckpointPanel } from '@/features/checkpoints/CheckpointPanel'
+import { WorkspacePanel } from '@/features/workspace/WorkspacePanel'
 import { cn } from '@/lib/utils'
 import { useUiStore, type RightTab } from '@/state/ui-state'
 import { useWorkbench } from '@/state/workbench-store'
 
 const TABS: Array<{ value: RightTab; label: string }> = [
   { value: 'artifacts', label: '产物' },
+  { value: 'files', label: '文件' },
   { value: 'changes', label: '变更' },
   { value: 'checkpoints', label: '检查点' },
 ]
@@ -33,6 +35,7 @@ export function RightPane(): JSX.Element {
 
   const counts: Record<RightTab, number | undefined> = {
     artifacts: run?.artifacts.length,
+    files: undefined,
     changes: run?.changes?.files.length,
     checkpoints: run?.checkpoints.turns.length,
   }
@@ -66,6 +69,7 @@ export function RightPane(): JSX.Element {
       </div>
       <div className="flex min-h-0 flex-1 flex-col">
         {tab === 'artifacts' ? <ArtifactPanel /> : null}
+        {tab === 'files' ? <WorkspacePanel /> : null}
         {tab === 'changes' ? <ChangePanel /> : null}
         {tab === 'checkpoints' ? <CheckpointPanel /> : null}
       </div>

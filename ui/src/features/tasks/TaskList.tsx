@@ -21,10 +21,14 @@ export function TaskList({ runs, activeId, onSelect, loading = false }: TaskList
   const status = useUiStore((state) => state.taskStatus)
   const time = useUiStore((state) => state.taskTime)
   const pinned = useUiStore((state) => state.pinnedTaskIds)
+  const titles = useUiStore((state) => state.taskTitles)
+  const archived = useUiStore((state) => state.archivedTaskIds)
   const setQuery = useUiStore((state) => state.setTaskQuery)
   const setStatus = useUiStore((state) => state.setTaskStatus)
   const setTime = useUiStore((state) => state.setTaskTime)
   const togglePin = useUiStore((state) => state.togglePinnedTask)
+  const setTaskTitle = useUiStore((state) => state.setTaskTitle)
+  const archiveTask = useUiStore((state) => state.archiveTask)
 
   if (loading) return <Skeleton rows={5} />
   if (runs.length === 0) {
@@ -36,7 +40,10 @@ export function TaskList({ runs, activeId, onSelect, loading = false }: TaskList
   }
 
   const needle = query.trim().toLowerCase()
-  const visible = runs.filter((run) => {
+  const decorated = runs
+    .filter((run) => !archived.includes(run.id))
+    .map((run) => (titles[run.id] ? { ...run, title: titles[run.id] } : run))
+  const visible = decorated.filter((run) => {
     if (!matchesStatus(run, status) || !matchesTime(run, time)) return false
     if (needle === '') return true
     return `${run.title} ${run.taskId} ${run.chain}`.toLowerCase().includes(needle)
@@ -83,6 +90,8 @@ export function TaskList({ runs, activeId, onSelect, loading = false }: TaskList
                   pinned={pinnedIds.has(run.id)}
                   onSelect={onSelect}
                   onTogglePin={togglePin}
+                  onRename={setTaskTitle}
+                  onArchive={archiveTask}
                 />
               ))}
             </div>
