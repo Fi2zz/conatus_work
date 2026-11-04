@@ -340,6 +340,7 @@ npm run build                        # 产物可被 WebView 加载
   与 Flutter 桌面壳（`shell/`）。
 - 真实任务执行：`task.start` / `task.cancel`（未配置模型时明确报错）。
 - PDF 预览（blob URL）与图片 / CSV / TSV 预览。
+- DOCX / XLSX / XLS 内嵌预览（`docx-preview` + SheetJS，按需加载）。
 - 时间线零依赖虚拟化（`content-visibility`）。
 - UI CI：Vitest + Playwright 已进 `.github/workflows/test.yml`。
 
@@ -347,7 +348,7 @@ npm run build                        # 产物可被 WebView 加载
 
 - `message.send` / `approval.respond` 的宿主实现；UI 侧已接线并有失败反馈，契约见
   `2026-11-04-ui-shell-handoff.md`。
-- DOCX / XLSX / PPTX 内嵌预览与 Office 产物管线。
+- PPTX 内嵌预览与 Office 产物管线（DOCX / XLSX 已支持预览）。
 - 多任务并行执行与并行撤销（首版保持「一任务 = 一轮」）。
 - 安装升级、macOS 签名与公证、Windows 适配。
 - 品牌化视觉、动效、i18n（文案直接写中文）。

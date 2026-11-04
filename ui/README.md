@@ -37,8 +37,9 @@ npm run dev
 回放模式下发送框禁用并标注原因；真实宿主（`mode: 'host'`）发送失败时保留草稿并在
 输入框上方显示错误，审批提交失败时保留审批条并显示错误。
 
-产物预览：Markdown / HTML（sandbox iframe）/ 图片 / PDF / JSON / 纯文本，CSV 与 TSV
-渲染为表格；DOCX / XLSX / PPTX 等二进制给出明确说明，并提供「在 Finder 中显示」。
+产物预览：Markdown / HTML（sandbox iframe）/ 图片 / PDF / JSON / 纯文本 / CSV / TSV；
+DOCX 用 `docx-preview`、XLSX / XLS 用 SheetJS 解析，两个库都按需加载，不进首屏包；
+PPTX、旧版 `.doc` 等仍给出明确说明，并提供「在 Finder 中显示」。
 时间线用 `content-visibility` 跳过视口外的行，长任务不会一次性绘制全部条目。
 
 ## 测试
