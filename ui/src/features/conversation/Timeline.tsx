@@ -43,12 +43,13 @@ export function Timeline({ unknownEvents }: TimelineProps = {}): JSX.Element {
         ) : (
           <div className="flex flex-col">
             {entries.map((entry) => (
-              <EntryRow
-                key={`${entry.kind}-${entry.id}`}
-                entry={entry}
-                expanded={expandedKeys.has(entry.id)}
-                onToggle={toggleExpanded}
-              />
+              <div key={`${entry.kind}-${entry.id}`} className="timeline-row">
+                <EntryRow
+                  entry={entry}
+                  expanded={expandedKeys.has(entry.id)}
+                  onToggle={toggleExpanded}
+                />
+              </div>
             ))}
           </div>
         )}

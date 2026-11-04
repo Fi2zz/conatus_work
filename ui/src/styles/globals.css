@@ -309,3 +309,10 @@ body {
   border: 0;
   border-top: 1px solid var(--line);
 }
+
+/* 时间线很长时只绘制视口内的行；撑开的高度由 contain-intrinsic-size 估算。
+   零依赖虚拟化，WKWebView 与 Chromium 都支持；不支持时退化为普通渲染。 */
+.timeline-row {
+  content-visibility: auto;
+  contain-intrinsic-size: auto 56px;
+}

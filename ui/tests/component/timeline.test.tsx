@@ -83,3 +83,16 @@ it('switches to markdown once the message is done', () => {
   render(<Timeline />)
   expect(screen.getByRole('heading', { name: '结论' })).toBeInTheDocument()
 })
+
+it('keeps a 500-entry timeline rendered and marks rows for skipping offscreen paint', () => {
+  const entries = Array.from({ length: 500 }, (_, index): TimelineEntry => ({
+    kind: 'user',
+    id: `u${index}`,
+    at: index,
+    text: `第 ${index} 条`,
+  }))
+  seedRun(entries)
+  const { container } = render(<Timeline />)
+  expect(container.querySelectorAll('.timeline-row')).toHaveLength(500)
+  expect(screen.getByText('第 499 条')).toBeInTheDocument()
+})
