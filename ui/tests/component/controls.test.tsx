@@ -241,3 +241,21 @@ it('keeps the send control inside the composer box', () => {
   const box = screen.getByTestId('composer-box')
   expect(within(box).getByTestId('composer-send')).toBeInTheDocument()
 })
+
+it('adds a pasted file as an attachment chip', () => {
+  seedRun([], { status: 'succeeded' })
+  transportWith({ mode: 'host' })
+  render(<Shell />)
+  const file = new File(['x'], 'note.txt', { type: 'text/plain' })
+  fireEvent.paste(screen.getByTestId('composer-box'), { clipboardData: { files: [file] } })
+  expect(screen.getByTestId('composer-attachment')).toHaveTextContent('note.txt')
+})
+
+it('adds a dropped file as an attachment chip', () => {
+  seedRun([], { status: 'succeeded' })
+  transportWith({ mode: 'host' })
+  render(<Shell />)
+  const file = new File(['x'], 'report.csv', { type: 'text/csv' })
+  fireEvent.drop(screen.getByTestId('composer-box'), { dataTransfer: { files: [file] } })
+  expect(screen.getByTestId('composer-attachment')).toHaveTextContent('report.csv')
+})

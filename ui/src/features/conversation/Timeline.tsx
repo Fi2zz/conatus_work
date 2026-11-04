@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import type { JSX } from 'react'
 
+import { getTransport, hasTransport } from '@/bridge/transport-store'
 import type { TimelineEntry } from '@/bridge/types'
 import { EmptyState } from '@/components/ui/empty-state'
 import { formatOffset } from '@/lib/time'
@@ -38,8 +39,15 @@ export function Timeline({ unknownEvents }: TimelineProps = {}): JSX.Element {
   const [query, setQuery] = useState('')
   const [historyOpen, setHistoryOpen] = useState(false)
   const [copiedId, setCopiedId] = useState<string | null>(null)
+  const [actionError, setActionError] = useState<string | null>(null)
+  const [atBottom, setAtBottom] = useState(true)
+  const [newCount, setNewCount] = useState(0)
   const searchRef = useRef<HTMLInputElement>(null)
+  const listRef = useRef<HTMLDivElement>(null)
+  const setDraft = useUiStore((state) => state.setComposerDraft)
   const pending = unknownEvents ?? counter
+  const running = run?.status === 'running' || run?.status === 'pending'
+  const canRetry = hasTransport() && getTransport().mode === 'host' && !running
 
   useEffect(() => {
     function onKeyDown(event: KeyboardEvent): void {
@@ -77,8 +85,47 @@ export function Timeline({ unknownEvents }: TimelineProps = {}): JSX.Element {
     setCopiedId(rowId(entry))
   }
 
+  useEffect(() => {
+    const node = listRef.current
+    if (!node) return
+    if (atBottom) {
+      node.scrollTop = node.scrollHeight
+      setNewCount(0)
+    } else {
+      setNewCount((count) => count + 1)
+    }
+  }, [entries.length, atBottom])
+
+  function onScroll(): void {
+    const node = listRef.current
+    if (!node) return
+    const bottom = node.scrollHeight - node.scrollTop - node.clientHeight < 48
+    setAtBottom(bottom)
+    if (bottom) setNewCount(0)
+  }
+
+  function scrollToBottom(): void {
+    const node = listRef.current
+    if (!node) return
+    node.scrollTo?.({ top: node.scrollHeight, behavior: 'smooth' })
+    setAtBottom(true)
+    setNewCount(0)
+  }
+
+  function quote(entry: TimelineEntry): void {
+    const text = entryText(entry).replace(/\n/g, '\n> ')
+    setDraft(`> ${text}\n\n`)
+  }
+
+  async function retry(entry: UserEntry): Promise<void> {
+    if (!run || !canRetry) return
+    setActionError(null)
+    const result = await getTransport().sendMessage(run.id, entry.text)
+    if (!result.ok) setActionError(`重发失败：${result.error.message}`)
+  }
+
   return (
-    <div className="flex h-full min-h-0 flex-col">
+    <div className="relative flex h-full min-h-0 flex-col">
       <div className="relative flex items-center justify-between border-b border-line/70 px-3 py-1.5">
         <span className="label-micro">执行过程</span>
         <div className="flex items-center gap-1.5">
@@ -150,7 +197,13 @@ export function Timeline({ unknownEvents }: TimelineProps = {}): JSX.Element {
         </div>
       ) : null}
 
-      <div data-testid="timeline-list" className="min-h-0 flex-1 overflow-y-auto px-2 py-2">
+      {actionError ? (
+        <p data-testid="timeline-action-error" role="alert" className="border-b border-line/70 px-3 py-1 text-[10.5px] text-danger">
+          {actionError}
+        </p>
+      ) : null}
+
+      <div ref={listRef} data-testid="timeline-list" onScroll={onScroll} className="min-h-0 flex-1 overflow-y-auto px-2 py-2">
         {entries.length === 0 ? (
           <EmptyState
             title={run ? (query.trim() === '' ? '还没有过程记录' : '没有匹配的记录') : '未选择任务'}
@@ -181,12 +234,43 @@ export function Timeline({ unknownEvents }: TimelineProps = {}): JSX.Element {
                   >
                     {copiedId === id ? '已复制' : '复制'}
                   </button>
+                  {entry.kind === 'user' || entry.kind === 'assistant' ? (
+                    <button
+                      type="button"
+                      data-testid="quote-entry"
+                      onClick={() => quote(entry)}
+                      className="absolute top-1 right-10 rounded-sm px-1 text-[10px] text-ink-faint opacity-0 transition-opacity group-hover:opacity-100 hover:bg-panel-muted hover:text-ink focus:opacity-100"
+                    >
+                      引用
+                    </button>
+                  ) : null}
+                  {entry.kind === 'user' && canRetry ? (
+                    <button
+                      type="button"
+                      data-testid="retry-entry"
+                      onClick={() => void retry(entry)}
+                      className="absolute top-1 right-[4.1rem] rounded-sm px-1 text-[10px] text-ink-faint opacity-0 transition-opacity group-hover:opacity-100 hover:bg-panel-muted hover:text-ink focus:opacity-100"
+                    >
+                      重发
+                    </button>
+                  ) : null}
                 </div>
               )
             })}
           </div>
         )}
       </div>
+
+      {!atBottom ? (
+        <button
+          type="button"
+          data-testid="scroll-bottom"
+          onClick={scrollToBottom}
+          className="absolute right-3 bottom-3 z-10 rounded-full border border-line bg-panel px-2.5 py-1 text-[10.5px] text-ink-muted shadow-panel hover:text-ink"
+        >
+          回到最新{newCount > 0 ? ` (${newCount})` : ''}
+        </button>
+      ) : null}
     </div>
   )
 }

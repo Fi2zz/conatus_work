@@ -24,6 +24,7 @@ it('switches modules from the prototype nav', async () => {
 it('filters experts and summons one', async () => {
   useUiStore.setState({ module: 'experts' })
   renderFrame()
+  await screen.findByTestId('experts-page')
   await userEvent.type(screen.getByTestId('expert-search'), '数据分析')
   expect(screen.getByText('数据分析师')).toBeInTheDocument()
   expect(screen.queryByText('文件整理管家')).not.toBeInTheDocument()
@@ -35,6 +36,7 @@ it('filters experts and summons one', async () => {
 it('installs a skill from the market', async () => {
   useUiStore.setState({ module: 'skills' })
   renderFrame()
+  await screen.findByTestId('skills-page')
   await userEvent.click(screen.getByTestId('skill-tab-market'))
   await userEvent.click(screen.getAllByTestId('skill-install')[0])
   expect(screen.getByTestId('skill-notice')).toHaveTextContent('已安装')
@@ -43,6 +45,7 @@ it('installs a skill from the market', async () => {
 it('toggles a connector authorization', async () => {
   useUiStore.setState({ module: 'connectors' })
   renderFrame()
+  await screen.findByTestId('connectors-page')
   await userEvent.click(screen.getAllByTestId('connector-toggle')[0])
   expect(screen.getByText(/已断开「腾讯文档」/)).toBeInTheDocument()
 })
@@ -50,6 +53,7 @@ it('toggles a connector authorization', async () => {
 it('runs and records automation history', async () => {
   useUiStore.setState({ module: 'automation' })
   renderFrame()
+  await screen.findByTestId('automation-page')
   await userEvent.click(screen.getAllByTestId('automation-run')[0])
   expect(screen.getByText(/已触发一次测试运行/)).toBeInTheDocument()
   await userEvent.click(screen.getAllByTestId('automation-history')[0])
@@ -59,6 +63,7 @@ it('runs and records automation history', async () => {
 it('creates an automation from the dialog', async () => {
   useUiStore.setState({ module: 'automation' })
   renderFrame()
+  await screen.findByTestId('automation-page')
   await userEvent.click(screen.getByTestId('automation-create'))
   await userEvent.type(screen.getByTestId('automation-name'), '每日站会摘要')
   await userEvent.click(screen.getByTestId('automation-save'))
@@ -68,6 +73,7 @@ it('creates an automation from the dialog', async () => {
 it('clears cache and restores an archived task', async () => {
   useUiStore.setState({ module: 'data' })
   renderFrame()
+  await screen.findByTestId('data-page')
   await userEvent.click(screen.getByTestId('data-clear'))
   expect(screen.getByTestId('data-storage')).toHaveTextContent('0 KB')
   await userEvent.click(screen.getAllByTestId('archive-restore')[0])

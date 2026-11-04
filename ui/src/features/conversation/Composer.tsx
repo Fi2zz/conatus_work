@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import type { JSX, KeyboardEvent as ReactKeyboardEvent } from 'react'
+import type { JSX, ClipboardEvent as ReactClipboardEvent, DragEvent as ReactDragEvent, KeyboardEvent as ReactKeyboardEvent } from 'react'
 
 import { getTransport, hasTransport } from '@/bridge/transport-store'
 import { Button } from '@/components/ui/button'
@@ -65,6 +65,23 @@ export function Composer(): JSX.Element {
     setAttachments((current) => (current.includes(name) ? current : [...current, name]))
   }
 
+  function addFiles(files: FileList | File[]): void {
+    for (const file of Array.from(files)) addAttachment(file.name || '粘贴的截图.png')
+  }
+
+  function onPaste(event: ReactClipboardEvent<HTMLDivElement>): void {
+    const files = Array.from(event.clipboardData.files)
+    if (files.length === 0) return
+    event.preventDefault()
+    addFiles(files)
+  }
+
+  function onDrop(event: ReactDragEvent<HTMLDivElement>): void {
+    if (event.dataTransfer.files.length === 0) return
+    event.preventDefault()
+    addFiles(event.dataTransfer.files)
+  }
+
   function insert(text: string): void {
     setDraft(draft.trim() === '' ? text : `${draft} ${text}`)
     area.current?.focus()
@@ -94,7 +111,13 @@ export function Composer(): JSX.Element {
           {error}
         </p>
       ) : null}
-      <div data-testid="composer-box" className="rounded-xl border border-line bg-canvas transition-colors focus-within:border-accent">
+      <div
+        data-testid="composer-box"
+        onPaste={onPaste}
+        onDrop={onDrop}
+        onDragOver={(event) => event.preventDefault()}
+        className="rounded-xl border border-line bg-canvas transition-colors focus-within:border-accent"
+      >
         {attachments.length > 0 ? (
           <div className="flex flex-wrap gap-1 px-3 pt-2">
             {attachments.map((name) => (

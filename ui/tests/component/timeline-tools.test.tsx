@@ -58,3 +58,10 @@ it('copies an entry and shows feedback', async () => {
   expect(write).toHaveBeenCalledWith('整理收件箱')
   expect(screen.getAllByTestId('copy-entry')[0]).toHaveTextContent('已复制')
 })
+
+it('quotes an entry into the composer', async () => {
+  seedRun(entries)
+  render(<Timeline />)
+  await userEvent.click(screen.getAllByTestId('quote-entry')[0])
+  expect(useUiStore.getState().composerDraft).toContain('> 整理收件箱')
+})
