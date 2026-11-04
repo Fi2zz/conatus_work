@@ -5,18 +5,11 @@ import 'dart:async';
 
 import 'package:conatus/conatus.dart';
 
+import '../bridge/bridge_error.dart';
+
 /// 审批相关命令的失败；[code] 直接写进桥接错误帧。
-class ApprovalError implements Exception {
-  const ApprovalError(this.code, this.message);
-
-  /// `NOT_FOUND` / `DENIED` / `INTERNAL`。
-  final String code;
-
-  /// 人可读说明。
-  final String message;
-
-  @override
-  String toString() => 'ApprovalError($code): $message';
+class ApprovalError extends BridgeError {
+  const ApprovalError(super.code, super.message);
 }
 
 /// 把 [ApprovalRequest] 转给外部处理器，并把请求广播到 [pending] 流。

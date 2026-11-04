@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:conatus/conatus.dart';
+import 'package:conatus_work/src/bridge/bridge_error.dart';
 import 'package:conatus_work/src/bridge/task_service.dart';
 import 'package:conatus_work/src/runner/approval_bridge.dart';
 import 'package:conatus_work/src/runner/assembly.dart';
@@ -416,6 +417,91 @@ void main() {
     );
     await runner.cancel(runId);
     expect(File('${tmp.path}/runs/$runId/abort.request').existsSync(), isTrue);
+  });
+
+  test('send 在已结束 run 上续写并推完整事件链', () async {
+    final List<Map<String, Object?>> events = <Map<String, Object?>>[];
+    final TaskService runner = service(
+      body: (RunScope scope, TaskSpec task) async {
+        final String? text = scope.userText;
+        if (text != null) {
+          scope.session.append('user/message', data: <String, Object?>{
+            'text': text,
+          });
+          scope.session.append('assistant/message', data: <String, Object?>{
+            'text': '收到',
+          });
+        }
+        return const TaskOutcome.ok(
+          tokens: TokenUsage(prompt: 1, completion: 1),
+        );
+      },
+    );
+    final String runId = await runner.start(
+      cardId: 'move-v01',
+      onEvent: events.add,
+    );
+    expect(
+      await _waitFor(
+        () => events.any((Map<String, Object?> e) => e['type'] == 'task/ended'),
+      ),
+      isTrue,
+    );
+    events.clear();
+
+    await runner.send(runId, '继续做', onEvent: events.add);
+    final bool finished = await _waitFor(
+      () => events.any((Map<String, Object?> e) => e['type'] == 'task/ended'),
+    );
+    expect(finished, isTrue, reason: '续写应产生新的 task/ended');
+
+    final Map<String, Object?> user = events.firstWhere(
+      (Map<String, Object?> e) => e['type'] == 'message/user',
+    );
+    expect((user['data']! as Map<String, Object?>)['text'], '继续做');
+    expect(
+      events.any(
+        (Map<String, Object?> e) => e['type'] == 'message/assistant/done',
+      ),
+      isTrue,
+    );
+    expect(
+      events.any((Map<String, Object?> e) => e['type'] == 'usage/updated'),
+      isTrue,
+    );
+    expect(
+      events.any(
+        (Map<String, Object?> e) => e['type'] == 'checkpoint/recorded',
+      ),
+      isTrue,
+    );
+    final Map<String, Object?> ended = events.last;
+    expect(
+      (ended['data']! as Map<String, Object?>)['status'],
+      'succeeded',
+    );
+  });
+
+  test('运行中的 run 拒绝 send', () async {
+    final TaskService runner = service(
+      body: (RunScope scope, TaskSpec task) async {
+        await Future<void>.delayed(const Duration(milliseconds: 800));
+        return const TaskOutcome.ok();
+      },
+    );
+    final String runId = await runner.start(cardId: 'move-v01', onEvent: (_) {});
+    await Future<void>.delayed(const Duration(milliseconds: 150));
+    await expectLater(
+      runner.send(runId, '插话', onEvent: (_) {}),
+      throwsA(
+        isA<BridgeError>().having(
+          (BridgeError error) => error.code,
+          'code',
+          'DENIED',
+        ),
+      ),
+    );
+    await runner.cancel(runId);
   });
 
   test('非法任务卡 id 被拒绝', () async {

@@ -8,15 +8,17 @@ import 'dart:io';
 import 'package:conatus/conatus.dart';
 import 'package:http/http.dart' as http;
 
+import '../runner/abort_signal.dart';
 import '../runner/agent_task_body.dart';
 import '../runner/approval_bridge.dart';
 import '../runner/llm_config.dart';
 import '../runner/llm_runtime.dart';
 import '../runner/run_paths.dart';
 import '../runner/run_store.dart';
-import '../runner/run_types.dart';
 import '../runner/runner.dart';
 import '../runner/task_spec.dart';
+import 'bridge_error.dart';
+import 'projection_events.dart';
 import 'projection_io.dart';
 import 'projection_payload.dart';
 import 'run_watch.dart';
@@ -180,12 +182,131 @@ class TaskService {
       throw ApprovalError('NOT_FOUND', '未知审批请求：$requestId');
     }
     _resolvedApprovals.add(requestId);
-    pending.emit(_approvalEvent('approval/resolved', pending.runId, <String, Object?>{
+    pending.emit(_extraEvent('approval/resolved', pending.runId, <String, Object?>{
       'requestId': requestId,
       'name': pending.name,
       'decision': decision,
     }));
     pending.completer.complete(decision == 'allow');
+  }
+
+  /// 在已结束的 run 上追加一条用户消息并继续执行；事件从 `onEvent` 增量推送。
+  Future<void> send(
+    String runId,
+    String text, {
+    required void Function(Map<String, Object?>) onEvent,
+  }) async {
+    if (text.trim().isEmpty) {
+      throw const BridgeError('INTERNAL', '发送内容不能为空');
+    }
+    final RunRecord record = await _loadRecord(runId);
+    if (_streams.containsKey(runId) ||
+        (record.status == TaskRunStatus.running && pidAlive(record.pid))) {
+      throw const BridgeError('DENIED', '该运行仍在执行，先停止再发送');
+    }
+    final LlmRuntime runtime;
+    try {
+      runtime = _runtime();
+    } on StateError catch (error) {
+      throw BridgeError('INTERNAL', error.message);
+    }
+    final RunPaths paths = RunPaths(runsDir: runsDir, runId: runId);
+    final String startedAt = record.startedAt.toIso8601String();
+    final int startSeq = buildEventStream(
+      readJsonLines(paths.eventsPath),
+      startedAt,
+    ).length;
+    final RunEventStream stream = RunEventStream(
+      path: paths.eventsPath,
+      startedAt: startedAt,
+      startSeq: startSeq,
+    );
+    _streams[runId] = stream;
+    _runtimes[runId] = runtime;
+    void emit(Map<String, Object?> event) =>
+        onEvent(<String, Object?>{...event, 'runId': runId});
+    emit(
+      _extraEvent('task/status', runId, <String, Object?>{
+        'status': 'running',
+      }),
+    );
+    await stream.start(
+      emit,
+      interval: pollInterval,
+      startAtEnd: true,
+    );
+    unawaited(_continueRun(record, text, paths, stream, emit, runtime));
+  }
+
+  Future<void> _continueRun(
+    RunRecord record,
+    String text,
+    RunPaths paths,
+    RunEventStream stream,
+    void Function(Map<String, Object?>) emit,
+    LlmRuntime runtime,
+  ) async {
+    try {
+      final RunnerApproval approval = RunnerApproval(
+        onRequest: (ApprovalRequest request) =>
+            _requestApproval(record.runId, request, emit),
+      );
+      final RunRecord updated =
+          await Runner(
+            body: body ?? agentTaskBody,
+            runsDir: runsDir,
+            llm: runtime,
+          ).continueRun(
+            record.runId,
+            text,
+            onStream: (LlmStreamEvent event) {
+              if (event is LlmTextDelta) stream.emitDelta(event.text);
+            },
+            approval: approval,
+          );
+      stream.stop();
+      for (final Map<String, Object?> event in _tail(
+        updated,
+        paths,
+        stream.seq,
+      )) {
+        emit(event);
+      }
+    } on Object catch (error) {
+      stream.stop();
+      emit(<String, Object?>{
+        'seq': stream.seq,
+        'at': 0,
+        'type': 'task/ended',
+        'data': <String, Object?>{
+          'status': 'failed',
+          'endedAt': DateTime.now().toIso8601String(),
+          'failure': <String, Object?>{
+            'category': 'internal',
+            'message': '$error',
+          },
+        },
+      });
+    } finally {
+      _denyPending(record.runId);
+      _streams.remove(record.runId);
+      _runtimes.remove(record.runId)?.abortInFlight();
+    }
+  }
+
+  Future<RunRecord> _loadRecord(String runId) async {
+    if (runId.isEmpty || runId.contains('/') || runId.contains('..')) {
+      throw const BridgeError('NOT_FOUND', '没有这个运行');
+    }
+    final RunPaths paths = RunPaths(runsDir: runsDir, runId: runId);
+    if (!File(paths.runJsonPath).existsSync()) {
+      throw BridgeError('NOT_FOUND', '没有这个运行：$runId');
+    }
+    try {
+      return await RunStore(paths).load();
+    } on Object {
+      throw BridgeError('NOT_FOUND', '运行记录不合法：$runId');
+    }
   }
 
   Future<bool> _requestApproval(
@@ -200,7 +321,7 @@ class TaskService {
       emit: emit,
       completer: completer,
     );
-    emit(_approvalEvent('approval/requested', runId, <String, Object?>{
+    emit(_extraEvent('approval/requested', runId, <String, Object?>{
       'requestId': request.id,
       'callId': request.id,
       'name': request.toolName,
@@ -214,7 +335,7 @@ class TaskService {
         if (pending == null) return false;
         _resolvedApprovals.add(request.id);
         pending.emit(
-          _approvalEvent('approval/resolved', runId, <String, Object?>{
+          _extraEvent('approval/resolved', runId, <String, Object?>{
             'requestId': request.id,
             'name': request.toolName,
             'decision': 'deny',
@@ -225,7 +346,7 @@ class TaskService {
     );
   }
 
-  Map<String, Object?> _approvalEvent(
+  Map<String, Object?> _extraEvent(
     String type,
     String runId,
     Map<String, Object?> data,
@@ -246,7 +367,7 @@ class TaskService {
       final _PendingApproval? pending = _approvals.remove(id);
       if (pending == null) continue;
       _resolvedApprovals.add(id);
-      pending.emit(_approvalEvent('approval/resolved', runId, <String, Object?>{
+      pending.emit(_extraEvent('approval/resolved', runId, <String, Object?>{
         'requestId': id,
         'name': pending.name,
         'decision': 'deny',
@@ -353,6 +474,16 @@ class TaskService {
         'data': changes,
       });
     }
+    events.add(<String, Object?>{
+      'seq': cursor++,
+      'at': 0,
+      'type': 'usage/updated',
+      'data': <String, Object?>{
+        'inputTokens': record.inputTokens,
+        'outputTokens': record.outputTokens,
+        'costUsd': record.costUsd,
+      },
+    });
     if (record.endTurn != null && record.endTurn! > (record.startTurn ?? 0)) {
       events.add(<String, Object?>{
         'seq': cursor++,
@@ -366,16 +497,6 @@ class TaskService {
         },
       });
     }
-    events.add(<String, Object?>{
-      'seq': cursor++,
-      'at': 0,
-      'type': 'usage/updated',
-      'data': <String, Object?>{
-        'inputTokens': record.inputTokens,
-        'outputTokens': record.outputTokens,
-        'costUsd': record.costUsd,
-      },
-    });
     events.add(<String, Object?>{
       'seq': cursor++,
       'at': 0,

@@ -6,9 +6,9 @@ library;
 import 'dart:convert';
 import 'dart:typed_data';
 
-import '../runner/approval_bridge.dart';
 import '../runner/run_types.dart';
 import 'bridge.dart';
+import 'bridge_error.dart';
 import 'config_store.dart';
 import 'task_service.dart';
 
@@ -91,7 +91,7 @@ class BridgeHost {
       return <String>[
         _result(id, await _run(command, _payloadOf(decoded['payload']))),
       ];
-    } on ApprovalError catch (error) {
+    } on BridgeError catch (error) {
       return <String>[_error(id, error.code, error.message)];
     } on StateError catch (error) {
       return <String>[_error(id, 'NOT_FOUND', error.message)];
@@ -205,13 +205,21 @@ class BridgeHost {
               push?.call(_eventFrame(event)),
         );
         return <String, Object?>{'runId': runId};
+      case 'message.send':
+        await _tasks().send(
+          _requireString(payload, 'runId'),
+          _requireString(payload, 'text'),
+          onEvent: (Map<String, Object?> event) =>
+              push?.call(_eventFrame(event)),
+        );
+        return null;
       case 'task.cancel':
         await _tasks().cancel(_requireString(payload, 'runId'));
         return <String, Object?>{'status': 'aborted'};
       case 'approval.respond':
         final String decision = _requireString(payload, 'decision');
         if (decision != 'allow' && decision != 'deny') {
-          throw const ApprovalError('INTERNAL', 'decision 必须是 allow 或 deny');
+          throw const BridgeError('INTERNAL', 'decision 必须是 allow 或 deny');
         }
         await _tasks().respondApproval(
           _requireString(payload, 'requestId'),

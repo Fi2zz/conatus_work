@@ -140,6 +140,26 @@ void main() {
     expect((frame['error']! as Map<String, Object?>)['code'], 'NOT_FOUND');
   });
 
+  test('message.send 未知 run 回 NOT_FOUND', () async {
+    host = BridgeHost(
+      bridge: WorkbenchBridge(runsDir: runsRoot.path),
+      tasks: TaskService(
+        runsDir: runsRoot.path,
+        tasksDir: runsRoot.path,
+        env: <String, String>{
+          'WORK_LLM_BASE_URL': 'http://x',
+          'WORK_LLM_MODEL': 'm',
+        },
+      ),
+    );
+    final Map<String, Object?> frame = await call(
+      'message.send',
+      <String, Object?>{'runId': 'run_missing', 'text': '继续'},
+    );
+    expect(frame['ok'], isFalse);
+    expect((frame['error']! as Map<String, Object?>)['code'], 'NOT_FOUND');
+  });
+
   test('task.list 返回任务摘要', () async {
     final Map<String, Object?> frame = await call('task.list');
     expect(frame['ok'], isTrue);
