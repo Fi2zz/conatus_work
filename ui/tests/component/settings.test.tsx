@@ -75,3 +75,15 @@ it('offers multiple providers and fills the model preset', async () => {
   expect(screen.getByTestId('settings-model')).toHaveValue('gpt-4o')
   expect(screen.getByTestId('settings-price-in')).toHaveValue('2.5')
 })
+
+it('lists current Kimi models instead of only K2', async () => {
+  transportWith({})
+  render(<SettingsPage />)
+  await userEvent.selectOptions(screen.getByTestId('settings-provider'), 'moonshot')
+  const model = screen.getByTestId('settings-model-select') as HTMLSelectElement
+  const labels = [...model.options].map((option) => option.textContent)
+  expect(labels).toContain('Kimi K3.1 Pro')
+  expect(labels).toContain('Kimi K3')
+  await userEvent.selectOptions(model, 'kimi-k3.1-pro')
+  expect(screen.getByTestId('settings-model')).toHaveValue('kimi-k3.1-pro')
+})
