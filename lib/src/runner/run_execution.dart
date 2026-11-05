@@ -4,6 +4,7 @@ library;
 import 'dart:io';
 
 import 'package:conatus/conatus.dart';
+import 'package:http/http.dart' as http;
 
 import 'abort_signal.dart';
 import 'artifacts.dart';
@@ -34,6 +35,7 @@ class RunExecution {
     this.onStream,
     this.approval,
     this.checkpointBudgetBytes,
+    this.networkClient,
   });
 
   final TaskBody body;
@@ -70,6 +72,9 @@ class RunExecution {
   /// 检查点磁盘预算（字节）；空表示读环境变量或默认值。
   final int? checkpointBudgetBytes;
 
+  /// 本次运行独占的联网 client；宿主持有并在取消时关闭。
+  final http.Client? networkClient;
+
   Future<RunRecord> execute() async {
     RunScope? scope;
     try {
@@ -85,6 +90,7 @@ class RunExecution {
           userText: userText,
           onStream: onStream,
           approval: approval,
+          networkClient: networkClient,
         ),
       );
       _attach(scope);

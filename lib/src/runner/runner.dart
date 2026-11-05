@@ -5,6 +5,7 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:conatus/conatus.dart';
+import 'package:http/http.dart' as http;
 
 import 'abort_signal.dart';
 import 'fixtures.dart';
@@ -75,6 +76,7 @@ class Runner {
     String? runId,
     void Function(LlmStreamEvent event)? onStream,
     Approval? approval,
+    http.Client? networkClient,
   }) async {
     final TaskSpec task = request.task;
     final String root = resolveWorkspaceRoot(
@@ -122,6 +124,7 @@ class Runner {
       checkpointBudgetBytes: checkpointBudgetBytes,
       onStream: onStream,
       approval: approval,
+      networkClient: networkClient,
     ).execute();
   }
 
@@ -131,6 +134,7 @@ class Runner {
     void Function(LlmStreamEvent event)? onStream,
     Approval? approval,
     bool confirmed = false,
+    http.Client? networkClient,
   }) async {
     final RunPaths paths = RunPaths(runsDir: runsDir, runId: runId);
     final RunStore store = RunStore(paths);
@@ -170,6 +174,7 @@ class Runner {
       accumulateUsage: true,
       onStream: onStream,
       approval: approval,
+      networkClient: networkClient,
     ).execute();
   }
 
@@ -179,6 +184,7 @@ class Runner {
     String text, {
     void Function(LlmStreamEvent event)? onStream,
     Approval? approval,
+    http.Client? networkClient,
   }) async {
     if (text.trim().isEmpty) {
       throw ArgumentError.value(text, 'text', '续写内容不能为空');
@@ -216,6 +222,7 @@ class Runner {
       accumulateUsage: true,
       onStream: onStream,
       approval: approval,
+      networkClient: networkClient,
     ).execute();
   }
 

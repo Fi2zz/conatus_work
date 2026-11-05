@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'dart:io';
+import 'package:conatus/conatus.dart';
 import 'package:conatus_work/src/runner/abort_signal.dart';
 import 'package:conatus_work/src/runner/run_paths.dart';
 import 'package:conatus_work/src/runner/run_store.dart';
@@ -156,6 +157,33 @@ void main() {
     );
     await runner.resume(record.runId, confirmed: true);
     expect(confirmed, isTrue);
+  });
+
+  test('中断后工具调用被守卫拒绝', () async {
+    ToolResult? toolResult;
+    final Runner runner = Runner(
+      runsDir: '${tmp.path}/runs',
+      body: (scope, task) async {
+        await AbortSignal(scope.paths.abortFlagPath).request();
+        toolResult = await scope.ctx.tools.call(
+          const ToolCall(
+            name: 'write',
+            arguments: <String, Object?>{'path': 'out/x.txt', 'content': 'x'},
+          ),
+        );
+        return const TaskOutcome.ok();
+      },
+    );
+    await runner.run(
+      RunRequest(
+        task: TaskSpec.parse(cardJson()),
+        taskPath: cardPath,
+        workspaceRoot: '${tmp.path}/work',
+      ),
+    );
+    expect(toolResult, isNotNull);
+    expect(toolResult!.isError, isTrue);
+    expect(toolResult!.content, contains('中断'));
   });
 
   test('resume 已成功的运行：拒绝', () async {

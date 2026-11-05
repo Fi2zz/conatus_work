@@ -88,6 +88,7 @@ class BridgeHost {
     }
     if (decoded['kind'] == 'hello') {
       try {
+        await tasks?.reconcile();
         return <String>[
           _frame(<String, Object?>{'v': kProtocolVersion, 'kind': 'welcome'}),
           _eventFrame(_snapshot()),
@@ -244,6 +245,11 @@ class BridgeHost {
           _requireString(payload, 'runId'),
         );
         return <String, Object?>{'status': cancelled};
+      case 'task.kill':
+        final String killed = await _tasks().kill(
+          _requireString(payload, 'runId'),
+        );
+        return <String, Object?>{'status': killed};
       case 'approval.respond':
         final String decision = _requireString(payload, 'decision');
         if (decision != 'allow' && decision != 'deny') {

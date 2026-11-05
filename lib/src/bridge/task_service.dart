@@ -66,6 +66,7 @@ class TaskService {
     LlmProvider? provider,
     this.workspacesDir,
     this.clientFactory,
+    this.networkClientFactory,
   }) : _env = env ?? Platform.environment,
        _provider = provider;
 
@@ -89,7 +90,11 @@ class TaskService {
 
   /// 每次运行一个 HTTP 客户端，取消时直接关闭，放弃在途请求。
   final http.Client Function()? clientFactory;
+
+  /// 每次运行独占的联网客户端（搜索 / 抓取）；缺省自建。
+  final http.Client Function()? networkClientFactory;
   final Map<String, LlmRuntime> _runtimes = <String, LlmRuntime>{};
+  final Map<String, http.Client> _networkClients = <String, http.Client>{};
   final Map<String, RunEventStream> _streams = <String, RunEventStream>{};
   final Map<String, _PendingApproval> _approvals = <String, _PendingApproval>{};
   final Set<String> _resolvedApprovals = <String>{};
@@ -131,11 +136,16 @@ class TaskService {
   }) async {
     final String path = _cardPath(cardId);
     final TaskSpec task = await TaskSpec.load(path);
+    await reconcile();
     await cleanupWorkspaces();
     final LlmRuntime runtime = _runtime();
     final String runId = newRunId(DateTime.now());
     _runtimes[runId] = runtime;
     final RunPaths paths = RunPaths(runsDir: runsDir, runId: runId);
+    final http.Client? networkClient = task.allowNetwork
+        ? (networkClientFactory ?? http.Client.new)()
+        : null;
+    if (networkClient != null) _networkClients[runId] = networkClient;
     final String? freshRoot = workspaceRoot == null
         ? _freshWorkspace(task.id, runId)
         : null;
@@ -165,7 +175,19 @@ class TaskService {
       'data': <String, Object?>{'status': 'running'},
     });
 
-    unawaited(_execute(task, path, runId, paths, emit, root, runtime, fixture));
+    unawaited(
+      _execute(
+        task,
+        path,
+        runId,
+        paths,
+        emit,
+        root,
+        runtime,
+        fixture,
+        networkClient,
+      ),
+    );
     return runId;
   }
 
@@ -188,8 +210,65 @@ class TaskService {
     return 'aborted';
   }
 
+  /// 启动对账：把 `running && !pidAlive` 的僵尸 run 收口为 aborted。
+  Future<void> reconcile() async {
+    final Directory dir = Directory(runsDir);
+    if (!dir.existsSync()) return;
+    for (final FileSystemEntity entity in dir.listSync()) {
+      if (entity is! Directory) continue;
+      final Map<String, Object?>? run = readJsonObject(
+        '${entity.path}${Platform.pathSeparator}run.json',
+      );
+      if (run == null || run['status'] != 'running') continue;
+      final int pid = run['pid'] as int? ?? 0;
+      if (pidAlive(pid)) continue;
+      final String runId =
+          run['runId'] as String? ??
+          entity.uri.pathSegments.lastWhere(
+            (String segment) => segment.isNotEmpty,
+          );
+      try {
+        await Runner(
+          body: body ?? agentTaskBody,
+          runsDir: runsDir,
+        ).abort(runId);
+      } on Object {
+        await _forceAbort(runId);
+      }
+    }
+  }
+
+  Future<void> _forceAbort(String runId) async {
+    try {
+      final RunPaths paths = RunPaths(runsDir: runsDir, runId: runId);
+      final RunStore store = RunStore(paths);
+      final RunRecord record = await store.load();
+      record
+        ..status = TaskRunStatus.aborted
+        ..endedAt = DateTime.now();
+      await store.save(record);
+    } on Object {
+      // 记录不可读时只能跳过。
+    }
+  }
+
+  /// 硬停止。没有 worker 时只能收口死进程；进程内运行返回明确原因。
+  Future<String> kill(String runId) async {
+    final RunRecord record = await _loadRecord(runId);
+    if (record.status != TaskRunStatus.running) return record.status.name;
+    if (!pidAlive(record.pid)) {
+      final RunRecord aborted = await Runner(
+        body: body ?? agentTaskBody,
+        runsDir: runsDir,
+      ).abort(runId);
+      return aborted.status.name;
+    }
+    throw const BridgeError('INTERNAL', '当前是进程内运行，无法硬停止；需要 worker 进程');
+  }
+
   Future<void> _requestAbort(String runId) async {
     _denyPending(runId);
+    _networkClients.remove(runId)?.close();
     _runtimes[runId]?.abortInFlight();
     final RunPaths paths = RunPaths(runsDir: runsDir, runId: runId);
     final File flag = File(paths.abortFlagPath);
@@ -254,6 +333,10 @@ class TaskService {
       startedAt: startedAt,
       startSeq: _nextSendSeq(),
     );
+    final http.Client? networkClient = task.allowNetwork
+        ? (networkClientFactory ?? http.Client.new)()
+        : null;
+    if (networkClient != null) _networkClients[runId] = networkClient;
     _streams[runId] = stream;
     _runtimes[runId] = runtime;
     void emit(Map<String, Object?> event) =>
@@ -262,7 +345,18 @@ class TaskService {
       _extraEvent('task/status', runId, <String, Object?>{'status': 'running'}),
     );
     await stream.start(emit, interval: pollInterval, startAtEnd: true);
-    unawaited(_continueRun(record, task, text, paths, stream, emit, runtime));
+    unawaited(
+      _continueRun(
+        record,
+        task,
+        text,
+        paths,
+        stream,
+        emit,
+        runtime,
+        networkClient,
+      ),
+    );
   }
 
   Future<void> _continueRun(
@@ -273,6 +367,7 @@ class TaskService {
     RunEventStream stream,
     void Function(Map<String, Object?>) emit,
     LlmRuntime runtime,
+    http.Client? networkClient,
   ) async {
     LiveWatcher? watcher;
     try {
@@ -304,6 +399,7 @@ class TaskService {
               if (event is LlmStreamDone) stream.endDelta();
             },
             approval: approval,
+            networkClient: networkClient,
           );
       await watcher.stop();
       await stream.flush();
@@ -333,6 +429,7 @@ class TaskService {
     } finally {
       await watcher?.stop();
       _denyPending(record.runId);
+      _networkClients.remove(record.runId)?.close();
       _streams.remove(record.runId);
       _runtimes.remove(record.runId)?.abortInFlight();
     }
@@ -447,6 +544,7 @@ class TaskService {
     String? workspaceRoot,
     LlmRuntime runtime,
     String? fixtureDir,
+    http.Client? networkClient,
   ) async {
     final RunEventStream stream = RunEventStream(
       path: paths.eventsPath,
@@ -493,6 +591,7 @@ class TaskService {
               if (event is LlmStreamDone) stream.endDelta();
             },
             approval: approval,
+            networkClient: networkClient,
           );
       await watcher.stop();
       await stream.flush();

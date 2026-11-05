@@ -4,10 +4,12 @@
 library;
 
 import 'package:conatus/conatus.dart';
+import 'package:http/http.dart' as http;
 
 import '../tools/mkdir.dart';
 import '../tools/move.dart';
 import '../tools/rooted_fs.dart';
+import 'abort_signal.dart';
 import 'llm_runtime.dart';
 import 'run_paths.dart';
 import 'task_spec.dart';
@@ -30,6 +32,7 @@ class AssemblyOptions {
     this.userText,
     this.onStream,
     this.approval,
+    this.networkClient,
   });
 
   /// 任务卡。
@@ -61,6 +64,9 @@ class AssemblyOptions {
 
   /// 工具审批端口；空表示不启用审批（CLI）。
   final Approval? approval;
+
+  /// 本次运行独占的联网 client；由宿主持有并在取消时关闭。
+  final http.Client? networkClient;
 }
 
 /// 一次运行持有的框架对象。
@@ -158,9 +164,13 @@ Future<RunScope> assembleRun(AssemblyOptions options) async {
   );
   ctx.tools.register(MkdirTool(fs: fs));
   ctx.tools.register(MoveTool(fs: fs));
+  ctx.tools.guard((ToolCall call) {
+    if (AbortSignal(paths.abortFlagPath).requested) return '运行已请求中断';
+    return null;
+  });
   if (task.allowNetwork) {
-    provideSearch(ctx);
-    provideWebTools(ctx);
+    provideSearch(ctx, client: options.networkClient);
+    provideWebTools(ctx, client: options.networkClient);
   }
   final Approval? approval = options.approval;
   if (approval != null) {

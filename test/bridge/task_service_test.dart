@@ -48,6 +48,22 @@ class _FakeClient extends http.BaseClient {
   }
 }
 
+/// 只记录是否被关闭的网络客户端。
+class _CloseTrackingClient extends http.BaseClient {
+  bool closed = false;
+
+  @override
+  Future<http.StreamedResponse> send(http.BaseRequest request) async {
+    throw UnimplementedError('测试不发真实请求');
+  }
+
+  @override
+  void close() {
+    closed = true;
+    super.close();
+  }
+}
+
 /// 只回一条最终消息的模型：验证执行体拿到了运行时。
 class OneShotLlm implements LlmProvider {
   @override
@@ -870,6 +886,80 @@ void main() {
     await runner.cleanupWorkspaces(keep: 0, maxAge: Duration.zero);
     expect(referenced.existsSync(), isTrue);
     expect(spare.existsSync(), isFalse);
+  });
+
+  test('cancel 关闭该 run 的网络 client', () async {
+    final _CloseTrackingClient client = _CloseTrackingClient();
+    final String workspace = '${tmp.path}/net-work';
+    Directory('$workspace/inbox').createSync(recursive: true);
+    File('$workspace/inbox/a.txt').writeAsStringSync('a');
+    final Map<String, Object?> netCard = cardJson(workspace)
+      ..['id'] = 'net-v01'
+      ..['network'] = 'allow';
+    File('$tasksDir/net-v01.json').writeAsStringSync(jsonEncode(netCard));
+    final TaskService runner = TaskService(
+      runsDir: '${tmp.path}/runs',
+      tasksDir: tasksDir,
+      pollInterval: const Duration(milliseconds: 20),
+      networkClientFactory: () => client,
+      env: <String, String>{
+        'WORK_LLM_BASE_URL': 'http://x',
+        'WORK_LLM_MODEL': 'm',
+      },
+      body: (RunScope scope, TaskSpec task) async {
+        await Future<void>.delayed(const Duration(milliseconds: 500));
+        return const TaskOutcome.ok();
+      },
+    );
+    final String runId = await runner.start(
+      cardId: 'net-v01',
+      workspaceRoot: workspace,
+      onEvent: (_) {},
+    );
+    await Future<void>.delayed(const Duration(milliseconds: 80));
+    await runner.cancel(runId);
+    expect(client.closed, isTrue);
+  });
+
+  test('reconcile 把死进程的 running 收口为 aborted', () async {
+    final TaskService runner = service(body: noopTaskBody);
+    final String runId = await runner.start(
+      cardId: 'move-v01',
+      onEvent: (_) {},
+    );
+    final File record = File('${tmp.path}/runs/$runId/run.json');
+    expect(await _waitFor(record.existsSync), isTrue);
+    final Map<String, Object?> run =
+        jsonDecode(record.readAsStringSync()) as Map<String, Object?>;
+    run['status'] = 'running';
+    run['pid'] = 999999;
+    run['endedAt'] = null;
+    record.writeAsStringSync(jsonEncode(run));
+
+    await runner.reconcile();
+
+    final Map<String, Object?> after =
+        jsonDecode(record.readAsStringSync()) as Map<String, Object?>;
+    expect(after['status'], 'aborted');
+    expect(after['endedAt'], isNotNull);
+  });
+
+  test('kill 对死进程 run 收口为 aborted', () async {
+    final TaskService runner = service(body: noopTaskBody);
+    final String runId = await runner.start(
+      cardId: 'move-v01',
+      onEvent: (_) {},
+    );
+    final File record = File('${tmp.path}/runs/$runId/run.json');
+    expect(await _waitFor(record.existsSync), isTrue);
+    final Map<String, Object?> run =
+        jsonDecode(record.readAsStringSync()) as Map<String, Object?>;
+    run['status'] = 'running';
+    run['pid'] = 999999;
+    run['endedAt'] = null;
+    record.writeAsStringSync(jsonEncode(run));
+
+    expect(await runner.kill(runId), 'aborted');
   });
 
   test('非法任务卡 id 被拒绝', () async {

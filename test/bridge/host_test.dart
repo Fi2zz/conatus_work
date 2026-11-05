@@ -200,6 +200,26 @@ void main() {
     expect((finished['data']! as Map<String, Object?>)['ok'], isFalse);
   });
 
+  test('task.kill 未知 run 回 NOT_FOUND', () async {
+    host = BridgeHost(
+      bridge: WorkbenchBridge(runsDir: runsRoot.path),
+      tasks: TaskService(
+        runsDir: runsRoot.path,
+        tasksDir: runsRoot.path,
+        env: <String, String>{
+          'WORK_LLM_BASE_URL': 'http://x',
+          'WORK_LLM_MODEL': 'm',
+        },
+      ),
+    );
+    final Map<String, Object?> frame = await call(
+      'task.kill',
+      <String, Object?>{'runId': 'run_missing'},
+    );
+    expect(frame['ok'], isFalse);
+    expect((frame['error']! as Map<String, Object?>)['code'], 'NOT_FOUND');
+  });
+
   test('task.list 返回任务摘要', () async {
     final Map<String, Object?> frame = await call('task.list');
     expect(frame['ok'], isTrue);
