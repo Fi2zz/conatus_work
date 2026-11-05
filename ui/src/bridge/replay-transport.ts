@@ -203,6 +203,20 @@ export function createReplayTransport(fixture: ReplayFixture, options: ReplayOpt
       return ok({ status: 'aborted' as RunStatus })
     },
 
+    async killTask(runId: string) {
+      cancelRun(runId)
+      emitRun(runId, {
+        at: 0,
+        type: 'task/ended',
+        data: {
+          status: 'aborted',
+          endedAt: new Date().toISOString(),
+          failure: { category: null, message: null },
+        },
+      })
+      return ok({ status: 'aborted' as RunStatus })
+    },
+
     async sendMessage() {
       return ok(undefined)
     },

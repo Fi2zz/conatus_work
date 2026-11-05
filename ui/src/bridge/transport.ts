@@ -33,6 +33,7 @@ export interface BridgeTransport {
   openTask(runId: string): Promise<CommandResult<RunView>>
   startTask(cardId: string, workspaceRoot?: string): Promise<CommandResult<{ runId: string }>>
   cancelTask(runId: string): Promise<CommandResult<{ status: RunStatus }>>
+  killTask?(runId: string): Promise<CommandResult<{ status: RunStatus }>>
   sendMessage(runId: string, text: string): Promise<CommandResult<void>>
   respondApproval(requestId: string, decision: 'allow' | 'deny'): Promise<CommandResult<void>>
   openDiff(runId: string, filePath?: string): Promise<CommandResult<ChangeSet>>

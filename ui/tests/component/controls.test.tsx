@@ -289,3 +289,24 @@ it('switches model from the composer picker', async () => {
   await userEvent.click(options[1])
   expect(saved[0]).toMatchObject({ model: expect.any(String) })
 })
+
+it('offers a hard stop while the host is still cleaning up', async () => {
+  seedRun([], { status: 'running' })
+  const killed: string[] = []
+  transportWith({
+    mode: 'host',
+    async cancelTask() {
+      return { ok: true, value: { status: 'aborted' } }
+    },
+    async killTask(runId: string) {
+      killed.push(runId)
+      return { ok: true, value: { status: 'aborted' } }
+    },
+  })
+  render(<Shell />)
+  await userEvent.click(screen.getByTestId('stop-button'))
+  const force = await screen.findByTestId('force-stop')
+  await userEvent.click(force)
+  expect(killed).toEqual(['run-a'])
+  await waitFor(() => expect(screen.queryByTestId('force-stop')).not.toBeInTheDocument())
+})

@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import type { JSX, PointerEvent as ReactPointerEvent } from 'react'
 
 import { getTransport, hasTransport } from '@/bridge/transport-store'
@@ -115,10 +115,13 @@ export function Shell(): JSX.Element {
   const toggleLeft = useUiStore((state) => state.toggleLeft)
   const rightWidth = useUiStore((state) => state.rightWidth)
   const rightPx = viewport < 900 ? Math.min(rightWidth, 320) : rightWidth
+  const [stopError, setStopError] = useState<string | null>(null)
 
   const summaries = order.map((id) => runs[id]).filter(Boolean)
   const active = activeRunId ? runs[activeRunId] : undefined
   const running = active?.status === 'running' || active?.status === 'pending'
+  const hostMode = hasTransport() && getTransport().mode === 'host'
+  const forceable = hostMode && active?.status === 'aborted' && active.endedAt === undefined
 
   useEffect(() => {
     function onKeyDown(event: KeyboardEvent): void {
@@ -206,6 +209,25 @@ export function Shell(): JSX.Element {
     if (!active) return
     const result = await getTransport().startTask(active.taskId)
     if (result.ok) setActive(result.value.runId)
+  }
+
+  async function forceKill(runId: string): Promise<void> {
+    const kill = getTransport().killTask
+    if (!kill) {
+      setStopError('当前宿主不支持强制停止。')
+      return
+    }
+    setStopError(null)
+    try {
+      const result = await kill.call(getTransport(), runId)
+      if (!result.ok) {
+        setStopError(result.error.message)
+        return
+      }
+      useWorkbenchStore.getState().finishRun(runId, result.value.status)
+    } catch (cause) {
+      setStopError(String(cause))
+    }
   }
 
   return (
@@ -338,8 +360,18 @@ export function Shell(): JSX.Element {
                 重试
               </Button>
             ) : null}
+            {forceable ? (
+              <Button size="sm" variant="danger" data-testid="force-stop" onClick={() => void forceKill(active.id)}>
+                强制停止
+              </Button>
+            ) : null}
           </div>
         </header>
+        {stopError ? (
+          <p data-testid="force-stop-error" className="border-b border-danger/30 bg-danger/5 px-4 py-1 text-[10.5px] text-danger">
+            {stopError}
+          </p>
+        ) : null}
         {active?.plan && active.plan.length > 0 ? <PlanStrip plan={active.plan} /> : null}
         <section data-testid="timeline" className="min-h-0 flex-1">
           <Timeline />

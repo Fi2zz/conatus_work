@@ -10,6 +10,7 @@ type WorkbenchStore = WorkbenchState & {
   apply: (event: BridgeEvent) => void
   setActive: (runId: string) => void
   setStatus: (runId: string, status: RunStatus) => void
+  finishRun: (runId: string, status: RunStatus) => void
   adoptRun: (run: RunView) => void
   reset: () => void
 }
@@ -23,6 +24,17 @@ export const useWorkbenchStore = create<WorkbenchStore>((set) => ({
       const run = store.runs[runId]
       if (!run) return store
       return { runs: { ...store.runs, [runId]: { ...run, status } } }
+    }),
+  finishRun: (runId, status) =>
+    set((store) => {
+      const run = store.runs[runId]
+      if (!run) return store
+      return {
+        runs: {
+          ...store.runs,
+          [runId]: { ...run, status, endedAt: run.endedAt ?? new Date().toISOString() },
+        },
+      }
     }),
   adoptRun: (run) =>
     set((store) => {
