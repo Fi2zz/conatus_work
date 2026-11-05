@@ -210,3 +210,14 @@ it('sends task.cancel and reports the abort status', async () => {
   channel.receive({ v: 1, kind: 'result', id: frame.id, ok: true, value: { status: 'aborted' } })
   expect(await pending).toEqual({ ok: true, value: { status: 'aborted' } })
 })
+
+it('sends task.create with the prompt and optional workspace', async () => {
+  const { channel, transport } = await connected()
+  if (!transport.createTask) throw new Error('createTask missing')
+  const pending = transport.createTask('整理下载目录', '/tmp/ws')
+  const frame = channel.commands()[0]
+  expect(frame.command).toBe('task.create')
+  expect(frame.payload).toEqual({ prompt: '整理下载目录', workspaceRoot: '/tmp/ws' })
+  channel.receive({ v: 1, kind: 'result', id: frame.id, ok: true, value: { runId: 'run-new' } })
+  expect(await pending).toEqual({ ok: true, value: { runId: 'run-new' } })
+})

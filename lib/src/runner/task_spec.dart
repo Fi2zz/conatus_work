@@ -12,7 +12,7 @@ import 'validators.dart';
 part 'task_spec_parse.dart';
 
 /// 阶段 0 的三条任务链。
-const Set<String> kTaskChains = <String>{'research', 'csv', 'organize'};
+const Set<String> kTaskChains = <String>{'research', 'csv', 'organize', 'free'};
 
 /// 任务卡不合法时抛出；[field] 是出错的字段路径。
 class TaskSpecError implements Exception {

@@ -32,6 +32,7 @@ export interface BridgeTransport {
   clearConfig?(): Promise<CommandResult<{ configured: boolean }>>
   openTask(runId: string): Promise<CommandResult<RunView>>
   startTask(cardId: string, workspaceRoot?: string): Promise<CommandResult<{ runId: string }>>
+  createTask?(prompt: string, workspaceRoot?: string): Promise<CommandResult<{ runId: string }>>
   cancelTask(runId: string): Promise<CommandResult<{ status: RunStatus }>>
   killTask?(runId: string): Promise<CommandResult<{ status: RunStatus }>>
   sendMessage(runId: string, text: string): Promise<CommandResult<void>>

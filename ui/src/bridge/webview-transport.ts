@@ -234,6 +234,11 @@ export function createWebViewTransport(options: Options = {}): BridgeTransport {
         cardId,
         ...(workspaceRoot ? { workspaceRoot } : {}),
       }),
+    createTask: (prompt: string, workspaceRoot?: string) =>
+      request<{ runId: string }>('task.create', {
+        prompt,
+        ...(workspaceRoot ? { workspaceRoot } : {}),
+      }),
     cancelTask: (runId: string) => request<{ status: RunStatus }>('task.cancel', { runId }),
     killTask: (runId: string) => request<{ status: RunStatus }>('task.kill', { runId }),
     sendMessage: (runId: string, text: string) =>

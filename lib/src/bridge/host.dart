@@ -232,6 +232,19 @@ class BridgeHost {
               push?.call(_eventFrame(event)),
         );
         return <String, Object?>{'runId': runId};
+      case 'task.create':
+        final TaskService service = _tasks();
+        final Object? createWorkspace = payload['workspaceRoot'];
+        final String created = await service.create(
+          prompt: _requireString(payload, 'prompt'),
+          workspaceRoot:
+              createWorkspace is String && createWorkspace.isNotEmpty
+              ? createWorkspace
+              : null,
+          onEvent: (Map<String, Object?> event) =>
+              push?.call(_eventFrame(event)),
+        );
+        return <String, Object?>{'runId': created};
       case 'message.send':
         await _tasks().send(
           _requireString(payload, 'runId'),

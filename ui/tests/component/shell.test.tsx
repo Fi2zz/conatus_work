@@ -101,3 +101,18 @@ it('starts a task from the card picker', async () => {
   await userEvent.click(await screen.findByText('移动一个文件'))
   expect(started).toEqual(['move-v01'])
 })
+
+it('starts a free-form task from the prompt', async () => {
+  const transport = createStubTransport([summaryOf()])
+  const prompts: string[] = []
+  transport.createTask = async (prompt: string) => {
+    prompts.push(prompt)
+    return { ok: true, value: { runId: 'run-a' } }
+  }
+  render(<App transport={transport} />)
+  await screen.findByTestId('task-list')
+  await userEvent.click(screen.getByTestId('new-task-button'))
+  await userEvent.type(await screen.findByTestId('new-task-prompt'), '整理下载目录并生成清单')
+  await userEvent.click(screen.getByTestId('new-task-start'))
+  expect(prompts).toEqual(['整理下载目录并生成清单'])
+})

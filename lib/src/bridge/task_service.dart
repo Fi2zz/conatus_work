@@ -148,6 +148,54 @@ class TaskService {
   }) async {
     final String path = _cardPath(cardId);
     final TaskSpec task = await TaskSpec.load(path);
+    return _startTask(task, path, onEvent, workspaceRoot);
+  }
+
+  /// 从一段自然语言创建自由任务；生成一张临时任务卡并复用 [start] 的流程。
+  Future<String> create({
+    required String prompt,
+    required void Function(Map<String, Object?>) onEvent,
+    String? workspaceRoot,
+  }) async {
+    final String text = prompt.trim();
+    if (text.isEmpty) throw const BridgeError('INTERNAL', '任务描述不能为空');
+    final int stamp = DateTime.now().millisecondsSinceEpoch;
+    final String id = 'free-$stamp';
+    final String firstLine = text.split('\n').first.trim();
+    final String title = firstLine.length > 48
+        ? firstLine.substring(0, 48)
+        : (firstLine.isEmpty ? '自由任务' : firstLine);
+    final Map<String, Object?> card = <String, Object?>{
+      'id': id,
+      'chain': 'free',
+      'title': title,
+      'workspace': <String, Object?>{
+        'root': 'var/workspaces/$id',
+        'read': <String>['.'],
+        'write': <String>['.'],
+      },
+      'inputs': <String>[],
+      'prompt': text,
+      'network': 'allow',
+      'expectedArtifacts': <String>[],
+      'acceptance': <String>[],
+      'limits': <String, Object?>{'maxMinutes': 20, 'maxCostUsd': 1},
+      'checkpoint': <String, Object?>{'enabled': true, 'keep': 5},
+    };
+    final Directory dir = Directory('$runsDir${Platform.pathSeparator}.free');
+    await dir.create(recursive: true);
+    final File file = File('${dir.path}${Platform.pathSeparator}$id.json');
+    await file.writeAsString(jsonEncode(card), flush: true);
+    final TaskSpec task = TaskSpec.parse(card);
+    return _startTask(task, file.path, onEvent, workspaceRoot);
+  }
+
+  Future<String> _startTask(
+    TaskSpec task,
+    String path,
+    void Function(Map<String, Object?>) onEvent,
+    String? workspaceRoot,
+  ) async {
     await reconcile();
     await cleanupWorkspaces();
     final LlmRuntime? runtime = _runtimeForRun();

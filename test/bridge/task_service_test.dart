@@ -163,6 +163,38 @@ void main() {
     expect(cards.single.chain, 'organize');
   });
 
+  test('create 从自然语言生成自由任务', () async {
+    final List<Map<String, Object?>> events = <Map<String, Object?>>[];
+    final String workspace = '${tmp.path}/free-ws';
+    Directory(workspace).createSync(recursive: true);
+    final TaskService runner = service(
+      body: (RunScope scope, TaskSpec task) async {
+        expect(task.chain, 'free');
+        expect(task.prompt, '整理下载目录并生成清单');
+        return const TaskOutcome.ok();
+      },
+    );
+    final String runId = await runner.create(
+      prompt: '整理下载目录并生成清单',
+      workspaceRoot: workspace,
+      onEvent: events.add,
+    );
+    expect(runId, startsWith('run_'));
+    expect(
+      await _waitFor(
+        () => events.any(
+          (Map<String, Object?> event) => event['type'] == 'task/ended',
+        ),
+      ),
+      isTrue,
+    );
+    final Map<String, Object?> started = events.first;
+    expect(started['type'], 'task/started');
+    final Map<String, Object?> data = started['data']! as Map<String, Object?>;
+    expect(data['chain'], 'free');
+    expect(data['title'], '整理下载目录并生成清单');
+  });
+
   test('未配置模型时明确报错', () async {
     final TaskService bare = service(env: <String, String>{});
     await expectLater(
