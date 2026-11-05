@@ -68,6 +68,8 @@ make dev-web        # 只开 Vite，浏览器里看 fixture 回放
 - `make dev` 会复用已运行的 Vite；退出 Flutter 后自动关掉它。
 - 改 React 组件自动 HMR，不用重启壳。
 - 改 Dart 壳代码在 `flutter run` 终端按 `r` 热重载、`R` 热重启。
+- `make dev` 自动设置 `CONATUS_WORK_WORKER=1`，任务跑在 dev worker 进程里，
+  「强制停止」会真正 SIGTERM/SIGKILL；`make bundle` 会把 AOT worker 内嵌进 App。
 - 手动指定开发地址：`CONATUS_WORK_UI_URL=http://127.0.0.1:5173 flutter run -d macos`。
 
 前端测试：

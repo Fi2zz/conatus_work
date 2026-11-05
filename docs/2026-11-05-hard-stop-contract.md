@@ -1,5 +1,8 @@
 # 硬停止契约与 worker 进程方案（2026-11-05）
 
+> 状态：Dart 侧已实现 worker + `task.kill`；UI 已有「强制停止」入口。
+> 开发模式需 `CONATUS_WORK_WORKER=1`（`make dev` 已自动设置），打包由 `make bundle` 内嵌 AOT worker。
+
 ## 一、为什么现在不能真正硬停
 
 任务在壳进程内跑：`TaskService.start` 直接 `unawaited(_execute(...))` 调用 `Runner.run`，
@@ -76,15 +79,15 @@ Flutter Shell
 
 ## 五、先做哪一步
 
-1. **协作式取消补完整（不改进程模型）**
-   - 工具调用前检查 `AbortSignal`
-   - 搜索 / 抓取按 run 持有 client，取消时关闭
-   - Shell 工具记录 pid，取消时杀进程组
-   - `task.cancel` 立即回 `aborted` 并推 `task/ended`
-   - 启动对账僵尸 `running`
-2. **再上 worker 进程**
-   - `task.kill` 真正 SIGTERM/SIGKILL
-   - 这一步完成后，UI 的「强制停止」才从“契约可用”变成“真的能杀”
+已完成：
+
+- **协作式取消**：搜索 / 抓取按 run 持有 client，取消时关闭；Shell 工具杀进程组；
+  `task.cancel` 立即回 `aborted`；启动对账僵尸 `running`
+- **worker 进程**：`task.kill` 按 `abort.request → SIGTERM → SIGKILL` 收口，
+  `run.json` 落 `aborted`；`make dev` 自动 `CONATUS_WORK_WORKER=1`，
+  `make bundle` 内嵌 AOT `runner_worker`
+
+后续只剩发布侧验证：打包后的 App 确认 worker 路径、强杀后撤销范围。
 
 ## 六、验收
 

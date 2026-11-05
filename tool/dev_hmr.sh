@@ -44,6 +44,6 @@ else
   echo "==> 复用已运行的 Vite（${URL}）"
 fi
 
-echo "==> flutter run -d macos（CONATUS_WORK_UI_URL=${URL}）"
+echo "==> flutter run -d macos（CONATUS_WORK_UI_URL=${URL}，worker=dev）"
 cd "$SHELL_DIR"
-CONATUS_WORK_UI_URL="$URL" flutter run -d macos
+CONATUS_WORK_WORKER=1 CONATUS_WORK_UI_URL="$URL" flutter run -d macos
