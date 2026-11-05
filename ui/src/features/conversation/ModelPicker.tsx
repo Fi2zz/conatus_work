@@ -128,7 +128,7 @@ export function ModelPicker({ disabled = false }: { disabled?: boolean }): JSX.E
         aria-expanded={open}
         disabled={disabled}
         onClick={() => void toggle()}
-        title="选择模型（下次运行生效）"
+        title="选择模型（写入宿主配置，重启壳后生效）"
         className={cn(
           'flex max-w-[10rem] items-center gap-1 rounded-sm border border-line px-1.5 py-0.5 text-[10px] text-ink-muted',
           'hover:bg-panel-muted hover:text-ink disabled:opacity-50',
@@ -147,6 +147,7 @@ export function ModelPicker({ disabled = false }: { disabled?: boolean }): JSX.E
           className="absolute bottom-full left-0 z-30 mb-1 w-64 rounded-md border border-line bg-panel p-1 shadow-panel"
         >
           <p className="px-2 py-1 text-[10px] text-ink-faint">模型 · {providerName || '当前服务商'}</p>
+          <p className="px-2 pb-1 text-[9.5px] text-ink-faint">写入宿主配置；当前壳进程重启后使用新模型。</p>
           <ul className="max-h-64 overflow-auto">
             {options.map((option) => (
               <li key={option.id}>
