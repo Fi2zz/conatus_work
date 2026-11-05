@@ -259,3 +259,33 @@ it('adds a dropped file as an attachment chip', () => {
   fireEvent.drop(screen.getByTestId('composer-box'), { dataTransfer: { files: [file] } })
   expect(screen.getByTestId('composer-attachment')).toHaveTextContent('report.csv')
 })
+
+it('switches model from the composer picker', async () => {
+  seedRun([], { status: 'succeeded' })
+  const saved: Array<Record<string, unknown>> = []
+  transportWith({
+    mode: 'host',
+    async readConfig() {
+      return {
+        ok: true,
+        value: {
+          configured: true,
+          baseUrl: 'https://api.deepseek.com',
+          model: 'deepseek-flash',
+          providerName: 'deepseek',
+          hasKey: true,
+        },
+      }
+    },
+    async saveConfig(payload: Record<string, unknown>) {
+      saved.push(payload)
+      return { ok: true, value: { configured: true, ...payload } }
+    },
+  })
+  render(<Shell />)
+  await userEvent.click(await screen.findByTestId('model-picker-trigger'))
+  const options = await screen.findAllByTestId('model-option')
+  expect(options.length).toBeGreaterThan(1)
+  await userEvent.click(options[1])
+  expect(saved[0]).toMatchObject({ model: expect.any(String) })
+})

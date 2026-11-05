@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button'
 import { useUiStore } from '@/state/ui-state'
 import { useWorkbench } from '@/state/workbench-store'
 import { ComposerTools } from './ComposerTools'
+import { ModelPicker } from './ModelPicker'
 
 const FINISHED = new Set(['succeeded', 'failed', 'aborted'])
 
@@ -161,6 +162,7 @@ export function Composer(): JSX.Element {
         />
         <div className="flex items-center gap-1 px-2 pb-1.5">
           <ComposerTools disabled={disabled || running} onAttach={addAttachment} onInsert={insert} />
+          <ModelPicker disabled={disabled || running} />
           <span className="ml-auto hidden text-[9.5px] text-ink-faint sm:inline">原型：附件不会上传</span>
           {pendingApproval || replay ? null : running && run ? (
             <Button

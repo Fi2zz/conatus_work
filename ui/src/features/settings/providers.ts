@@ -53,6 +53,15 @@ export function providerOf(id: string): ProviderPreset {
   return PROVIDERS.find((provider) => provider.id === id) ?? PROVIDERS[PROVIDERS.length - 1]
 }
 
+/** 用 baseUrl / providerName 反推本地服务商 id；找不到就归到自定义。 */
+export function providerIdFor(baseUrl?: string, providerName?: string): string {
+  const base = (baseUrl ?? '').replace(/\/+$/, '')
+  const byBase = PROVIDERS.find((provider) => provider.baseUrl.replace(/\/+$/, '') === base)
+  if (byBase) return byBase.id
+  const byName = PROVIDERS.find((provider) => provider.providerName === providerName)
+  return byName?.id ?? 'custom'
+}
+
 export interface ProviderDraft {
   baseUrl: string
   model: string
