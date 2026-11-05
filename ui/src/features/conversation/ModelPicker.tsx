@@ -25,13 +25,28 @@ export function ModelPicker({ disabled = false }: { disabled?: boolean }): JSX.E
   const host = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
-    if (!hasTransport() || typeof getTransport().readConfig !== 'function') return
-    void getTransport()
-      .readConfig()
-      .then((result) => {
-        if (result.ok) setConfig(result.value)
-      })
-      .catch(() => undefined)
+    let cancelled = false
+    let timer: number | undefined
+
+    async function read(): Promise<void> {
+      // AppProvider 在子组件挂载后才 setTransport，首帧可能还拿不到宿主。
+      if (!hasTransport() || typeof getTransport().readConfig !== 'function') {
+        timer = window.setTimeout(() => void read(), 120)
+        return
+      }
+      try {
+        const result = await getTransport().readConfig()
+        if (!cancelled && result.ok) setConfig(result.value)
+      } catch {
+        // 宿主暂时不可读时保持静默；下次连接/切换任务再试。
+      }
+    }
+
+    void read()
+    return () => {
+      cancelled = true
+      if (timer !== undefined) window.clearTimeout(timer)
+    }
   }, [])
 
   useEffect(() => {
