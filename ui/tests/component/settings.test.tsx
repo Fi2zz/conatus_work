@@ -70,10 +70,10 @@ it('offers multiple providers and fills the model preset', async () => {
   const provider = screen.getByTestId('settings-provider') as HTMLSelectElement
   expect(provider.options.length).toBeGreaterThan(5)
   await userEvent.selectOptions(provider, 'openai')
-  await userEvent.selectOptions(screen.getByTestId('settings-model-select'), 'gpt-4o')
+  await userEvent.selectOptions(screen.getByTestId('settings-model-select'), 'gpt-5.5')
   expect(screen.getByTestId('settings-base-url')).toHaveValue('https://api.openai.com/v1')
-  expect(screen.getByTestId('settings-model')).toHaveValue('gpt-4o')
-  expect(screen.getByTestId('settings-price-in')).toHaveValue('2.5')
+  expect(screen.getByTestId('settings-model')).toHaveValue('gpt-5.5')
+  expect(screen.getByTestId('settings-price-in')).toHaveValue('5')
 })
 
 it('lists current Kimi models instead of only K2', async () => {

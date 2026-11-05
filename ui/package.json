@@ -10,7 +10,8 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "e2e": "playwright test",
-    "lint": "tsc --noEmit"
+    "lint": "tsc --noEmit",
+    "sync-models": "node tools/sync-models.mjs"
   },
   "dependencies": {
     "@radix-ui/react-dialog": "^1.3.1",

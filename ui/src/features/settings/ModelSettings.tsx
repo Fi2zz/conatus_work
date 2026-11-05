@@ -6,6 +6,7 @@ import type { ModelConfig } from '@/bridge/types'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import {
+  MODELS_SYNCED_AT,
   PROVIDERS,
   providerOf,
   readDrafts,
@@ -233,6 +234,7 @@ export function ModelSettings(): JSX.Element {
           ))}
         </select>
         <span className="text-[10.5px] text-ink-faint">{preset.note}</span>
+        <span className="text-[10px] text-ink-faint">目录同步自 models.dev（{MODELS_SYNCED_AT}）</span>
       </label>
 
       <div className="grid grid-cols-2 gap-2">
