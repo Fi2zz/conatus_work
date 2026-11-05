@@ -4,7 +4,7 @@ import type { JSX, ClipboardEvent as ReactClipboardEvent, DragEvent as ReactDrag
 import { getTransport, hasTransport } from '@/bridge/transport-store'
 import { Button } from '@/components/ui/button'
 import { useUiStore } from '@/state/ui-state'
-import { useWorkbench } from '@/state/workbench-store'
+import { useWorkbench, useWorkbenchStore } from '@/state/workbench-store'
 import { ComposerTools } from './ComposerTools'
 import { ModelPicker } from './ModelPicker'
 
@@ -173,10 +173,24 @@ export function Composer(): JSX.Element {
               title="停止运行"
               disabled={stopping}
               onClick={() => {
-                setStoppingRun(run.id)
+                const runId = run.id
+                const previous = run.status
+                setStoppingRun(runId)
+                useWorkbenchStore.getState().setStatus(runId, 'aborted')
                 void getTransport()
-                  .cancelTask(run.id)
-                  .catch(() => setStoppingRun(null))
+                  .cancelTask(runId)
+                  .then((result) => {
+                    if (!result.ok) {
+                      useWorkbenchStore.getState().setStatus(runId, previous)
+                      setStoppingRun(null)
+                    } else {
+                      useWorkbenchStore.getState().setStatus(runId, result.value.status)
+                    }
+                  })
+                  .catch(() => {
+                    useWorkbenchStore.getState().setStatus(runId, previous)
+                    setStoppingRun(null)
+                  })
               }}
               className="h-7 w-7 shrink-0 rounded-full p-0 text-[11px]"
             >

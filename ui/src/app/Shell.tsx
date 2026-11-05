@@ -178,11 +178,21 @@ export function Shell(): JSX.Element {
 
   async function stop(): Promise<void> {
     if (!active || stopping) return
-    // 先给即时反馈，等运行真正结束（task/ended）再清掉。
-    setStoppingRun(active.id)
+    const runId = active.id
+    const previous = active.status
+    // 先乐观标记为 aborted，再等宿主确认；否则要等 runner 收尾才看到「停止」生效。
+    setStoppingRun(runId)
+    useWorkbenchStore.getState().setStatus(runId, 'aborted')
     try {
-      await getTransport().cancelTask(active.id)
+      const result = await getTransport().cancelTask(runId)
+      if (result.ok) {
+        useWorkbenchStore.getState().setStatus(runId, result.value.status)
+      } else {
+        useWorkbenchStore.getState().setStatus(runId, previous)
+        setStoppingRun(null)
+      }
     } catch {
+      useWorkbenchStore.getState().setStatus(runId, previous)
       setStoppingRun(null)
     }
   }

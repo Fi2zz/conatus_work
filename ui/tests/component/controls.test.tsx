@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, within } from '@testing-library/react'
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 
 import { Shell } from '@/app/Shell'
@@ -46,9 +46,9 @@ it('exposes an explicit stop button while running', async () => {
   expect(button).toHaveTextContent('停止')
   await userEvent.click(button)
   expect(cancelled).toEqual(['run-a'])
-  // 点击后立即进入「停止中」，直到运行结束
-  expect(button).toHaveTextContent('停止中')
-  expect(button).toBeDisabled()
+  // 点击后立即乐观切到 aborted，不再等 runner 收尾
+  await waitFor(() => expect(screen.queryByTestId('stop-button')).not.toBeInTheDocument())
+  expect(screen.getByTestId('run-header')).toHaveTextContent('aborted')
 })
 
 it('stops the running task with cmd+period', async () => {
