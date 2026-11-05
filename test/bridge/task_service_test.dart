@@ -437,7 +437,7 @@ void main() {
     );
     await Future<void>.delayed(const Duration(milliseconds: 60));
     await runner.cancel(runId);
-    expect(client.closed, isTrue);
+    expect(await _waitFor(() => client.closed), isTrue);
   });
 
   test('cancel 写入中断标记', () async {

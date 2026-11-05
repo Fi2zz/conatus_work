@@ -19,12 +19,14 @@ import '../runner/run_paths.dart';
 import '../runner/run_store.dart';
 import '../runner/runner.dart';
 import '../runner/task_spec.dart';
+import '../runner/worker_job.dart';
 import '../runner/workspace.dart';
 import 'bridge_error.dart';
 import 'live_watch.dart';
 import 'projection_io.dart';
 import 'projection_payload.dart';
 import 'run_watch.dart';
+import 'worker_launcher.dart';
 
 /// 一张可执行的任务卡。
 class TaskCard {
@@ -67,6 +69,7 @@ class TaskService {
     this.workspacesDir,
     this.clientFactory,
     this.networkClientFactory,
+    this.workerLauncher,
   }) : _env = env ?? Platform.environment,
        _provider = provider;
 
@@ -93,6 +96,15 @@ class TaskService {
 
   /// 每次运行独占的联网客户端（搜索 / 抓取）；缺省自建。
   final http.Client Function()? networkClientFactory;
+
+  /// 显式注入的 worker 启动器；空时按环境/打包位置自动发现。
+  final WorkerLauncher? workerLauncher;
+
+  late final WorkerLauncher? _worker =
+      workerLauncher ?? WorkerLauncher.discover(env: _env);
+  final Map<String, WorkerProcess> _workers = <String, WorkerProcess>{};
+  final Map<String, Timer> _approvalScans = <String, Timer>{};
+  final Set<String> _seenWorkerRequests = <String>{};
   final Map<String, LlmRuntime> _runtimes = <String, LlmRuntime>{};
   final Map<String, http.Client> _networkClients = <String, http.Client>{};
   final Map<String, RunEventStream> _streams = <String, RunEventStream>{};
@@ -138,11 +150,11 @@ class TaskService {
     final TaskSpec task = await TaskSpec.load(path);
     await reconcile();
     await cleanupWorkspaces();
-    final LlmRuntime runtime = _runtime();
+    final LlmRuntime? runtime = _runtimeForRun();
     final String runId = newRunId(DateTime.now());
-    _runtimes[runId] = runtime;
+    if (runtime != null) _runtimes[runId] = runtime;
     final RunPaths paths = RunPaths(runsDir: runsDir, runId: runId);
-    final http.Client? networkClient = task.allowNetwork
+    final http.Client? networkClient = _worker == null && task.allowNetwork
         ? (networkClientFactory ?? http.Client.new)()
         : null;
     if (networkClient != null) _networkClients[runId] = networkClient;
@@ -252,8 +264,23 @@ class TaskService {
     }
   }
 
-  /// 硬停止。没有 worker 时只能收口死进程；进程内运行返回明确原因。
+  /// 硬停止 worker；进程内运行没有独立进程，返回明确原因。
   Future<String> kill(String runId) async {
+    final WorkerProcess? process = _workers[runId];
+    if (process != null) {
+      await _requestAbort(runId);
+      if (await _waitExit(process, const Duration(seconds: 2))) {
+        return 'aborted';
+      }
+      process.terminate();
+      if (await _waitExit(process, const Duration(seconds: 2))) {
+        return 'aborted';
+      }
+      process.kill();
+      await _waitExit(process, const Duration(seconds: 2));
+      await _reconcileRun(runId);
+      return 'aborted';
+    }
     final RunRecord record = await _loadRecord(runId);
     if (record.status != TaskRunStatus.running) return record.status.name;
     if (!pidAlive(record.pid)) {
@@ -263,7 +290,29 @@ class TaskService {
       ).abort(runId);
       return aborted.status.name;
     }
-    throw const BridgeError('INTERNAL', '当前是进程内运行，无法硬停止；需要 worker 进程');
+    if (record.pid == pid) {
+      throw const BridgeError('INTERNAL', '当前是进程内运行，无法硬停止；需要 worker 进程');
+    }
+    await _terminateExternal(record.pid);
+    await _reconcileRun(runId);
+    return 'aborted';
+  }
+
+  Future<bool> _waitExit(WorkerProcess process, Duration timeout) =>
+      Future.any<bool>(<Future<bool>>[
+        process.exitCode.then((_) => true),
+        Future<bool>.delayed(timeout, () => false),
+      ]);
+
+  Future<void> _terminateExternal(int target) async {
+    Process.killPid(target);
+    for (int i = 0; i < 20 && pidAlive(target); i += 1) {
+      await Future<void>.delayed(const Duration(milliseconds: 100));
+    }
+    if (pidAlive(target)) Process.killPid(target, ProcessSignal.sigkill);
+    for (int i = 0; i < 20 && pidAlive(target); i += 1) {
+      await Future<void>.delayed(const Duration(milliseconds: 100));
+    }
   }
 
   Future<void> _requestAbort(String runId) async {
@@ -296,7 +345,8 @@ class TaskService {
         'decision': decision,
       }),
     );
-    pending.completer.complete(decision == 'allow');
+    pending.respond?.call(decision);
+    pending.completer?.complete(decision == 'allow');
   }
 
   /// 在已结束的 run 上追加一条用户消息并继续执行；事件从 `onEvent` 增量推送。
@@ -319,9 +369,9 @@ class TaskService {
         (record.status == TaskRunStatus.running && pidAlive(record.pid))) {
       throw const BridgeError('DENIED', '该运行仍在执行，先停止再发送');
     }
-    final LlmRuntime runtime;
+    final LlmRuntime? runtime;
     try {
-      runtime = _runtime();
+      runtime = _runtimeForRun();
     } on StateError catch (error) {
       throw BridgeError('INTERNAL', error.message);
     }
@@ -333,12 +383,12 @@ class TaskService {
       startedAt: startedAt,
       startSeq: _nextSendSeq(),
     );
-    final http.Client? networkClient = task.allowNetwork
+    final http.Client? networkClient = _worker == null && task.allowNetwork
         ? (networkClientFactory ?? http.Client.new)()
         : null;
     if (networkClient != null) _networkClients[runId] = networkClient;
     _streams[runId] = stream;
-    _runtimes[runId] = runtime;
+    if (runtime != null) _runtimes[runId] = runtime;
     void emit(Map<String, Object?> event) =>
         onEvent(<String, Object?>{...event, 'runId': runId});
     emit(
@@ -366,7 +416,7 @@ class TaskService {
     RunPaths paths,
     RunEventStream stream,
     void Function(Map<String, Object?>) emit,
-    LlmRuntime runtime,
+    LlmRuntime? runtime,
     http.Client? networkClient,
   ) async {
     LiveWatcher? watcher;
@@ -381,26 +431,44 @@ class TaskService {
         emit: (String type, Map<String, Object?> data) =>
             emit(_extraEvent(type, record.runId, data)),
       )..start();
-      final RunnerApproval approval = RunnerApproval(
-        onRequest: (ApprovalRequest request) =>
-            _requestApproval(record.runId, request, emit),
-      );
-      final RunRecord updated =
-          await Runner(
-            body: body ?? agentTaskBody,
+      final RunRecord updated;
+      if (_worker != null) {
+        updated = await _runWorker(
+          WorkerJob(
             runsDir: runsDir,
-            llm: runtime,
-            checkpointBudgetBytes: checkpointBudgetFromEnv(_env),
-          ).continueRun(
-            record.runId,
-            text,
-            onStream: (LlmStreamEvent event) {
-              if (event is LlmTextDelta) stream.emitDelta(event.text);
-              if (event is LlmStreamDone) stream.endDelta();
-            },
-            approval: approval,
-            networkClient: networkClient,
-          );
+            runId: record.runId,
+            cardPath: record.taskPath,
+            workspaceRoot: record.workspaceRoot,
+            mode: 'continue',
+            text: text,
+            budgetBytes: checkpointBudgetFromEnv(_env),
+          ),
+          paths,
+          record.runId,
+          emit,
+        );
+      } else {
+        final RunnerApproval approval = RunnerApproval(
+          onRequest: (ApprovalRequest request) =>
+              _requestApproval(record.runId, request, emit),
+        );
+        updated =
+            await Runner(
+              body: body ?? agentTaskBody,
+              runsDir: runsDir,
+              llm: runtime,
+              checkpointBudgetBytes: checkpointBudgetFromEnv(_env),
+            ).continueRun(
+              record.runId,
+              text,
+              onStream: (LlmStreamEvent event) {
+                if (event is LlmTextDelta) stream.emitDelta(event.text);
+                if (event is LlmStreamDone) stream.endDelta();
+              },
+              approval: approval,
+              networkClient: networkClient,
+            );
+      }
       await watcher.stop();
       await stream.flush();
       stream.stop();
@@ -433,6 +501,112 @@ class TaskService {
       _streams.remove(record.runId);
       _runtimes.remove(record.runId)?.abortInFlight();
     }
+  }
+
+  Future<RunRecord> _runWorker(
+    WorkerJob job,
+    RunPaths paths,
+    String runId,
+    void Function(Map<String, Object?>) emit,
+  ) async {
+    final WorkerProcess process = await _worker!.start(
+      job,
+      jobPath: '${paths.runDir}${Platform.pathSeparator}worker-job.json',
+      env: _env,
+    );
+    _workers[runId] = process;
+    _startApprovalScan(runId, paths, emit);
+    try {
+      await process.exitCode;
+    } finally {
+      _stopApprovalScan(runId);
+      _workers.remove(runId);
+    }
+    await _reconcileRun(runId);
+    return _loadRecord(runId);
+  }
+
+  Future<void> _reconcileRun(String runId) async {
+    try {
+      final RunPaths paths = RunPaths(runsDir: runsDir, runId: runId);
+      final Map<String, Object?>? run = readJsonObject(paths.runJsonPath);
+      if (run == null || run['status'] != 'running') return;
+      final int pid = run['pid'] as int? ?? 0;
+      if (pidAlive(pid)) return;
+      await Runner(body: body ?? agentTaskBody, runsDir: runsDir).abort(runId);
+    } on Object {
+      await _forceAbort(runId);
+    }
+  }
+
+  void _startApprovalScan(
+    String runId,
+    RunPaths paths,
+    void Function(Map<String, Object?>) emit,
+  ) {
+    final Directory dir = Directory(
+      '${paths.runDir}${Platform.pathSeparator}approvals'
+      '${Platform.pathSeparator}requests',
+    );
+    _approvalScans[runId] = Timer.periodic(
+      const Duration(milliseconds: 100),
+      (_) => unawaited(_scanApprovals(runId, paths, emit, dir)),
+    );
+  }
+
+  Future<void> _scanApprovals(
+    String runId,
+    RunPaths paths,
+    void Function(Map<String, Object?>) emit,
+    Directory dir,
+  ) async {
+    if (!dir.existsSync()) return;
+    for (final FileSystemEntity entity in dir.listSync()) {
+      if (entity is! File || !entity.path.endsWith('.json')) continue;
+      final String name = entity.uri.pathSegments.last;
+      final String id = name.substring(0, name.length - 5);
+      if (_seenWorkerRequests.contains(id)) continue;
+      _seenWorkerRequests.add(id);
+      final Map<String, Object?>? request = readJsonObject(entity.path);
+      if (request == null) continue;
+      final String tool = request['toolName'] as String? ?? 'unknown';
+      _approvals[id] = _PendingApproval(
+        runId: runId,
+        name: tool,
+        emit: emit,
+        respond: (String decision) {
+          unawaited(_writeApprovalResponse(paths, id, decision));
+        },
+      );
+      emit(
+        _extraEvent('approval/requested', runId, <String, Object?>{
+          'requestId': id,
+          'callId': id,
+          'name': tool,
+          'args': jsonEncode(request['arguments'] ?? const <String, Object?>{}),
+          'riskLevel': 'high',
+        }),
+      );
+    }
+  }
+
+  Future<void> _writeApprovalResponse(
+    RunPaths paths,
+    String requestId,
+    String decision,
+  ) async {
+    final Directory dir = Directory(
+      '${paths.runDir}${Platform.pathSeparator}approvals'
+      '${Platform.pathSeparator}responses',
+    );
+    await dir.create(recursive: true);
+    await File(
+      '${dir.path}${Platform.pathSeparator}$requestId.json',
+    ).writeAsString(jsonEncode(<String, Object?>{'decision': decision}));
+  }
+
+  void _stopApprovalScan(String runId) {
+    _approvalScans.remove(runId)?.cancel();
   }
 
   int _nextSendSeq() {
@@ -531,7 +705,10 @@ class TaskService {
           'decision': 'deny',
         }),
       );
-      if (!pending.completer.isCompleted) pending.completer.complete(false);
+      pending.respond?.call('deny');
+      if (pending.completer != null && !pending.completer!.isCompleted) {
+        pending.completer!.complete(false);
+      }
     }
   }
 
@@ -542,7 +719,7 @@ class TaskService {
     RunPaths paths,
     void Function(Map<String, Object?>) onEvent,
     String? workspaceRoot,
-    LlmRuntime runtime,
+    LlmRuntime? runtime,
     String? fixtureDir,
     http.Client? networkClient,
   ) async {
@@ -558,41 +735,62 @@ class TaskService {
     }, interval: pollInterval);
 
     LiveWatcher? watcher;
+    final String resolvedRoot = resolveWorkspaceRoot(
+      task: task,
+      rootOverride: workspaceRoot,
+    );
     try {
       watcher = LiveWatcher(
         task: task,
-        root: resolveWorkspaceRoot(task: task, rootOverride: workspaceRoot),
+        root: resolvedRoot,
         sessionPath: paths.eventsPath,
         interval: pollInterval,
         emit: (String type, Map<String, Object?> data) =>
             onEvent(_extraEvent(type, runId, data)),
       )..start();
-      final RunnerApproval approval = RunnerApproval(
-        onRequest: (ApprovalRequest request) =>
-            _requestApproval(runId, request, onEvent),
-      );
-      final RunRecord record =
-          await Runner(
-            body: body ?? agentTaskBody,
+      final RunRecord record;
+      if (_worker != null) {
+        record = await _runWorker(
+          WorkerJob(
             runsDir: runsDir,
-            llm: runtime,
-            checkpointBudgetBytes: checkpointBudgetFromEnv(_env),
-          ).run(
-            RunRequest(
-              task: task,
-              taskPath: cardPath,
-              workspaceRoot: workspaceRoot,
-              fixtureDir: fixtureDir,
-              confirmed: true,
-            ),
             runId: runId,
-            onStream: (LlmStreamEvent event) {
-              if (event is LlmTextDelta) stream.emitDelta(event.text);
-              if (event is LlmStreamDone) stream.endDelta();
-            },
-            approval: approval,
-            networkClient: networkClient,
-          );
+            cardPath: cardPath,
+            workspaceRoot: resolvedRoot,
+            fixtureDir: fixtureDir,
+            budgetBytes: checkpointBudgetFromEnv(_env),
+          ),
+          paths,
+          runId,
+          onEvent,
+        );
+      } else {
+        final RunnerApproval approval = RunnerApproval(
+          onRequest: (ApprovalRequest request) =>
+              _requestApproval(runId, request, onEvent),
+        );
+        record =
+            await Runner(
+              body: body ?? agentTaskBody,
+              runsDir: runsDir,
+              llm: runtime,
+              checkpointBudgetBytes: checkpointBudgetFromEnv(_env),
+            ).run(
+              RunRequest(
+                task: task,
+                taskPath: cardPath,
+                workspaceRoot: workspaceRoot,
+                fixtureDir: fixtureDir,
+                confirmed: true,
+              ),
+              runId: runId,
+              onStream: (LlmStreamEvent event) {
+                if (event is LlmTextDelta) stream.emitDelta(event.text);
+                if (event is LlmStreamDone) stream.endDelta();
+              },
+              approval: approval,
+              networkClient: networkClient,
+            );
+      }
       await watcher.stop();
       await stream.flush();
       stream.stop();
@@ -786,6 +984,18 @@ class TaskService {
     return path;
   }
 
+  LlmRuntime? _runtimeForRun() {
+    if (_worker != null) {
+      try {
+        llmConfigFromEnv(_env);
+      } on LlmConfigError catch (error) {
+        throw StateError('未配置模型：${error.message}（设置 WORK_LLM_* 后重试）');
+      }
+      return null;
+    }
+    return _runtime();
+  }
+
   LlmRuntime _runtime() {
     try {
       return LlmRuntime(
@@ -804,11 +1014,13 @@ class _PendingApproval {
     required this.runId,
     required this.name,
     required this.emit,
-    required this.completer,
+    this.completer,
+    this.respond,
   });
 
   final String runId;
   final String name;
   final void Function(Map<String, Object?>) emit;
-  final Completer<bool> completer;
+  final Completer<bool>? completer;
+  final void Function(String decision)? respond;
 }

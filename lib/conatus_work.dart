@@ -14,6 +14,8 @@ export 'src/bridge/contract.dart' show RunFixture, RunSummary;
 export 'src/bridge/host.dart' show BridgeHost, kProtocolVersion;
 export 'src/bridge/projection.dart' show projectRunDir;
 export 'src/bridge/task_service.dart' show TaskCard, TaskService;
+export 'src/bridge/worker_launcher.dart'
+    show ProcessWorker, WorkerLauncher, WorkerProcess;
 export 'src/runner/assembly.dart' show RunScope;
 export 'src/runner/cli.dart' show kRunsDir, runCli;
 export 'src/runner/run_store.dart'
@@ -30,3 +32,5 @@ export 'src/runner/run_store.dart'
 export 'src/runner/runner.dart'
     show Runner, TaskBody, TaskOutcome, noopTaskBody;
 export 'src/runner/task_spec.dart' show TaskSpec, TaskSpecError, kTaskChains;
+export 'src/runner/worker_entry.dart' show runWorkerJob;
+export 'src/runner/worker_job.dart' show WorkerJob;

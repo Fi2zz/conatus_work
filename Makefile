@@ -28,7 +28,8 @@ help:
 	  '  make dev-web      只启动前端开发服务器（浏览器 + fixture 回放）' \
 	  '  make build-ui     构建前端（tsc + vite）' \
 	  '  make build-shell  构建 macOS 壳（release）' \
-	  '  make bundle       构建并内嵌前端与任务卡到 .app' \
+	  '  make build-worker 构建 AOT worker（dist/runner_worker）' \
+	  '  make bundle       构建并内嵌前端、任务卡与 worker 到 .app' \
 	  '  make package      完整打包 zip 到 dist/' \
 	  '  make test         跑 Dart 与前端测试' \
 	  '  make test-dart    只跑 Dart 测试' \
@@ -52,7 +53,7 @@ dev-hmr:
 
 dev-dist: build-ui
 	@echo "==> flutter run -d macos（ui=$(UI_DIR)/dist）"
-	cd $(SHELL_DIR) && CONATUS_WORK_UI="$(UI_DIR)/dist" flutter run -d macos
+	cd $(SHELL_DIR) && CONATUS_WORK_WORKER=1 CONATUS_WORK_UI="$(UI_DIR)/dist" flutter run -d macos
 
 dev-web:
 	@echo "==> vite dev server"
@@ -66,9 +67,15 @@ build-shell:
 	@echo "==> 构建 macOS 壳"
 	cd $(SHELL_DIR) && flutter build macos --release
 
-bundle: build-ui build-shell
-	@echo "==> 内嵌前端与任务卡"
+build-worker:
+	@echo "==> 构建 AOT worker"
+	bash $(ROOT)/tool/build_worker.sh
+
+bundle: build-ui build-shell build-worker
+	@echo "==> 内嵌前端、任务卡与 worker"
 	bash $(SHELL_DIR)/tool/bundle_ui.sh "$(APP_PATH)"
+	@mkdir -p "$(APP_PATH)/Contents/Resources/worker"
+	@cp $(ROOT)/dist/runner_worker "$(APP_PATH)/Contents/Resources/worker/runner_worker"
 
 package: bundle
 	@mkdir -p $(DIST_DIR)
