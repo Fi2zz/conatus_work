@@ -60,7 +60,7 @@ interface UiState {
   undoDialog: boolean
   composerDraft: string
   commandOpen: boolean
-  newTaskOpen: boolean
+  newSessionOpen: boolean
   compareOpen: boolean
   usageOpen: boolean
   shortcutsOpen: boolean
@@ -92,7 +92,7 @@ interface UiState {
   setUndoDialog: (open: boolean) => void
   setComposerDraft: (text: string) => void
   setCommandOpen: (open: boolean) => void
-  setNewTaskOpen: (open: boolean) => void
+  setNewSessionOpen: (open: boolean) => void
   setCompareOpen: (open: boolean) => void
   setUsageOpen: (open: boolean) => void
   setShortcutsOpen: (open: boolean) => void
@@ -124,7 +124,7 @@ export const useUiStore = create<UiState>((set) => ({
   undoDialog: false,
   composerDraft: '',
   commandOpen: false,
-  newTaskOpen: false,
+  newSessionOpen: false,
   compareOpen: false,
   usageOpen: false,
   shortcutsOpen: false,
@@ -194,7 +194,7 @@ export const useUiStore = create<UiState>((set) => ({
   setUndoDialog: (undoDialog) => set({ undoDialog }),
   setComposerDraft: (composerDraft) => set({ composerDraft }),
   setCommandOpen: (commandOpen) => set({ commandOpen }),
-  setNewTaskOpen: (newTaskOpen) => set({ newTaskOpen }),
+  setNewSessionOpen: (newSessionOpen) => set({ newSessionOpen }),
   setCompareOpen: (compareOpen) => set({ compareOpen }),
   setUsageOpen: (usageOpen) => set({ usageOpen }),
   setShortcutsOpen: (shortcutsOpen) => set({ shortcutsOpen }),

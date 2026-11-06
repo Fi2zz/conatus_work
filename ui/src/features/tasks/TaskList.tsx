@@ -39,7 +39,7 @@ export function TaskList({ runs, activeId, onSelect, loading = false }: TaskList
   const clearSelected = useUiStore((state) => state.clearTaskSelection)
   const setArchiveView = useUiStore((state) => state.setArchiveView)
   const setGrouping = useUiStore((state) => state.setTaskGrouping)
-  const setNewTaskOpen = useUiStore((state) => state.setNewTaskOpen)
+  const setNewSessionOpen = useUiStore((state) => state.setNewSessionOpen)
   const setShortcutsOpen = useUiStore((state) => state.setShortcutsOpen)
 
   if (loading) return <Skeleton rows={5} />
@@ -54,7 +54,7 @@ export function TaskList({ runs, activeId, onSelect, loading = false }: TaskList
             <li>在右栏检查产物、变更与检查点</li>
           </ol>
           <div className="mt-2 flex gap-2">
-            <Button size="sm" variant="primary" onClick={() => setNewTaskOpen(true)}>
+            <Button size="sm" variant="primary" onClick={() => setNewSessionOpen(true)}>
               新建任务
             </Button>
             <Button size="sm" variant="quiet" onClick={() => setShortcutsOpen(true)}>

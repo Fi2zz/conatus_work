@@ -197,6 +197,25 @@ export function createReplayTransport(fixture: ReplayFixture, options: ReplayOpt
       return ok({ runId })
     },
 
+    async createTask(prompt: string) {
+      runCounter += 1
+      const runId = `${fixture.run.id}#${runCounter}`
+      activeRunId = runId
+      pushImmediate(runId, {
+        at: 0,
+        type: 'task/started',
+        data: {
+          taskId: `free-${runCounter}`,
+          title: `自由任务：${prompt.trim().slice(0, 24) || '未命名'}`,
+          chain: 'free',
+          model: fixture.run.model,
+          startedAt: new Date().toISOString(),
+        },
+      })
+      scheduleRun(runId, true)
+      return ok({ runId })
+    },
+
     async cancelTask(runId: string) {
       cancelRun(runId)
       emitRun(runId, { at: 0, type: 'task/status', data: { status: 'aborted' } })

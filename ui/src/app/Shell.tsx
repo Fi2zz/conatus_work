@@ -19,7 +19,8 @@ import { useViewportWidth } from '@/lib/viewport'
 import { undoScope } from '@/state/selectors'
 import { useUiStore } from '@/state/ui-state'
 import { useWorkbench, useWorkbenchStore } from '@/state/workbench-store'
-import { CompareDialog, NewTaskDialog } from './dialogs'
+import { CompareDialog } from './dialogs'
+import { NewSessionView } from '@/features/conversation/NewSessionView'
 import { RightPane } from './RightPane'
 
 const RAIL_WIDTH = 56
@@ -101,7 +102,8 @@ export function Shell(): JSX.Element {
   const adoptRun = useWorkbenchStore((store) => store.adoptRun)
   const setCommandOpen = useUiStore((state) => state.setCommandOpen)
   const setUndoDialog = useUiStore((state) => state.setUndoDialog)
-  const setNewTaskOpen = useUiStore((state) => state.setNewTaskOpen)
+  const setNewSessionOpen = useUiStore((state) => state.setNewSessionOpen)
+  const newSessionOpen = useUiStore((state) => state.newSessionOpen)
   const setCompareOpen = useUiStore((state) => state.setCompareOpen)
   const setUsageOpen = useUiStore((state) => state.setUsageOpen)
   const setShortcutsOpen = useUiStore((state) => state.setShortcutsOpen)
@@ -142,7 +144,7 @@ export function Shell(): JSX.Element {
       }
       if (key === 'n') {
         event.preventDefault()
-        setNewTaskOpen(true)
+        openNewSession()
       }
       if (event.key === '.') {
         event.preventDefault()
@@ -151,7 +153,7 @@ export function Shell(): JSX.Element {
     }
     window.addEventListener('keydown', onKeyDown)
     return () => window.removeEventListener('keydown', onKeyDown)
-  }, [setCommandOpen, setUndoDialog, setNewTaskOpen, running, stopping, active?.id])
+  }, [setCommandOpen, setUndoDialog, setNewSessionOpen, running, stopping, active?.id])
 
   // 运行结束（或切换了任务）就把「停止中」清掉。
   useEffect(() => {
@@ -160,11 +162,22 @@ export function Shell(): JSX.Element {
 
   const restoreLast = readRestoreLast()
   useEffect(() => {
-    if (!restoreLast || activeRunId || order.length === 0) return
+    if (!restoreLast || activeRunId || newSessionOpen || order.length === 0) return
     setActive(order[0])
-  }, [restoreLast, activeRunId, order, setActive])
+  }, [restoreLast, activeRunId, newSessionOpen, order, setActive])
+
+  function openNewSession(): void {
+    setNewSessionOpen(true)
+    setStopError(null)
+    useWorkbenchStore.setState({ activeRunId: null })
+  }
+
+  useEffect(() => {
+    if (newSessionOpen && activeRunId) setNewSessionOpen(false)
+  }, [newSessionOpen, activeRunId, setNewSessionOpen])
 
   function selectTask(runId: string): void {
+    setNewSessionOpen(false)
     setActive(runId)
     const existing = runs[runId]
     if (!hasTransport() || (existing && existing.timeline.length > 0)) return
@@ -258,7 +271,7 @@ export function Shell(): JSX.Element {
                 size="sm"
                 variant="quiet"
                 data-testid="new-task-button"
-                onClick={() => setNewTaskOpen(true)}
+                onClick={openNewSession}
               >
                 新任务
               </Button>
@@ -314,6 +327,10 @@ export function Shell(): JSX.Element {
       </aside>
 
       <main className="flex min-h-0 flex-col">
+        {newSessionOpen ? (
+          <NewSessionView />
+        ) : (
+          <>
         <header
           data-testid="run-header"
           className="flex items-center justify-between gap-3 border-b border-line/70 bg-panel px-4 py-2"
@@ -378,12 +395,13 @@ export function Shell(): JSX.Element {
         </section>
         {active?.approval ? <ApprovalBar request={active.approval} /> : null}
         <Composer />
+          </>
+        )}
       </main>
 
       <Splitter />
       <RightPane />
       <CommandPalette />
-      <NewTaskDialog />
       <CompareDialog />
       <UsageDialog />
       <ShortcutsDialog />

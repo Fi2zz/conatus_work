@@ -26,7 +26,7 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
     useUiStore.setState({
       module: 'work',
       commandOpen: false,
-      newTaskOpen: false,
+      newSessionOpen: false,
       compareOpen: false,
       undoDialog: false,
       rightExpanded: false,

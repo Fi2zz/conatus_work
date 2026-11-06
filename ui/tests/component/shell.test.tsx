@@ -84,7 +84,7 @@ it('asks the host for a run whose timeline is still empty', async () => {
   expect(await screen.findByText('来自宿主的事件')).toBeInTheDocument()
 })
 
-it('starts a task from the card picker', async () => {
+it('starts a task from a template in the new session', async () => {
   const transport = createStubTransport([summaryOf()])
   const started: string[] = []
   transport.listCards = async () => ({
@@ -112,7 +112,17 @@ it('starts a free-form task from the prompt', async () => {
   render(<App transport={transport} />)
   await screen.findByTestId('task-list')
   await userEvent.click(screen.getByTestId('new-task-button'))
-  await userEvent.type(await screen.findByTestId('new-task-prompt'), '整理下载目录并生成清单')
-  await userEvent.click(screen.getByTestId('new-task-start'))
+  await userEvent.type(await screen.findByTestId('new-session-prompt'), '整理下载目录并生成清单')
+  await userEvent.click(screen.getByTestId('new-session-start'))
   expect(prompts).toEqual(['整理下载目录并生成清单'])
+})
+
+it('opens a new session inline instead of a modal', async () => {
+  const transport = createStubTransport([summaryOf()])
+  render(<App transport={transport} />)
+  await screen.findByTestId('task-list')
+  await userEvent.click(screen.getByTestId('new-task-button'))
+  expect(await screen.findByTestId('new-session')).toBeInTheDocument()
+  expect(screen.queryByTestId('new-task-dialog')).not.toBeInTheDocument()
+  expect(screen.getByTestId('workspace-chip')).toHaveTextContent('自动工作区')
 })
